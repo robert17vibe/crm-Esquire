@@ -1,0 +1,141 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Design tokens ──────────────────────────────────────────────────────────
+   Todas as cores do app passam por aqui.
+   Componentes usam as classes Tailwind mapeadas abaixo (surface-*, ink-*, brand, line).
+   ──────────────────────────────────────────────────────────────────────────── */
+:root {
+  /* Surfaces */
+  --surface-base:     #f8f7ff;
+  --surface-card:     #ffffff;
+  --surface-col:      #efedfc;
+  --surface-col-over: #eef2ff;
+  --surface-sidebar:  #1e1b4b;
+
+  /* Ink (text) */
+  --ink-base:  #1a1a2e;
+  --ink-muted: #8b8aa3;
+  --ink-faint: #c5c4d6;
+
+  /* Brand */
+  --brand:       #5b50e8;
+  --brand-hover: #4f44d1;
+
+  /* Borders — split into RGB channels so opacity modifiers work */
+  /* #dddaf5 = rgb(221 218 245) */
+  --line-rgb: 221 218 245;
+
+  /* Misc utility */
+  --progress-bg:    #ece9ff;
+  --shadow-card:    0 2px 12px rgba(91,80,232,0.08);
+  --shadow-hover:   0 4px 20px rgba(91,80,232,0.16);
+  --shadow-overlay: 0 12px 48px rgba(26,26,46,.22);
+
+  /* shadcn/ui compat */
+  --background:    248 247 255;  /* same as surface-base */
+  --foreground:    26 26 46;
+  --card:          255 255 255;
+  --card-foreground: 26 26 46;
+  --popover:       255 255 255;
+  --popover-foreground: 26 26 46;
+  --primary:       244 244 255;
+  --primary-foreground: 91 80 232;
+  --secondary:     239 237 252;
+  --secondary-foreground: 26 26 46;
+  --muted:         239 237 252;
+  --muted-foreground: 139 138 163;
+  --accent:        239 237 252;
+  --accent-foreground: 26 26 46;
+  --destructive:   239 68 68;
+  --destructive-foreground: 255 255 255;
+  --border:        238 236 249;
+  --input:         238 236 249;
+  --ring:          91 80 232;
+  --radius: 0.625rem;
+}
+
+.dark {
+  /* Surfaces */
+  --surface-base:     #0f0e1a;
+  --surface-card:     #1a1930;
+  --surface-col:      #1f1d38;
+  --surface-col-over: #1e1d3a;
+  --surface-sidebar:  #13122a;
+
+  /* Ink */
+  --ink-base:  #e8e6ff;
+  --ink-muted: #6b69a3;
+  --ink-faint: #3a3858;
+
+  /* Brand */
+  --brand:       #6b60f5;
+  --brand-hover: #7a70ff;
+
+  /* Borders */
+  /* #2e2b4a = rgb(46 43 74) */
+  --line-rgb: 46 43 74;
+
+  /* Misc */
+  --progress-bg:    #2a2845;
+  --shadow-card:    0 2px 16px rgba(0,0,0,0.30);
+  --shadow-hover:   0 4px 20px rgba(107,96,245,.22);
+  --shadow-overlay: 0 12px 40px rgba(0,0,0,.55);
+
+  /* shadcn/ui compat */
+  --background:    15 14 26;
+  --foreground:    232 230 255;
+  --card:          26 25 48;
+  --card-foreground: 232 230 255;
+  --popover:       26 25 48;
+  --popover-foreground: 232 230 255;
+  --border:        42 40 69;
+  --input:         42 40 69;
+  --ring:          107 96 245;
+}
+
+/* ─── Page fade transition ───────────────────────────────────────────────────*/
+@keyframes pageFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.page-fade {
+  animation: pageFadeIn 0.15s ease both;
+}
+
+/* ─── Theme color transitions ────────────────────────────────────────────────
+   Use longform properties (not shorthand) so DnD's inline `transition`
+   shorthand overrides only during active drag — color transitions resume at rest.
+   ─────────────────────────────────────────────────────────────────────────── */
+.deal-card {
+  transition-property: background-color, border-color, box-shadow, color;
+  transition-duration: 0.3s;
+  transition-timing-function: ease;
+}
+
+.deal-column {
+  transition-property: background-color;
+  transition-duration: 0.3s;
+  transition-timing-function: ease;
+}
+
+/* ─── Base styles ────────────────────────────────────────────────────────────*/
+@layer base {
+  * {
+    border-color: rgb(var(--line-rgb));
+  }
+  body {
+    background-color: var(--surface-base);
+    color: var(--ink-base);
+    font-family: 'Nunito', system-ui, sans-serif;
+    font-feature-settings: "rlig" 1, "calt" 1;
+    -webkit-font-smoothing: antialiased;
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+  .font-mono {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+  }
+}
