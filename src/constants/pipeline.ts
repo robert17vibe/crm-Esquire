@@ -16,12 +16,12 @@ export interface Stage {
 }
 
 export const STAGES: Stage[] = [
-  { id: 'prospecting',   label: 'Prospecção',      color: '#94a3b8', order: 1, is_closed: false, is_won: false },
-  { id: 'qualification', label: 'Qualificação',    color: '#60a5fa', order: 2, is_closed: false, is_won: false },
-  { id: 'proposal',      label: 'Proposta',        color: '#f59e0b', order: 3, is_closed: false, is_won: false },
-  { id: 'negotiation',   label: 'Negociação',      color: '#a78bfa', order: 4, is_closed: false, is_won: false },
-  { id: 'closed_won',    label: 'Fechado Ganho',   color: '#22c55e', order: 5, is_closed: true,  is_won: true  },
-  { id: 'closed_lost',   label: 'Fechado Perdido', color: '#f87171', order: 6, is_closed: true,  is_won: false },
+  { id: 'prospecting',   label: 'Prospecção',      color: '#78909c', order: 1, is_closed: false, is_won: false },
+  { id: 'qualification', label: 'Qualificação',    color: '#4a90d9', order: 2, is_closed: false, is_won: false },
+  { id: 'proposal',      label: 'Proposta',        color: '#5c6bc0', order: 3, is_closed: false, is_won: false },
+  { id: 'negotiation',   label: 'Negociação',      color: '#5472d4', order: 4, is_closed: false, is_won: false },
+  { id: 'closed_won',    label: 'Fechado Ganho',   color: '#2d9e6b', order: 5, is_closed: true,  is_won: true  },
+  { id: 'closed_lost',   label: 'Fechado Perdido', color: '#607d8b', order: 6, is_closed: true,  is_won: false },
 ]
 
 export const DEFAULT_PROBABILITIES: Record<StageId, number> = {

@@ -70,3 +70,33 @@ export interface Deal {
 }
 
 export type GroupedDeals = Record<StageId, Deal[]>
+
+// ─── Activity timeline entry ──────────────────────────────────────────────────
+
+export interface DealActivity {
+  id: string
+  deal_id: string
+  type: 'call' | 'email' | 'meeting' | 'task' | 'note'
+  subject: string
+  body?: string
+  owner: Owner
+  created_at: string
+  meeting_id?: string
+}
+
+// ─── Meeting (Plaud Note integration) ────────────────────────────────────────
+
+export interface DealMeeting {
+  id: string
+  deal_id: string
+  title: string
+  scheduled_at: string
+  duration_minutes: number
+  attendees: string[]
+  plaud_note_id?: string
+  transcript_excerpt?: string
+  ai_summary?: string
+  key_points?: string[]
+  action_items?: string[]
+  owner: Owner
+}

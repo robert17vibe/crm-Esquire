@@ -3,7 +3,9 @@ import { useNavigate } from 'react-router-dom'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import {
-  ChevronRight,
+  MoreHorizontal,
+  Pencil,
+  Trash2,
   Video,
   Phone,
   CheckSquare,
@@ -36,10 +38,10 @@ function daysDiff(isoDate: string): number {
 
 function activityUrgency(dueDate: string): { label: string; color: string } {
   const diff = daysDiff(dueDate)
-  if (diff < 0)  return { label: `Atrasado ${Math.abs(diff)}d`, color: '#ef4444' }
-  if (diff === 0) return { label: 'Hoje',   color: '#f59e0b' }
-  if (diff === 1) return { label: 'Amanhã', color: '#f59e0b' }
-  return { label: `Em ${diff}d`, color: '#8b8aa3' }
+  if (diff < 0)  return { label: `Atrasado ${Math.abs(diff)}d`, color: '#c53030' }
+  if (diff === 0) return { label: 'Hoje',   color: '#b45309' }
+  if (diff === 1) return { label: 'Amanhã', color: '#b45309' }
+  return { label: `Em ${diff}d`, color: '#64748b' }
 }
 
 const ACTIVITY_ICONS: Record<NextActivity['type'], typeof Video> = {
@@ -49,43 +51,90 @@ const ACTIVITY_ICONS: Record<NextActivity['type'], typeof Video> = {
   email:   Mail,
 }
 
-// ─── Stage picker ─────────────────────────────────────────────────────────────
+// ─── Card context menu ────────────────────────────────────────────────────────
 
-function StagePicker({
-  currentStage,
-  onSelect,
+function CardMenu({
+  deal,
+  onMove,
+  onEdit,
+  onDelete,
   onClose,
+  isDark,
 }: {
-  currentStage: StageId
-  onSelect: (s: StageId) => void
+  deal: Deal
+  onMove: (s: StageId) => void
+  onEdit: () => void
+  onDelete: () => void
   onClose: () => void
+  isDark: boolean
 }) {
+  const menuBg     = isDark ? '#1a1a1a' : '#ffffff'
+  const menuBorder = isDark ? '#2a2a2a' : '#e2e8f0'
+  const hoverBg    = isDark ? '#222222' : '#f8fafc'
+  const textMain   = isDark ? '#c8d0da' : '#334155'
+  const textMuted  = isDark ? '#4a5568' : '#94a3b8'
+
   return (
     <>
+      <div className="fixed inset-0 z-40" onPointerDown={(e) => { e.stopPropagation(); onClose() }} />
       <div
-        className="fixed inset-0 z-40"
-        onPointerDown={(e) => { e.stopPropagation(); onClose() }}
-      />
-      <div
-        className="absolute right-0 top-full mt-1 z-50 bg-surface-card rounded-[12px] border border-line py-1.5 w-44"
-        style={{ boxShadow: '0 8px 32px rgba(0,0,0,0.16)' }}
+        className="absolute right-0 top-full mt-1 z-50 py-1"
+        style={{
+          backgroundColor: menuBg,
+          border: `1px solid ${menuBorder}`,
+          borderRadius: '8px',
+          boxShadow: isDark ? '0 8px 32px rgba(0,0,0,0.5)' : '0 8px 24px rgba(0,0,0,0.1)',
+          width: '172px',
+        }}
       >
-        <p className="text-[9px] font-bold text-ink-muted uppercase tracking-widest px-3 py-1">
+        <button
+          type="button"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => { e.stopPropagation(); onEdit() }}
+          className="w-full flex items-center gap-2 px-3 py-1.5 text-left transition-colors"
+          style={{ fontSize: '12px', fontWeight: 500, color: textMain, backgroundColor: 'transparent' }}
+          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = hoverBg)}
+          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+        >
+          <Pencil style={{ width: '11px', height: '11px', flexShrink: 0, color: textMuted }} />
+          Editar deal
+        </button>
+
+        <div style={{ height: '1px', backgroundColor: menuBorder, margin: '4px 8px' }} />
+
+        <p style={{ fontSize: '9px', fontWeight: 700, color: textMuted, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '4px 12px 2px' }}>
           Mover para
         </p>
-        {STAGES.filter((s) => s.id !== currentStage).map((stage) => (
+        {STAGES.filter((s) => s.id !== deal.stage_id).map((stage) => (
           <button
             key={stage.id}
             type="button"
             onPointerDown={(e) => e.stopPropagation()}
-            onClick={(e) => { e.stopPropagation(); onSelect(stage.id) }}
-            className="w-full flex items-center gap-2 px-3 py-1.5 text-ink-base hover:bg-surface-col transition-colors text-left"
-            style={{ fontSize: '12px', fontWeight: 500 }}
+            onClick={(e) => { e.stopPropagation(); onMove(stage.id) }}
+            className="w-full flex items-center gap-2 px-3 py-1.5 text-left transition-colors"
+            style={{ fontSize: '12px', fontWeight: 500, color: textMain, backgroundColor: 'transparent' }}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = hoverBg)}
+            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
           >
-            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: stage.color }} />
+            <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: stage.color, flexShrink: 0 }} />
             {stage.label}
           </button>
         ))}
+
+        <div style={{ height: '1px', backgroundColor: menuBorder, margin: '4px 8px' }} />
+
+        <button
+          type="button"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => { e.stopPropagation(); onDelete() }}
+          className="w-full flex items-center gap-2 px-3 py-1.5 text-left transition-colors"
+          style={{ fontSize: '12px', fontWeight: 500, color: '#c53030', backgroundColor: 'transparent' }}
+          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = hoverBg)}
+          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+        >
+          <Trash2 style={{ width: '11px', height: '11px', flexShrink: 0 }} />
+          Excluir deal
+        </button>
       </div>
     </>
   )
@@ -97,6 +146,8 @@ interface DealCardProps {
   deal: Deal
   isOverlay?: boolean
   onMoveDeal?: (dealId: string, targetStage: StageId) => void
+  onEditDeal?: (deal: Deal) => void
+  onDeleteDeal?: (dealId: string) => void
   dimmed?: boolean
 }
 
@@ -104,9 +155,11 @@ export function DealCard({
   deal,
   isOverlay = false,
   onMoveDeal,
+  onEditDeal,
+  onDeleteDeal,
   dimmed = false,
 }: DealCardProps) {
-  const [showPicker, setShowPicker] = useState(false)
+  const [showMenu, setShowMenu] = useState(false)
   const navigate  = useNavigate()
   const isDark    = useThemeStore((s) => s.isDark)
 
@@ -117,39 +170,45 @@ export function DealCard({
   const tag        = deal.tags?.[0]
   const tagStyle   = tag ? getTagStyle(tag) : null
 
-  // ── Per-mode values ──
-  const cardShadow = isOverlay
-    ? '0 8px 24px rgba(91,80,232,0.18)'
-    : isDark
-      ? '0 1px 6px rgba(0,0,0,0.2)'
-      : '0 1px 4px rgba(91,80,232,0.06)'
+  // ── Colors per mode ──────────────────────────────────────────────────────
+  const cardBg      = isDark ? '#161616' : '#ffffff'
+  const cardBorder  = isDark ? '#242424' : '#e2e8f0'
+  const textPrimary = isDark ? '#e2e8f0' : '#1e293b'
+  const textSecond  = isDark ? '#4a5568' : '#94a3b8'
+  const textValue   = isDark ? '#f1f5f9' : '#0f172a'
+  const trackBg     = isDark ? '#1e1e1e' : '#f1f5f9'
+  const avatarBorder = `2px solid ${isDark ? '#161616' : '#ffffff'}`
 
-  const avatarBorder = `2px solid ${isDark ? '#1e1c35' : 'white'}`
-
-  const cardStyle = {
-    borderRadius: '12px',
-    boxShadow: cardShadow,
+  const cardStyle: React.CSSProperties = {
+    borderRadius: '6px',
+    backgroundColor: cardBg,
+    borderTop:    `1px solid ${cardBorder}`,
+    borderRight:  `1px solid ${cardBorder}`,
+    borderBottom: `1px solid ${cardBorder}`,
+    borderLeft:   `3px solid ${stageColor}`,
+    boxShadow: isOverlay
+      ? '0 12px 32px rgba(0,0,0,0.25)'
+      : isDark
+        ? '0 1px 4px rgba(0,0,0,0.3)'
+        : '0 1px 3px rgba(0,0,0,0.06)',
     ...(isOverlay
-      ? { transform: 'rotate(2deg)' }
+      ? { transform: 'rotate(1.5deg)', opacity: 1 }
       : {
           transform: CSS.Transform.toString(transform),
           transition,
-          opacity: isDragging ? 0.35 : dimmed ? 0.25 : 1,
-          scale: isDragging ? '0.95' : '1',
+          opacity: isDragging ? 0.3 : dimmed ? 0.2 : 1,
         }),
   }
 
-  // ── Activity node (hidden if no next activity) ──
+  // ── Activity ──────────────────────────────────────────────────────────────
   let activityNode: React.ReactNode = null
   if (deal.next_activity) {
     const { label, color } = activityUrgency(deal.next_activity.due_date)
     const Icon = ACTIVITY_ICONS[deal.next_activity.type]
     activityNode = (
       <div className="flex items-center gap-1 min-w-0 flex-1">
-        <Icon style={{ width: '11px', height: '11px', flexShrink: 0, color }} />
-        <span className="truncate" style={{ fontSize: '11px', color }}>
-          {label}
-        </span>
+        <Icon style={{ width: '10px', height: '10px', flexShrink: 0, color }} />
+        <span className="truncate" style={{ fontSize: '10px', color, fontWeight: 500 }}>{label}</span>
       </div>
     )
   }
@@ -166,175 +225,166 @@ export function DealCard({
       onClick={isOverlay ? undefined : () => navigate(`/deal/${deal.id}`)}
       className={cn(
         'deal-card group/card w-full select-none',
-        'bg-white dark:bg-[#1e1c35]',
-        'border border-[#e8e5f8] dark:border-[#2e2b4a]',
         !isOverlay && !isDragging && 'cursor-grab active:cursor-grabbing',
-        !isOverlay && !isDragging && 'hover:shadow-[0_3px_12px_rgba(91,80,232,0.12)]',
-        isOverlay && 'cursor-grabbing',
       )}
     >
-      <div style={{ padding: '12px 14px' }}>
+      <div style={{ padding: '8px 10px' }}>
 
-        {/* ── Line 1: Tag + move button + days ── */}
-        <div className="flex items-center gap-1.5">
+        {/* ── Row 1: Company + menu + days ── */}
+        <div className="flex items-center justify-between gap-1">
+          <p
+            className="truncate"
+            style={{ fontSize: '10px', fontWeight: 700, color: textSecond, letterSpacing: '0.03em', textTransform: 'uppercase', flex: 1, minWidth: 0 }}
+          >
+            {deal.company_name}
+          </p>
 
-          {/* Tag */}
-          <div className="flex-1 min-w-0">
-            {tagStyle && tag ? (
-              <span
-                className="inline-block uppercase"
-                style={{
-                  fontSize: '10px',
-                  fontWeight: 700,
-                  letterSpacing: '0.04em',
-                  borderRadius: '99px',
-                  padding: '2px 8px',
-                  // Light: solid bg + white text | Dark: 15% tint + solid color text
-                  backgroundColor: isDark ? `${tagStyle.bg}26` : tagStyle.bg,
-                  color:           isDark ? tagStyle.bg          : 'white',
-                  transition: 'background-color 0.3s ease, color 0.3s ease',
-                }}
-              >
-                {tag}
-              </span>
-            ) : (
-              <span style={{ display: 'inline-block', height: '18px' }} />
+          <div className="flex items-center gap-1.5 shrink-0">
+            {/* Days badge */}
+            <span
+              style={{
+                fontSize: '10px',
+                fontWeight: 600,
+                color: deal.days_in_stage > 90
+                  ? (isDark ? '#fc8181' : '#c53030')
+                  : textSecond,
+                backgroundColor: deal.days_in_stage > 90
+                  ? (isDark ? '#2d1515' : '#fff5f5')
+                  : 'transparent',
+                borderRadius: '3px',
+                padding: deal.days_in_stage > 90 ? '1px 5px' : '0',
+                fontVariantNumeric: 'tabular-nums',
+              }}
+            >
+              {deal.days_in_stage}d
+            </span>
+
+            {/* Context menu trigger */}
+            {!isOverlay && (
+              <div className="relative opacity-0 group-hover/card:opacity-100 transition-opacity duration-100 shrink-0">
+                <button
+                  type="button"
+                  aria-label="Opções"
+                  onClick={(e) => { e.stopPropagation(); setShowMenu((v) => !v) }}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '18px',
+                    height: '18px',
+                    borderRadius: '4px',
+                    border: `1px solid ${cardBorder}`,
+                    backgroundColor: 'transparent',
+                    color: textSecond,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <MoreHorizontal style={{ width: '10px', height: '10px' }} />
+                </button>
+                {showMenu && (
+                  <CardMenu
+                    deal={deal}
+                    isDark={isDark}
+                    onMove={(s) => { onMoveDeal?.(deal.id, s); setShowMenu(false) }}
+                    onEdit={() => { onEditDeal?.(deal); setShowMenu(false) }}
+                    onDelete={() => { onDeleteDeal?.(deal.id); setShowMenu(false) }}
+                    onClose={() => setShowMenu(false)}
+                  />
+                )}
+              </div>
             )}
           </div>
-
-          {/* Move picker trigger — visible on hover */}
-          {!isOverlay && (
-            <div className="relative opacity-0 group-hover/card:opacity-100 transition-opacity duration-150 shrink-0">
-              <button
-                type="button"
-                aria-label="Mover"
-                onClick={(e) => { e.stopPropagation(); setShowPicker((v) => !v) }}
-                onPointerDown={(e) => e.stopPropagation()}
-                className="flex items-center justify-center rounded-[6px] border border-line text-ink-muted hover:text-brand hover:border-brand/40 transition-colors"
-                style={{ width: '16px', height: '16px' }}
-              >
-                <ChevronRight style={{ width: '10px', height: '10px' }} />
-              </button>
-              {showPicker && (
-                <StagePicker
-                  currentStage={deal.stage_id}
-                  onSelect={(s) => { onMoveDeal?.(deal.id, s); setShowPicker(false) }}
-                  onClose={() => setShowPicker(false)}
-                />
-              )}
-            </div>
-          )}
-
-          {/* Days in stage */}
-          {deal.days_in_stage > 90 ? (
-            <span
-              style={{
-                fontSize: '11px',
-                fontWeight: 600,
-                // Light: #fff1f1 bg / #ef4444 text | Dark: #3a1a1a bg / #f87171 text
-                color:           isDark ? '#f87171' : '#ef4444',
-                backgroundColor: isDark ? '#3a1a1a' : '#fff1f1',
-                borderRadius: '99px',
-                padding: '2px 6px',
-                flexShrink: 0,
-                transition: 'background-color 0.3s ease, color 0.3s ease',
-              }}
-            >
-              {deal.days_in_stage}d
-            </span>
-          ) : (
-            <span
-              style={{
-                fontSize: '11px',
-                fontWeight: 500,
-                // Light: #8b8aa3 | Dark: #6b69a3
-                color: isDark ? '#6b69a3' : '#8b8aa3',
-                flexShrink: 0,
-                transition: 'color 0.3s ease',
-              }}
-            >
-              {deal.days_in_stage}d
-            </span>
-          )}
         </div>
 
-        {/* ── Line 2: Company name ── */}
+        {/* ── Row 2: Deal title ── */}
         <p
-          className="truncate"
-          style={{ fontSize: '11px', fontWeight: 400, color: '#8b8aa3', marginTop: '8px' }}
-        >
-          {deal.company_name}
-        </p>
-
-        {/* ── Line 3: Deal title ── */}
-        <p
-          className="text-[#1a1a2e] dark:text-[#e8e6ff] line-clamp-2"
-          style={{ fontSize: '13px', fontWeight: 600, lineHeight: 1.4, marginTop: '4px' }}
+          className="line-clamp-2"
+          style={{ fontSize: '12px', fontWeight: 600, color: textPrimary, lineHeight: 1.35, marginTop: '4px', letterSpacing: '-0.01em' }}
         >
           {deal.title}
         </p>
 
-        {/* ── Line 4: Value + Probability ── */}
-        <div className="flex items-baseline justify-between" style={{ marginTop: '8px' }}>
+        {/* ── Row 3: Tag ── */}
+        {tagStyle && tag && (
+          <div style={{ marginTop: '5px' }}>
+            <span
+              style={{
+                fontSize: '9px',
+                fontWeight: 700,
+                letterSpacing: '0.06em',
+                textTransform: 'uppercase',
+                color: tagStyle.bg,
+                border: `1px solid ${tagStyle.bg}40`,
+                borderRadius: '3px',
+                padding: '1px 5px',
+                backgroundColor: `${tagStyle.bg}12`,
+              }}
+            >
+              {tag}
+            </span>
+          </div>
+        )}
+
+        {/* ── Divider ── */}
+        <div style={{ height: '1px', backgroundColor: isDark ? '#1e1e1e' : '#f1f5f9', margin: '7px 0' }} />
+
+        {/* ── Row 4: Value + Probability ── */}
+        <div className="flex items-baseline justify-between">
           <span
-            className="text-[#1a1a2e] dark:text-[#e8e6ff]"
-            style={{ fontSize: '13px', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}
+            style={{
+              fontSize: '13px',
+              fontWeight: 700,
+              color: textValue,
+              fontVariantNumeric: 'tabular-nums',
+              fontFamily: 'monospace',
+              letterSpacing: '-0.02em',
+            }}
           >
             {formatValue(deal.value)}
           </span>
           {deal.probability > 0 && (
-            <span
-              style={{ fontSize: '11px', color: '#8b8aa3', flexShrink: 0, marginLeft: '6px' }}
-            >
+            <span style={{ fontSize: '10px', fontWeight: 600, color: textSecond, flexShrink: 0, marginLeft: '6px', fontVariantNumeric: 'tabular-nums' }}>
               {deal.probability}%
             </span>
           )}
         </div>
 
-        {/* ── Line 5: Progress bar ── */}
+        {/* ── Row 5: Progress bar ── */}
         {deal.probability > 0 && (
           <div
-            className="rounded-full overflow-hidden bg-[#eeecf9] dark:bg-[#2a2860]"
-            style={{ height: '4px', marginTop: '4px' }}
+            style={{ height: '3px', borderRadius: '99px', backgroundColor: trackBg, marginTop: '4px', overflow: 'hidden' }}
           >
             <div
-              className="h-full rounded-full"
               style={{
+                height: '100%',
+                borderRadius: '99px',
                 width: `${deal.probability}%`,
                 backgroundColor: stageColor,
                 transition: 'width 0.5s ease',
+                opacity: 0.85,
               }}
             />
           </div>
         )}
 
-        {/* ── Line 6: Footer (activity + avatars) ── */}
+        {/* ── Row 6: Footer ── */}
         {showFooter && (
-          <div className="flex items-center justify-between" style={{ marginTop: '10px' }}>
-
-            {/* Activity — hidden if no next_activity */}
+          <div className="flex items-center justify-between" style={{ marginTop: '6px' }}>
             {activityNode ?? <span className="flex-1" />}
-
-            {/* Avatar stack */}
             {hasAvatars && (
               <div className="flex shrink-0 ml-2">
                 {deal.stakeholders?.slice(0, 3).map((s, i) => (
                   <div
                     key={s.initials}
                     title={s.name}
-                    className="flex items-center justify-center text-white font-bold"
+                    className="flex items-center justify-center text-white"
                     style={{
-                      width: '20px',
-                      height: '20px',
-                      borderRadius: '50%',
-                      backgroundColor: s.color,
-                      border: avatarBorder,
-                      marginLeft: i === 0 ? 0 : '-6px',
-                      fontSize: '7px',
-                      zIndex: 3 - i,
-                      position: 'relative',
+                      width: '18px', height: '18px', borderRadius: '50%',
+                      backgroundColor: s.color, border: avatarBorder,
+                      marginLeft: i === 0 ? 0 : '-5px', fontSize: '6px',
+                      fontWeight: 700, zIndex: 3 - i, position: 'relative',
                       flexShrink: 0,
-                      transition: 'border-color 0.3s ease',
                     }}
                   >
                     {s.initials}
@@ -342,20 +392,13 @@ export function DealCard({
                 ))}
                 {extraCount > 0 && (
                   <div
-                    className="flex items-center justify-center font-semibold"
+                    className="flex items-center justify-center"
                     style={{
-                      width: '20px',
-                      height: '20px',
-                      borderRadius: '50%',
-                      backgroundColor: 'var(--surface-col)',
-                      border: avatarBorder,
-                      marginLeft: '-6px',
-                      fontSize: '7px',
-                      color: 'var(--ink-muted)',
-                      zIndex: 0,
-                      position: 'relative',
-                      flexShrink: 0,
-                      transition: 'border-color 0.3s ease, background-color 0.3s ease',
+                      width: '18px', height: '18px', borderRadius: '50%',
+                      backgroundColor: trackBg, border: avatarBorder,
+                      marginLeft: '-5px', fontSize: '6px',
+                      fontWeight: 600, color: textSecond,
+                      zIndex: 0, position: 'relative', flexShrink: 0,
                     }}
                   >
                     +{extraCount}

@@ -20,10 +20,14 @@ import type { Deal, GroupedDeals } from '@/types/deal.types'
 
 interface KanbanBoardProps {
   initialDeals: Deal[]
-  visibleOwnerIds?: string[] // empty = all owners
-  searchQuery?: string       // empty = no filter
+  visibleOwnerIds?: string[]
+  searchQuery?: string
   pendingNewDeal?: Deal | null
   onNewDealConsumed?: () => void
+  pendingUpdatedDeal?: Deal | null
+  onUpdatedDealConsumed?: () => void
+  onEditDeal?: (deal: Deal) => void
+  onDeleteDeal?: (dealId: string) => void
 }
 
 function groupByStage(deals: Deal[]): GroupedDeals {
@@ -41,7 +45,17 @@ function findContainerId(grouped: GroupedDeals, id: UniqueIdentifier): StageId |
   return undefined
 }
 
-export function KanbanBoard({ initialDeals, visibleOwnerIds, searchQuery, pendingNewDeal, onNewDealConsumed }: KanbanBoardProps) {
+export function KanbanBoard({
+  initialDeals,
+  visibleOwnerIds,
+  searchQuery,
+  pendingNewDeal,
+  onNewDealConsumed,
+  pendingUpdatedDeal,
+  onUpdatedDealConsumed,
+  onEditDeal,
+  onDeleteDeal,
+}: KanbanBoardProps) {
   const [grouped, setGrouped] = useState<GroupedDeals>(() => groupByStage(initialDeals))
   const [activeId, setActiveId] = useState<string | null>(null)
   const groupedRef = useRef(grouped)
@@ -57,12 +71,27 @@ export function KanbanBoard({ initialDeals, visibleOwnerIds, searchQuery, pendin
     onNewDealConsumed?.()
   }, [pendingNewDeal, onNewDealConsumed])
 
+  // ── Sync updated deal into board state ────────────────────────────────────
+  useEffect(() => {
+    if (!pendingUpdatedDeal) return
+    setGrouped((prev) => {
+      const next = { ...prev }
+      for (const sid of Object.keys(next) as StageId[]) {
+        next[sid] = next[sid].filter((d) => d.id !== pendingUpdatedDeal.id)
+      }
+      const stage = pendingUpdatedDeal.stage_id
+      next[stage] = [pendingUpdatedDeal, ...next[stage]]
+      return next
+    })
+    onUpdatedDealConsumed?.()
+  }, [pendingUpdatedDeal, onUpdatedDealConsumed])
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   )
 
-  // ── Owner filter (visual — drag state unaffected) ─────────────────────────
+  // ── Owner filter ──────────────────────────────────────────────────────────
   const ownerFiltered = useMemo<GroupedDeals>(() => {
     if (!visibleOwnerIds?.length) return grouped
     const res = {} as GroupedDeals
@@ -72,7 +101,7 @@ export function KanbanBoard({ initialDeals, visibleOwnerIds, searchQuery, pendin
     return res
   }, [grouped, visibleOwnerIds])
 
-  // ── Search: returns Set of matching deal ids (opacity dimming) ────────────
+  // ── Search dimming ────────────────────────────────────────────────────────
   const dimmedIds = useMemo<Set<string> | undefined>(() => {
     const q = searchQuery?.trim().toLowerCase()
     if (!q) return undefined
@@ -104,7 +133,7 @@ export function KanbanBoard({ initialDeals, visibleOwnerIds, searchQuery, pendin
 
   const onDragOver = useCallback(({ active, over }: DragOverEvent) => {
     if (!over) return
-    const g = groupedRef.current
+    const g   = groupedRef.current
     const aId = String(active.id)
     const oId = String(over.id)
     const from = findContainerId(g, aId)
@@ -116,8 +145,8 @@ export function KanbanBoard({ initialDeals, visibleOwnerIds, searchQuery, pendin
       const fromIdx   = fromItems.findIndex((d) => d.id === aId)
       const toIdx     = toItems.findIndex((d) => d.id === oId)
       if (fromIdx === -1) return prev
-      const insertAt  = toIdx >= 0 ? toIdx : toItems.length
-      const moved     = { ...fromItems[fromIdx], stage_id: to }
+      const insertAt = toIdx >= 0 ? toIdx : toItems.length
+      const moved    = { ...fromItems[fromIdx], stage_id: to }
       return {
         ...prev,
         [from]: fromItems.filter((d) => d.id !== aId),
@@ -165,6 +194,19 @@ export function KanbanBoard({ initialDeals, visibleOwnerIds, searchQuery, pendin
     })
   }, [])
 
+  // ── Delete from board ─────────────────────────────────────────────────────
+
+  const handleDeleteDeal = useCallback((dealId: string) => {
+    setGrouped((prev) => {
+      const next = { ...prev }
+      for (const sid of Object.keys(next) as StageId[]) {
+        next[sid] = next[sid].filter((d) => d.id !== dealId)
+      }
+      return next
+    })
+    onDeleteDeal?.(dealId)
+  }, [onDeleteDeal])
+
   return (
     <DndContext
       sensors={sensors}
@@ -181,6 +223,8 @@ export function KanbanBoard({ initialDeals, visibleOwnerIds, searchQuery, pendin
             deals={ownerFiltered[stage.id] ?? []}
             dimmedIds={dimmedIds}
             onMoveDeal={onMoveDeal}
+            onEditDeal={onEditDeal}
+            onDeleteDeal={handleDeleteDeal}
           />
         ))}
       </div>

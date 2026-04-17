@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils'
 import { MOCK_OWNERS } from '@/lib/mock-data'
 import { STAGES } from '@/constants/pipeline'
 import { newLeadSchema, type NewLeadFormValues } from '@/lib/schemas/deal.schema'
-import { useCreateDeal } from '@/hooks/useCreateDeal'
+import { useDealStore } from '@/store/useDealStore'
 import type { Deal } from '@/types/deal.types'
 
 // ─── Design tokens (local) ────────────────────────────────────────────────────
@@ -160,7 +160,7 @@ interface Props {
 }
 
 export function NewLeadModal({ open, onClose, onCreated }: Props) {
-  const { createDeal } = useCreateDeal()
+  const createDeal = useDealStore((s) => s.createDeal)
 
   const {
     register,

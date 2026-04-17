@@ -1,4 +1,4 @@
-import type { Deal, Owner } from '@/types/deal.types'
+import type { Deal, Owner, DealActivity, DealMeeting } from '@/types/deal.types'
 
 // ─── Owners ──────────────────────────────────────────────────────────────────
 
@@ -375,5 +375,156 @@ export const MOCK_DEALS: Deal[] = [
     lead_source: 'Inbound',
     created_at: '2025-12-01',
     updated_at: '2026-04-01',
+  },
+]
+
+// ─── Activities per deal ──────────────────────────────────────────────────────
+
+export const MOCK_ACTIVITIES: Record<string, DealActivity[]> = {
+  'd-001': [
+    { id: 'a-001-1', deal_id: 'd-001', type: 'meeting', subject: 'Reunião de descoberta inicial', body: 'Apresentamos o produto ao time de Digital Transformation. Marco demonstrou interesse na automação de relatórios operacionais. Próximo passo: workshop técnico.', owner: RF, created_at: '2026-04-12', meeting_id: 'm-001' },
+    { id: 'a-001-2', deal_id: 'd-001', type: 'email', subject: 'Envio de materiais de onboarding', body: 'Compartilhei deck executivo e case studies do setor de energia. Marco confirmou recebimento e disse que vai repassar para o CTO.', owner: RF, created_at: '2026-04-08' },
+    { id: 'a-001-3', deal_id: 'd-001', type: 'call', subject: 'Cold call inicial — qualificação BANT', body: 'Marco é o champion. Orçamento existe (~R$ 5M aprovado para digitalização). Decisão em Q4. Precisa de aprovação do board.', owner: RF, created_at: '2026-03-28' },
+  ],
+  'd-004': [
+    { id: 'a-004-1', deal_id: 'd-004', type: 'meeting', subject: 'Workshop técnico com time de dados', body: 'Reunião de 3h com 6 pessoas do time de CDO. Fizemos demo ao vivo com dados reais da Vale. Forte engajamento — Ricardo pediu POC para 30 dias.', owner: RF, created_at: '2026-04-10', meeting_id: 'm-004' },
+    { id: 'a-004-2', deal_id: 'd-004', type: 'task', subject: 'Envio de proposta técnica v1', body: 'Proposta de R$ 4.5M com escopo de 18 meses enviada para Ricardo e Karina.', owner: RF, created_at: '2026-03-25' },
+    { id: 'a-004-3', deal_id: 'd-004', type: 'email', subject: 'Follow-up após apresentação exec', body: 'Ricardo confirmou que João Saraiva (CFO) está aprovando o budget. Processo de procurement deve ser iniciado em breve.', owner: RF, created_at: '2026-03-18' },
+    { id: 'a-004-4', deal_id: 'd-004', type: 'call', subject: 'Qualificação com CDO', body: 'Ricardo é economic buyer. Pain principal: dados de mineração fragmentados em 12 sistemas legados. ROI estimado em 18 meses.', owner: RF, created_at: '2026-03-12' },
+  ],
+  'd-006': [
+    { id: 'a-006-1', deal_id: 'd-006', type: 'meeting', subject: 'Apresentação executiva ao C-level', body: 'Apresentamos para Lucia Carvalho (CTO) e Thiago Pinheiro (Chief Risk Officer). Aprovação técnica obtida. Falta aprovação do board na reunião de 23/04.', owner: RF, created_at: '2026-04-14', meeting_id: 'm-006' },
+    { id: 'a-006-2', deal_id: 'd-006', type: 'email', subject: 'Proposta final — R$ 5.2M', body: 'Enviamos proposta revisada após feedback do time jurídico. SLA de 99.9% incluído. Cláusula de compliance com BACEN incorporada.', owner: RF, created_at: '2026-04-05' },
+    { id: 'a-006-3', deal_id: 'd-006', type: 'meeting', subject: 'Workshop de segurança e compliance', body: 'Time de segurança do Itaú fez due diligence técnica por 4h. Todos os requisitos atendidos. Lucia ficou satisfeita com a arquitetura de zero-trust.', owner: RF, created_at: '2026-03-20', meeting_id: 'm-006b' },
+    { id: 'a-006-4', deal_id: 'd-006', type: 'call', subject: 'Negociação de pricing', body: 'Lucia solicitou desconto de 10% para 3 anos. Contrapropomos 7% com suporte premium incluído. Em análise.', owner: RF, created_at: '2026-03-10' },
+  ],
+  'd-008': [
+    { id: 'a-008-1', deal_id: 'd-008', type: 'meeting', subject: 'Revisão de minuta contratual', body: 'Jurídico do Bradesco levantou 3 pontos: cláusula de exclusividade, SLA de disaster recovery, e limitação de responsabilidade. Equipe jurídica respondendo em 5 dias úteis.', owner: CM, created_at: '2026-04-15', meeting_id: 'm-008' },
+    { id: 'a-008-2', deal_id: 'd-008', type: 'email', subject: 'Aprovação técnica — sign-off do CTO', body: 'Guilherme confirmou aprovação técnica completa. Natalia Braga (Procurement) assumiu o processo de contratação.', owner: CM, created_at: '2026-04-08' },
+    { id: 'a-008-3', deal_id: 'd-008', type: 'meeting', subject: 'Demo final com time de TI', body: '12 participantes. Demo de 2h da plataforma de core banking. Migração simulada de dados ao vivo. Aprovação unânime do time técnico.', owner: CM, created_at: '2026-03-28', meeting_id: 'm-008b' },
+  ],
+  'd-009': [
+    { id: 'a-009-1', deal_id: 'd-009', type: 'call', subject: 'Alinhamento de pricing e condições', body: 'Carolina solicitou revisão do modelo de licenciamento. Proposta de precificação por AUM em análise. Decisão esta semana.', owner: JS_owner, created_at: '2026-04-16' },
+    { id: 'a-009-2', deal_id: 'd-009', type: 'meeting', subject: 'Workshop com equipe de wealth management', body: 'Apresentamos módulo de AI para gestão de portfólio. Carolina trouxe 4 gestores sênior. Feedback muito positivo — querem personalizar alertas por perfil de cliente.', owner: JS_owner, created_at: '2026-04-02', meeting_id: 'm-009' },
+  ],
+}
+
+// ─── Meetings with Plaud Note ─────────────────────────────────────────────────
+
+export const MOCK_MEETINGS: DealMeeting[] = [
+  {
+    id: 'm-001',
+    deal_id: 'd-001',
+    title: 'Reunião de descoberta — Petrobras',
+    scheduled_at: '2026-04-12T10:00:00',
+    duration_minutes: 60,
+    attendees: ['Marco Ribeiro', 'Ana Costa', 'Robert Ferreira'],
+    plaud_note_id: 'plaud-4892',
+    transcript_excerpt: 'Marco Ribeiro: "Nossa principal dor é a fragmentação dos dados operacionais. Temos 8 sistemas que não conversam entre si e isso nos custou pelo menos R$200M em ineficiências no último ano..." Robert Ferreira: "Entendido. Nossa plataforma unifica essas fontes com latência sub-segundo e gera relatórios executivos automaticamente. Posso mostrar como a Petrobras Chile implementou isso em 90 dias..."',
+    ai_summary: 'Reunião de descoberta com cliente qualificado. Marco Ribeiro (champion) identificou dor crítica em fragmentação de dados. Budget de R$ 5M aprovado para digitalização em Q3. Decisão final depende de aprovação do board em julho.',
+    key_points: [
+      'Dor principal: 8 sistemas legados desintegrados',
+      'Perda estimada de R$ 200M/ano em ineficiências',
+      'Budget aprovado: ~R$ 5M para digitalização',
+      'Champion engajado — repassará para CTO',
+    ],
+    action_items: [
+      'Enviar deck executivo e 2 case studies do setor energético',
+      'Agendar workshop técnico com equipe do CTO',
+      'Preparar proposta com ROI baseado nos números mencionados',
+    ],
+    owner: RF,
+  },
+  {
+    id: 'm-004',
+    deal_id: 'd-004',
+    title: 'Workshop técnico — Vale (CDO team)',
+    scheduled_at: '2026-04-10T14:00:00',
+    duration_minutes: 180,
+    attendees: ['Ricardo Neves', 'Karina Alves', 'João Saraiva', 'Robert Ferreira'],
+    plaud_note_id: 'plaud-4901',
+    transcript_excerpt: 'Ricardo Neves: "Ficamos impressionados com a velocidade do processamento. Nossa maior preocupação era a latência na integração com nosso data lake na AWS..." Robert Ferreira: "Temos conector nativo para S3 e Redshift. A Vale Chile processa 2 bilhões de eventos/dia com latência média de 340ms..." Karina Alves: "E em relação à segurança, como é tratado o acesso aos dados de produção?"',
+    ai_summary: 'Workshop técnico de alta qualidade. Time técnico da Vale validou todos os requisitos. Ricardo solicitou POC de 30 dias com dados reais. João Saraiva (CFO) presente confirma aprovação orçamentária em curso. Risco: processo de procurement pode levar 60+ dias.',
+    key_points: [
+      'Demo ao vivo com dados reais gerou forte engajamento',
+      'POC de 30 dias aprovado por Ricardo Neves (CDO)',
+      'CFO presente — budget em aprovação formal',
+      'Requisitos técnicos 100% atendidos',
+    ],
+    action_items: [
+      'Preparar ambiente de POC com conector AWS nativo',
+      'Enviar documento de arquitetura de segurança para Karina',
+      'Alinhar cronograma de POC com João Saraiva (CFO)',
+    ],
+    owner: RF,
+  },
+  {
+    id: 'm-006',
+    deal_id: 'd-006',
+    title: 'Apresentação ao C-level — Itaú Unibanco',
+    scheduled_at: '2026-04-14T09:00:00',
+    duration_minutes: 90,
+    attendees: ['Lucia Carvalho', 'Thiago Pinheiro', 'Robert Ferreira'],
+    plaud_note_id: 'plaud-4915',
+    transcript_excerpt: 'Lucia Carvalho: "O board aprova investimentos acima de R$ 3M. Preciso levar para a reunião de 23/04 com um ROI muito bem embasado..." Thiago Pinheiro: "Do ponto de vista de risco, o BACEN exige que o modelo de scoring seja auditável. Vocês têm isso?" Robert Ferreira: "Sim, nosso engine gera relatório de explicabilidade (XAI) por transação. Isso já está em produção no BTG..."',
+    ai_summary: 'Aprovação técnica obtida de Lucia e Thiago. Decisão final na reunião do board em 23/04. ROI precisa ser muito sólido — Lucia vai usar para justificar ao conselho. Competidor: solução interna do time de data science (risco principal).',
+    key_points: [
+      'Aprovação técnica de CTO e Chief Risk Officer',
+      'Board meeting para decisão final em 23/04',
+      'Requisito BACEN de auditabilidade (XAI) atendido',
+      'Risco: solução interna concorrendo',
+    ],
+    action_items: [
+      'Preparar deck de ROI com benchmarks do setor bancário',
+      'Enviar reference letter do BTG (cliente atual)',
+      'Agendar call de preparação com Lucia antes do board meeting',
+    ],
+    owner: RF,
+  },
+  {
+    id: 'm-008',
+    deal_id: 'd-008',
+    title: 'Revisão contratual — Bradesco',
+    scheduled_at: '2026-04-15T15:00:00',
+    duration_minutes: 120,
+    attendees: ['Guilherme Vieira', 'Natalia Braga', 'Carlos Mendez'],
+    plaud_note_id: 'plaud-4922',
+    transcript_excerpt: 'Natalia Braga: "O contrato padrão do Bradesco não permite cláusula de exclusividade por mais de 12 meses. Vamos precisar ajustar isso..." Carlos Mendez: "Entendido. Podemos trabalhar com renovação automática anual com lock-in de pricing por 3 anos..." Guilherme Vieira: "A aprovação técnica já temos. Agora é só o jurídico finalizar."',
+    ai_summary: 'Última etapa antes de assinatura. 3 pontos jurídicos pendentes — todos com solução clara. Guilherme confirmou aprovação técnica. Natalia Braga (Procurement) conduz o processo final. Estimativa de fechamento: 1ª semana de maio.',
+    key_points: [
+      'Aprovação técnica confirmada por Guilherme Vieira',
+      '3 pontos jurídicos pendentes — todos negociáveis',
+      'Natalia Braga conduz procurement final',
+      'Assinatura estimada para primeira semana de maio',
+    ],
+    action_items: [
+      'Enviar minuta revisada com cláusula de exclusividade ajustada',
+      'Confirmar SLA de disaster recovery com time técnico',
+      'Agendar call de fechamento para 30/04',
+    ],
+    owner: CM,
+  },
+  {
+    id: 'm-009',
+    deal_id: 'd-009',
+    title: 'Workshop wealth management — XP Inc.',
+    scheduled_at: '2026-04-02T10:00:00',
+    duration_minutes: 90,
+    attendees: ['Carolina Barros', 'Gestores sênior XP', 'Julia Santos'],
+    plaud_note_id: 'plaud-4908',
+    transcript_excerpt: 'Carolina Barros: "Nossos gestores precisam de alertas em tempo real por perfil de cliente. Hoje fazemos isso manualmente e perdemos oportunidades de alpha..." Julia Santos: "O módulo de alertas é totalmente configurável por regra de negócio. Posso mostrar como a equipe de wealth da Vinci configurou 47 alertas personalizados..."',
+    ai_summary: 'Workshop muito positivo. Carolina e equipe validaram produto. Diferencial competitivo claro: personalização de alertas por perfil de cliente. Decisão de pricing pendente — Carolina quer modelo por AUM em vez de licença flat.',
+    key_points: [
+      'Forte interesse do time de wealth management',
+      'Diferencial: alertas customizáveis por perfil de cliente',
+      'Modelo de pricing em debate: AUM vs licença flat',
+      'Decisão esperada até fim de abril',
+    ],
+    action_items: [
+      'Modelar proposta com pricing por AUM',
+      'Compartilhar benchmarks de pricing do mercado',
+      'Agendar call de fechamento esta semana',
+    ],
+    owner: JS_owner,
   },
 ]

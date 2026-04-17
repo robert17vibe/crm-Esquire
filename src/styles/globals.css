@@ -7,91 +7,91 @@
    Componentes usam as classes Tailwind mapeadas abaixo (surface-*, ink-*, brand, line).
    ──────────────────────────────────────────────────────────────────────────── */
 :root {
-  /* Surfaces */
-  --surface-base:     #f8f7ff;
+  /* Surfaces — warm neutral, enterprise */
+  --surface-base:     #f5f4f0;
   --surface-card:     #ffffff;
-  --surface-col:      #efedfc;
-  --surface-col-over: #eef2ff;
-  --surface-sidebar:  #1e1b4b;
+  --surface-col:      #edecea;
+  --surface-col-over: #e6e3de;
+  --surface-sidebar:  #1a1a1a;
 
   /* Ink (text) */
-  --ink-base:  #1a1a2e;
-  --ink-muted: #8b8aa3;
-  --ink-faint: #c5c4d6;
+  --ink-base:  #1a1814;
+  --ink-muted: #8a857d;
+  --ink-faint: #c4bfb8;
 
-  /* Brand */
+  /* Brand — single accent */
   --brand:       #5b50e8;
   --brand-hover: #4f44d1;
 
-  /* Borders — split into RGB channels so opacity modifiers work */
-  /* #dddaf5 = rgb(221 218 245) */
-  --line-rgb: 221 218 245;
+  /* Borders — warm grey */
+  /* #e0dbd4 = rgb(224 219 212) */
+  --line-rgb: 224 219 212;
 
   /* Misc utility */
-  --progress-bg:    #ece9ff;
-  --shadow-card:    0 2px 12px rgba(91,80,232,0.08);
-  --shadow-hover:   0 4px 20px rgba(91,80,232,0.16);
-  --shadow-overlay: 0 12px 48px rgba(26,26,46,.22);
+  --progress-bg:    #eeece8;
+  --shadow-card:    0 1px 4px rgba(0,0,0,0.06);
+  --shadow-hover:   0 4px 16px rgba(0,0,0,0.12);
+  --shadow-overlay: 0 12px 48px rgba(0,0,0,0.18);
 
   /* shadcn/ui compat */
-  --background:    248 247 255;  /* same as surface-base */
-  --foreground:    26 26 46;
+  --background:    245 244 240;
+  --foreground:    26 24 20;
   --card:          255 255 255;
-  --card-foreground: 26 26 46;
+  --card-foreground: 26 24 20;
   --popover:       255 255 255;
-  --popover-foreground: 26 26 46;
-  --primary:       244 244 255;
-  --primary-foreground: 91 80 232;
-  --secondary:     239 237 252;
-  --secondary-foreground: 26 26 46;
-  --muted:         239 237 252;
-  --muted-foreground: 139 138 163;
-  --accent:        239 237 252;
-  --accent-foreground: 26 26 46;
-  --destructive:   239 68 68;
+  --popover-foreground: 26 24 20;
+  --primary:       91 80 232;
+  --primary-foreground: 255 255 255;
+  --secondary:     237 236 234;
+  --secondary-foreground: 26 24 20;
+  --muted:         237 236 234;
+  --muted-foreground: 138 133 125;
+  --accent:        237 236 234;
+  --accent-foreground: 26 24 20;
+  --destructive:   220 38 38;
   --destructive-foreground: 255 255 255;
-  --border:        238 236 249;
-  --input:         238 236 249;
+  --border:        224 219 212;
+  --input:         224 219 212;
   --ring:          91 80 232;
-  --radius: 0.625rem;
+  --radius: 0.5rem;
 }
 
 .dark {
-  /* Surfaces */
-  --surface-base:     #0f0e1a;
-  --surface-card:     #1a1930;
-  --surface-col:      #1f1d38;
-  --surface-col-over: #1e1d3a;
-  --surface-sidebar:  #13122a;
+  /* Surfaces — align with sidebar dark */
+  --surface-base:     #0d0c0a;
+  --surface-card:     #161614;
+  --surface-col:      #1a1a18;
+  --surface-col-over: #1e1e1c;
+  --surface-sidebar:  #050505;
 
   /* Ink */
-  --ink-base:  #e8e6ff;
-  --ink-muted: #6b69a3;
-  --ink-faint: #3a3858;
+  --ink-base:  #e8e4dc;
+  --ink-muted: #6b6560;
+  --ink-faint: #3a3834;
 
   /* Brand */
   --brand:       #6b60f5;
   --brand-hover: #7a70ff;
 
-  /* Borders */
-  /* #2e2b4a = rgb(46 43 74) */
-  --line-rgb: 46 43 74;
+  /* Borders — warm dark */
+  /* #242422 = rgb(36 36 34) */
+  --line-rgb: 36 36 34;
 
   /* Misc */
-  --progress-bg:    #2a2845;
-  --shadow-card:    0 2px 16px rgba(0,0,0,0.30);
-  --shadow-hover:   0 4px 20px rgba(107,96,245,.22);
-  --shadow-overlay: 0 12px 40px rgba(0,0,0,.55);
+  --progress-bg:    #1e1e1c;
+  --shadow-card:    0 2px 16px rgba(0,0,0,0.4);
+  --shadow-hover:   0 4px 20px rgba(0,0,0,0.5);
+  --shadow-overlay: 0 12px 40px rgba(0,0,0,0.6);
 
   /* shadcn/ui compat */
-  --background:    15 14 26;
-  --foreground:    232 230 255;
-  --card:          26 25 48;
-  --card-foreground: 232 230 255;
-  --popover:       26 25 48;
-  --popover-foreground: 232 230 255;
-  --border:        42 40 69;
-  --input:         42 40 69;
+  --background:    13 12 10;
+  --foreground:    232 228 220;
+  --card:          22 22 20;
+  --card-foreground: 232 228 220;
+  --popover:       22 22 20;
+  --popover-foreground: 232 228 220;
+  --border:        36 36 34;
+  --input:         36 36 34;
   --ring:          107 96 245;
 }
 
