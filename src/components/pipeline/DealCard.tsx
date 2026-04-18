@@ -2,53 +2,18 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import {
-  MoreHorizontal,
-  Pencil,
-  Trash2,
-  Video,
-  Phone,
-  CheckSquare,
-  Mail,
-} from 'lucide-react'
+import { MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useThemeStore } from '@/store/useThemeStore'
 import { getStageColor, getTagStyle, STAGES, type StageId } from '@/constants/pipeline'
-import type { Deal, NextActivity } from '@/types/deal.types'
+import type { Deal } from '@/types/deal.types'
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function formatValue(value: number): string {
-  if (value === 0) return 'R$ —'
+function formatCurrency(v: number) {
   return new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-    notation: 'compact',
-    maximumFractionDigits: 1,
-  }).format(value)
-}
-
-function daysDiff(isoDate: string): number {
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  const target = new Date(isoDate)
-  target.setHours(0, 0, 0, 0)
-  return Math.round((target.getTime() - today.getTime()) / 86_400_000)
-}
-
-function activityUrgency(dueDate: string): { label: string; color: string } {
-  const diff = daysDiff(dueDate)
-  if (diff < 0)  return { label: `Atrasado ${Math.abs(diff)}d`, color: '#c53030' }
-  if (diff === 0) return { label: 'Hoje',   color: '#b45309' }
-  if (diff === 1) return { label: 'Amanhã', color: '#b45309' }
-  return { label: `Em ${diff}d`, color: '#64748b' }
-}
-
-const ACTIVITY_ICONS: Record<NextActivity['type'], typeof Video> = {
-  meeting: Video,
-  call:    Phone,
-  task:    CheckSquare,
-  email:   Mail,
+    style: 'currency', currency: 'BRL', maximumFractionDigits: 0,
+  }).format(v)
 }
 
 // ─── Card context menu ────────────────────────────────────────────────────────
@@ -97,7 +62,7 @@ function CardMenu({
           onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
         >
           <Pencil style={{ width: '11px', height: '11px', flexShrink: 0, color: textMuted }} />
-          Editar deal
+          Editar lead
         </button>
 
         <div style={{ height: '1px', backgroundColor: menuBorder, margin: '4px 8px' }} />
@@ -133,7 +98,7 @@ function CardMenu({
           onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
         >
           <Trash2 style={{ width: '11px', height: '11px', flexShrink: 0 }} />
-          Excluir deal
+          Excluir lead
         </button>
       </div>
     </>
@@ -170,22 +135,31 @@ export function DealCard({
   const tag        = deal.tags?.[0]
   const tagStyle   = tag ? getTagStyle(tag) : null
 
-  // ── Colors per mode ──────────────────────────────────────────────────────
-  const cardBg      = isDark ? '#161616' : '#ffffff'
+  const isWon     = deal.stage_id === 'closed_won'
+  const isLost    = deal.stage_id === 'closed_lost'
+  const isSpecial = isWon || isLost
+
+  // Base colors
+  const cardBg      = isWon
+    ? (isDark ? '#0d1a14' : '#f0f7f3')
+    : isLost
+      ? (isDark ? '#1a1010' : '#f7f2f2')
+      : (isDark ? '#161616' : '#ffffff')
   const cardBorder  = isDark ? '#242424' : '#e2e8f0'
   const textPrimary = isDark ? '#e2e8f0' : '#1e293b'
-  const textSecond  = isDark ? '#4a5568' : '#94a3b8'
-  const textValue   = isDark ? '#f1f5f9' : '#0f172a'
-  const trackBg     = isDark ? '#1e1e1e' : '#f1f5f9'
-  const avatarBorder = `2px solid ${isDark ? '#161616' : '#ffffff'}`
+  const textMuted   = isDark ? '#4a5568' : '#94a3b8'
+  const avatarBorder = `2px solid ${cardBg}`
+
+  // Opacity
+  const baseOpacity = isLost ? 0.75 : 1
+  const cardOpacity = isDragging ? 0.3 : dimmed ? 0.2 : baseOpacity
 
   const cardStyle: React.CSSProperties = {
     borderRadius: '6px',
     backgroundColor: cardBg,
-    borderTop:    `1px solid ${cardBorder}`,
-    borderRight:  `1px solid ${cardBorder}`,
-    borderBottom: `1px solid ${cardBorder}`,
-    borderLeft:   `3px solid ${stageColor}`,
+    border: `1px solid ${cardBorder}`,
+    ...(isSpecial && { borderLeft: `3px solid ${stageColor}` }),
+    overflow: 'hidden',
     boxShadow: isOverlay
       ? '0 12px 32px rgba(0,0,0,0.25)'
       : isDark
@@ -196,26 +170,12 @@ export function DealCard({
       : {
           transform: CSS.Transform.toString(transform),
           transition,
-          opacity: isDragging ? 0.3 : dimmed ? 0.2 : 1,
+          opacity: cardOpacity,
         }),
-  }
-
-  // ── Activity ──────────────────────────────────────────────────────────────
-  let activityNode: React.ReactNode = null
-  if (deal.next_activity) {
-    const { label, color } = activityUrgency(deal.next_activity.due_date)
-    const Icon = ACTIVITY_ICONS[deal.next_activity.type]
-    activityNode = (
-      <div className="flex items-center gap-1 min-w-0 flex-1">
-        <Icon style={{ width: '10px', height: '10px', flexShrink: 0, color }} />
-        <span className="truncate" style={{ fontSize: '10px', color, fontWeight: 500 }}>{label}</span>
-      </div>
-    )
   }
 
   const hasAvatars = (deal.stakeholders?.length ?? 0) > 0
   const extraCount = (deal.stakeholders?.length ?? 0) - 3
-  const showFooter = activityNode !== null || hasAvatars
 
   return (
     <div
@@ -228,38 +188,38 @@ export function DealCard({
         !isOverlay && !isDragging && 'cursor-grab active:cursor-grabbing',
       )}
     >
+      {/* Top color bar — only for non-special stages */}
+      {!isSpecial && (
+        <div style={{ height: '3px', backgroundColor: stageColor }} />
+      )}
+
       <div style={{ padding: '8px 10px' }}>
 
-        {/* ── Row 1: Company + menu + days ── */}
+        {/* ── Line 1: Tag + days + menu ── */}
         <div className="flex items-center justify-between gap-1">
-          <p
-            className="truncate"
-            style={{ fontSize: '10px', fontWeight: 700, color: textSecond, letterSpacing: '0.03em', textTransform: 'uppercase', flex: 1, minWidth: 0 }}
-          >
-            {deal.company_name}
-          </p>
-
-          <div className="flex items-center gap-1.5 shrink-0">
-            {/* Days badge */}
+          {tagStyle && tag ? (
             <span
+              className="truncate"
               style={{
-                fontSize: '10px',
-                fontWeight: 600,
-                color: deal.days_in_stage > 90
-                  ? (isDark ? '#fc8181' : '#c53030')
-                  : textSecond,
-                backgroundColor: deal.days_in_stage > 90
-                  ? (isDark ? '#2d1515' : '#fff5f5')
-                  : 'transparent',
-                borderRadius: '3px',
-                padding: deal.days_in_stage > 90 ? '1px 5px' : '0',
-                fontVariantNumeric: 'tabular-nums',
+                fontSize: '10px', fontWeight: 600, letterSpacing: '0.06em',
+                textTransform: 'uppercase', color: tagStyle.bg, flex: 1, minWidth: 0,
               }}
             >
+              {tag}
+            </span>
+          ) : (
+            <span style={{ flex: 1 }} />
+          )}
+
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span style={{
+              fontSize: '11px', fontWeight: 500,
+              color: deal.days_in_stage > 90 ? '#8b1a1a' : textMuted,
+              fontVariantNumeric: 'tabular-nums',
+            }}>
               {deal.days_in_stage}d
             </span>
 
-            {/* Context menu trigger */}
             {!isOverlay && (
               <div className="relative opacity-0 group-hover/card:opacity-100 transition-opacity duration-100 shrink-0">
                 <button
@@ -268,16 +228,10 @@ export function DealCard({
                   onClick={(e) => { e.stopPropagation(); setShowMenu((v) => !v) }}
                   onPointerDown={(e) => e.stopPropagation()}
                   style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    width: '18px',
-                    height: '18px',
-                    borderRadius: '4px',
-                    border: `1px solid ${cardBorder}`,
-                    backgroundColor: 'transparent',
-                    color: textSecond,
-                    cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    width: '18px', height: '18px', borderRadius: '4px',
+                    border: `1px solid ${cardBorder}`, backgroundColor: 'transparent',
+                    color: textMuted, cursor: 'pointer',
                   }}
                 >
                   <MoreHorizontal style={{ width: '10px', height: '10px' }} />
@@ -297,113 +251,65 @@ export function DealCard({
           </div>
         </div>
 
-        {/* ── Row 2: Deal title ── */}
-        <p
-          className="line-clamp-2"
-          style={{ fontSize: '12px', fontWeight: 600, color: textPrimary, lineHeight: 1.35, marginTop: '4px', letterSpacing: '-0.01em' }}
-        >
+        {/* ── Line 2: Company name ── */}
+        <p className="truncate" style={{ fontSize: '11px', fontWeight: 400, color: textMuted, marginTop: '8px' }}>
+          {deal.company_name}
+        </p>
+
+        {/* ── Line 3: Deal title ── */}
+        <p className="line-clamp-2" style={{ fontSize: '13px', fontWeight: 600, color: textPrimary, lineHeight: 1.4, marginTop: '2px' }}>
           {deal.title}
         </p>
 
-        {/* ── Row 3: Tag ── */}
-        {tagStyle && tag && (
-          <div style={{ marginTop: '5px' }}>
-            <span
-              style={{
-                fontSize: '9px',
-                fontWeight: 700,
-                letterSpacing: '0.06em',
-                textTransform: 'uppercase',
-                color: tagStyle.bg,
-                border: `1px solid ${tagStyle.bg}40`,
-                borderRadius: '3px',
-                padding: '1px 5px',
-                backgroundColor: `${tagStyle.bg}12`,
-              }}
-            >
-              {tag}
-            </span>
+        {/* ── Won: value highlight ── */}
+        {isWon && (
+          <div style={{ marginTop: '8px' }}>
+            <p style={{ fontSize: '10px', fontWeight: 700, color: textMuted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '2px' }}>
+              Acordo fechado
+            </p>
+            <p style={{ fontSize: '13px', fontWeight: 700, color: '#2d9e6b', fontVariantNumeric: 'tabular-nums' }}>
+              {formatCurrency(Number(deal.value))}
+            </p>
           </div>
         )}
 
-        {/* ── Divider ── */}
-        <div style={{ height: '1px', backgroundColor: isDark ? '#1e1e1e' : '#f1f5f9', margin: '7px 0' }} />
-
-        {/* ── Row 4: Value + Probability ── */}
-        <div className="flex items-baseline justify-between">
-          <span
-            style={{
-              fontSize: '13px',
-              fontWeight: 700,
-              color: textValue,
-              fontVariantNumeric: 'tabular-nums',
-              fontFamily: 'monospace',
-              letterSpacing: '-0.02em',
-            }}
-          >
-            {formatValue(deal.value)}
-          </span>
-          {deal.probability > 0 && (
-            <span style={{ fontSize: '10px', fontWeight: 600, color: textSecond, flexShrink: 0, marginLeft: '6px', fontVariantNumeric: 'tabular-nums' }}>
-              {deal.probability}%
-            </span>
-          )}
-        </div>
-
-        {/* ── Row 5: Progress bar ── */}
-        {deal.probability > 0 && (
-          <div
-            style={{ height: '3px', borderRadius: '99px', backgroundColor: trackBg, marginTop: '4px', overflow: 'hidden' }}
-          >
-            <div
-              style={{
-                height: '100%',
-                borderRadius: '99px',
-                width: `${deal.probability}%`,
-                backgroundColor: stageColor,
-                transition: 'width 0.5s ease',
-                opacity: 0.85,
-              }}
-            />
-          </div>
+        {/* ── Lost: loss reason ── */}
+        {isLost && deal.loss_reason && (
+          <p style={{ fontSize: '10px', color: textMuted, marginTop: '6px', fontStyle: 'italic', lineHeight: 1.4 }}>
+            {deal.loss_reason}
+          </p>
         )}
 
-        {/* ── Row 6: Footer ── */}
-        {showFooter && (
-          <div className="flex items-center justify-between" style={{ marginTop: '6px' }}>
-            {activityNode ?? <span className="flex-1" />}
-            {hasAvatars && (
-              <div className="flex shrink-0 ml-2">
-                {deal.stakeholders?.slice(0, 3).map((s, i) => (
-                  <div
-                    key={s.initials}
-                    title={s.name}
-                    className="flex items-center justify-center text-white"
-                    style={{
-                      width: '18px', height: '18px', borderRadius: '50%',
-                      backgroundColor: s.color, border: avatarBorder,
-                      marginLeft: i === 0 ? 0 : '-5px', fontSize: '6px',
-                      fontWeight: 700, zIndex: 3 - i, position: 'relative',
-                      flexShrink: 0,
-                    }}
-                  >
-                    {s.initials}
-                  </div>
-                ))}
-                {extraCount > 0 && (
-                  <div
-                    className="flex items-center justify-center"
-                    style={{
-                      width: '18px', height: '18px', borderRadius: '50%',
-                      backgroundColor: trackBg, border: avatarBorder,
-                      marginLeft: '-5px', fontSize: '6px',
-                      fontWeight: 600, color: textSecond,
-                      zIndex: 0, position: 'relative', flexShrink: 0,
-                    }}
-                  >
-                    +{extraCount}
-                  </div>
-                )}
+        {/* ── Line 4: Avatars ── */}
+        {hasAvatars && (
+          <div className="flex justify-end" style={{ marginTop: '10px' }}>
+            {deal.stakeholders?.slice(0, 3).map((s, i) => (
+              <div
+                key={s.name}
+                title={s.name}
+                className="flex items-center justify-center text-white"
+                style={{
+                  width: '20px', height: '20px', borderRadius: '50%',
+                  backgroundColor: s.color, border: avatarBorder,
+                  marginLeft: i === 0 ? 0 : '-5px', fontSize: '7px',
+                  fontWeight: 700, zIndex: 3 - i, position: 'relative', flexShrink: 0,
+                }}
+              >
+                {s.initials}
+              </div>
+            ))}
+            {extraCount > 0 && (
+              <div
+                className="flex items-center justify-center"
+                style={{
+                  width: '20px', height: '20px', borderRadius: '50%',
+                  backgroundColor: cardBorder, border: avatarBorder,
+                  marginLeft: '-5px', fontSize: '7px',
+                  fontWeight: 600, color: textMuted,
+                  zIndex: 0, position: 'relative', flexShrink: 0,
+                }}
+              >
+                +{extraCount}
               </div>
             )}
           </div>

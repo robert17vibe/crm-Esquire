@@ -3,10 +3,10 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { X, ChevronDown, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { MOCK_OWNERS } from '@/lib/mock-data'
 import { STAGES } from '@/constants/pipeline'
 import { newLeadSchema, type NewLeadFormValues } from '@/lib/schemas/deal.schema'
 import { useDealStore } from '@/store/useDealStore'
+import { useOwnerStore } from '@/store/useOwnerStore'
 import type { Deal } from '@/types/deal.types'
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
@@ -14,7 +14,7 @@ import type { Deal } from '@/types/deal.types'
 const T = {
   border:      'border border-[#dddaf5] dark:border-[#2e2b4a]',
   inputBg:     'bg-[#f8f7ff] dark:bg-[#1e1d3a]',
-  focusBorder: 'focus:border-[#5b50e8] focus:ring-2 focus:ring-[#5b50e8]/15',
+  focusBorder: 'focus:border-[#2c5545] focus:ring-2 focus:ring-[#2c5545]/15',
   errBorder:   'border-[#ef4444] focus:border-[#ef4444] focus:ring-[#ef4444]/15',
   labelColor:  'text-[#1a1a2e] dark:text-[#a8a6d4]',
   separator:   'bg-[#f0eeff] dark:bg-[#2a2860]',
@@ -87,6 +87,7 @@ interface Props {
 
 export function EditDealModal({ deal, open, onClose, onUpdated }: Props) {
   const updateDeal = useDealStore((s) => s.updateDeal)
+  const owners = useOwnerStore((s) => s.owners)
 
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<NewLeadFormValues>({
     resolver: zodResolver(newLeadSchema),
@@ -115,9 +116,9 @@ export function EditDealModal({ deal, open, onClose, onUpdated }: Props) {
     onClose()
   }
 
-  function onSubmit(values: NewLeadFormValues) {
+  async function onSubmit(values: NewLeadFormValues) {
     if (!deal) return
-    const updated = updateDeal(deal.id, values)
+    const updated = await updateDeal(deal.id, values)
     onUpdated(updated)
     reset()
   }
@@ -143,10 +144,10 @@ export function EditDealModal({ deal, open, onClose, onUpdated }: Props) {
           <div className="flex items-start justify-between shrink-0" style={{ padding: '28px 32px 20px' }}>
             <div>
               <Dialog.Title className="text-[#1a1a2e] dark:text-[#e8e6ff]" style={{ fontSize: '18px', fontWeight: 700, lineHeight: 1.2 }}>
-                Editar Deal
+                Editar Lead
               </Dialog.Title>
               <Dialog.Description style={{ fontSize: '13px', color: '#8b8aa3', marginTop: '4px' }}>
-                {deal?.company_name} — {deal?.contact_name}
+                {deal?.company_name ?? '—'} — {deal?.contact_name ?? '—'}
               </Dialog.Description>
             </div>
             <Dialog.Close asChild>
@@ -196,7 +197,7 @@ export function EditDealModal({ deal, open, onClose, onUpdated }: Props) {
               </div>
             </Row>
 
-            <SectionHead title="Empresa & Deal" />
+            <SectionHead title="Empresa & Lead" />
             <Row>
               <div>
                 <FLabel htmlFor="e_company_sector">Setor</FLabel>
@@ -229,7 +230,7 @@ export function EditDealModal({ deal, open, onClose, onUpdated }: Props) {
                 <FLabel htmlFor="e_owner_id" required>Responsável</FLabel>
                 <Select id="e_owner_id" hasError={!!errors.owner_id} {...register('owner_id')}>
                   <option value="">Selecione</option>
-                  {MOCK_OWNERS.map((o) => (
+                  {owners.map((o) => (
                     <option key={o.id} value={o.id}>{o.name}</option>
                   ))}
                 </Select>
@@ -261,7 +262,7 @@ export function EditDealModal({ deal, open, onClose, onUpdated }: Props) {
               <textarea
                 id="e_notes"
                 rows={3}
-                placeholder="Contexto do deal, notas, próximos passos…"
+                placeholder="Contexto do lead, notas, próximos passos…"
                 className={cn('w-full outline-none resize-none transition-all duration-150', 'text-[#1a1a2e] dark:text-[#e8e6ff] placeholder-[#c5c4d6]', T.inputBg, T.border, T.focusBorder)}
                 style={{ borderRadius: '10px', fontSize: '13px', fontWeight: 500, padding: '10px 12px', lineHeight: 1.6 }}
                 {...register('notes')}
@@ -276,7 +277,7 @@ export function EditDealModal({ deal, open, onClose, onUpdated }: Props) {
             <button type="button" onClick={handleClose} className={cn('transition-colors duration-150', 'border border-[#dddaf5] dark:border-[#2e2b4a]', 'text-[#8b8aa3] hover:bg-[#f8f7ff] dark:hover:bg-[#1e1d3a]')} style={{ height: '40px', borderRadius: '10px', padding: '0 24px', fontSize: '13px', fontWeight: 600, background: 'transparent', cursor: 'pointer' }}>
               Cancelar
             </button>
-            <button type="submit" form="edit-deal-form" disabled={isSubmitting} className="flex items-center gap-2 transition-opacity duration-150 disabled:opacity-70 disabled:cursor-not-allowed" style={{ height: '40px', borderRadius: '10px', padding: '0 28px', fontSize: '13px', fontWeight: 700, backgroundColor: '#5b50e8', color: '#ffffff', border: 'none', cursor: isSubmitting ? 'not-allowed' : 'pointer', boxShadow: '0 2px 12px rgba(91,80,232,0.35)' }}>
+            <button type="submit" form="edit-deal-form" disabled={isSubmitting} className="flex items-center gap-2 transition-opacity duration-150 disabled:opacity-70 disabled:cursor-not-allowed" style={{ height: '40px', borderRadius: '10px', padding: '0 28px', fontSize: '13px', fontWeight: 700, backgroundColor: '#2c5545', color: '#ffffff', border: 'none', cursor: isSubmitting ? 'not-allowed' : 'pointer', boxShadow: '0 2px 12px rgba(44,85,69,0.35)' }}>
               {isSubmitting && <Loader2 style={{ width: '14px', height: '14px' }} className="animate-spin" />}
               {isSubmitting ? 'Salvando...' : 'Salvar alterações'}
             </button>

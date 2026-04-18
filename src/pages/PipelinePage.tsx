@@ -1,17 +1,22 @@
 import { useState, useMemo } from 'react'
 import { Plus, Search, SlidersHorizontal, Check } from 'lucide-react'
 import * as Popover from '@radix-ui/react-popover'
+import * as Tooltip from '@radix-ui/react-tooltip'
 import { KanbanBoard } from '@/components/pipeline/KanbanBoard'
 import { NewLeadModal } from '@/components/pipeline/NewLeadModal'
 import { EditDealModal } from '@/components/pipeline/EditDealModal'
-import { MOCK_OWNERS } from '@/lib/mock-data'
 import { useDealStore } from '@/store/useDealStore'
+import { useOwnerStore } from '@/store/useOwnerStore'
 import { useThemeStore } from '@/store/useThemeStore'
 import type { Deal } from '@/types/deal.types'
 
 export function PipelinePage() {
-  const deals      = useDealStore((s) => s.deals)
-  const deleteDeal = useDealStore((s) => s.deleteDeal)
+  const deals          = useDealStore((s) => s.deals)
+  const loading        = useDealStore((s) => s.loading)
+  const deleteDeal     = useDealStore((s) => s.deleteDeal)
+  const moveDeal       = useDealStore((s) => s.moveDeal)
+  const setLossReason  = useDealStore((s) => s.setLossReason)
+  const owners     = useOwnerStore((s) => s.owners)
   const isDark     = useThemeStore((s) => s.isDark)
 
   const [selectedOwners, setSelectedOwners] = useState<string[]>([])
@@ -109,7 +114,7 @@ export function PipelinePage() {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Buscar deal, empresa..."
+              placeholder="Buscar lead, empresa..."
               style={{
                 width: '100%',
                 height: '32px',
@@ -237,7 +242,7 @@ export function PipelinePage() {
                 <div style={{ height: '1px', backgroundColor: popoverBorder, margin: '6px 0' }} />
 
                 {/* Owner rows */}
-                {MOCK_OWNERS.map((owner) => {
+                {owners.map((owner) => {
                   const isActive = selectedOwners.includes(owner.id)
                   return (
                     <button
@@ -292,47 +297,75 @@ export function PipelinePage() {
         </div>
 
         {/* ── Zone right: new lead ── */}
-        <button
-          type="button"
-          onClick={() => setShowNewModal(true)}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '5px',
-            height: '32px',
-            padding: '0 12px',
-            fontSize: '12px',
-            fontWeight: 700,
-            color: newLeadText,
-            backgroundColor: newLeadBg,
-            border: 'none',
-            borderRadius: '6px',
-            cursor: 'pointer',
-            flexShrink: 0,
-            letterSpacing: '-0.01em',
-            transition: 'opacity 0.15s ease',
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.85')}
-          onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
-        >
-          <Plus style={{ width: '13px', height: '13px', flexShrink: 0 }} />
-          Novo Lead
-        </button>
+        <Tooltip.Provider delayDuration={400}>
+          <Tooltip.Root>
+            <Tooltip.Trigger asChild>
+              <button
+                type="button"
+                onClick={() => setShowNewModal(true)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '8px',
+                  backgroundColor: newLeadBg,
+                  border: 'none',
+                  cursor: 'pointer',
+                  flexShrink: 0,
+                  transition: 'opacity 0.15s ease',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.85')}
+                onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
+              >
+                <Plus style={{ width: '16px', height: '16px', color: newLeadText }} />
+              </button>
+            </Tooltip.Trigger>
+            <Tooltip.Portal>
+              <Tooltip.Content
+                sideOffset={6}
+                style={{
+                  fontSize: '11px',
+                  fontWeight: 500,
+                  color: isDark ? '#1a1814' : '#f0ede5',
+                  backgroundColor: isDark ? '#e8e4dc' : '#1a1814',
+                  borderRadius: '5px',
+                  padding: '4px 8px',
+                  zIndex: 50,
+                  userSelect: 'none',
+                }}
+              >
+                Novo lead
+                <Tooltip.Arrow style={{ fill: isDark ? '#e8e4dc' : '#1a1814' }} />
+              </Tooltip.Content>
+            </Tooltip.Portal>
+          </Tooltip.Root>
+        </Tooltip.Provider>
       </div>
 
       {/* ── Board ── */}
       <div style={{ flex: 1, minHeight: 0 }}>
-        <KanbanBoard
-          initialDeals={deals}
-          visibleOwnerIds={selectedOwners.length > 0 ? selectedOwners : undefined}
-          searchQuery={searchQuery}
-          pendingNewDeal={pendingNewDeal}
-          onNewDealConsumed={() => setPendingNewDeal(null)}
-          pendingUpdatedDeal={updatedDeal}
-          onUpdatedDealConsumed={() => setUpdatedDeal(null)}
-          onEditDeal={setEditingDeal}
-          onDeleteDeal={deleteDeal}
-        />
+        {loading && (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+            <p style={{ fontSize: '12px', color: isDark ? '#3a3834' : '#c4bfb8' }}>Carregando pipeline...</p>
+          </div>
+        )}
+        {!loading && (
+          <KanbanBoard
+            initialDeals={deals}
+            visibleOwnerIds={selectedOwners.length > 0 ? selectedOwners : undefined}
+            searchQuery={searchQuery}
+            pendingNewDeal={pendingNewDeal}
+            onNewDealConsumed={() => setPendingNewDeal(null)}
+            pendingUpdatedDeal={updatedDeal}
+            onUpdatedDealConsumed={() => setUpdatedDeal(null)}
+            onEditDeal={setEditingDeal}
+            onDeleteDeal={(id) => { deleteDeal(id) }}
+            onStageChange={(id, stageId) => { moveDeal(id, stageId) }}
+            onLossReasonConfirmed={(id, reason) => { setLossReason(id, reason) }}
+          />
+        )}
       </div>
 
       {/* ── Modals ── */}

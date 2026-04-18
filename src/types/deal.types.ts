@@ -63,6 +63,7 @@ export interface Deal {
 
   // ── Lead metadata ─────────────────────────────────────
   lead_source?: LeadSource
+  loss_reason?: string | null
 
   // ── Timestamps ───────────────────────────────────────
   created_at: string

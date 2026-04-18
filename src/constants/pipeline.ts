@@ -1,4 +1,5 @@
 export type StageId =
+  | 'leads'
   | 'prospecting'
   | 'qualification'
   | 'proposal'
@@ -16,15 +17,17 @@ export interface Stage {
 }
 
 export const STAGES: Stage[] = [
-  { id: 'prospecting',   label: 'Prospecção',      color: '#78909c', order: 1, is_closed: false, is_won: false },
-  { id: 'qualification', label: 'Qualificação',    color: '#4a90d9', order: 2, is_closed: false, is_won: false },
-  { id: 'proposal',      label: 'Proposta',        color: '#5c6bc0', order: 3, is_closed: false, is_won: false },
-  { id: 'negotiation',   label: 'Negociação',      color: '#5472d4', order: 4, is_closed: false, is_won: false },
-  { id: 'closed_won',    label: 'Fechado Ganho',   color: '#2d9e6b', order: 5, is_closed: true,  is_won: true  },
-  { id: 'closed_lost',   label: 'Fechado Perdido', color: '#607d8b', order: 6, is_closed: true,  is_won: false },
+  { id: 'leads',         label: 'Entrada',     color: '#b0a990', order: 0, is_closed: false, is_won: false },
+  { id: 'prospecting',   label: 'Prospecção',  color: '#78909c', order: 1, is_closed: false, is_won: false },
+  { id: 'qualification', label: 'Qualificação', color: '#4a7c8a', order: 2, is_closed: false, is_won: false },
+  { id: 'proposal',      label: 'Proposta',    color: '#8b6914', order: 3, is_closed: false, is_won: false },
+  { id: 'negotiation',   label: 'Fechamento',  color: '#2c5545', order: 4, is_closed: false, is_won: false },
+  { id: 'closed_won',    label: 'Ganho',       color: '#1a3a2a', order: 5, is_closed: true,  is_won: true  },
+  { id: 'closed_lost',   label: 'Perdido',     color: '#6b3a3a', order: 6, is_closed: true,  is_won: false },
 ]
 
 export const DEFAULT_PROBABILITIES: Record<StageId, number> = {
+  leads:         0,
   prospecting:   10,
   qualification: 25,
   proposal:      50,
@@ -41,7 +44,7 @@ export function getStageColor(stageId: string): string {
 
 export const TAG_STYLES: Record<string, { bg: string; text: string }> = {
   'SaaS':       { bg: '#3b82f6', text: '#fff' },
-  'Enterprise': { bg: '#5b50e8', text: '#fff' },
+  'Enterprise': { bg: '#2c5545', text: '#fff' },
   'Fintech':    { bg: '#0284c7', text: '#fff' },
   'Varejo':     { bg: '#ea580c', text: '#fff' },
   'ESG':        { bg: '#16a34a', text: '#fff' },

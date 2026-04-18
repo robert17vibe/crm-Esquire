@@ -16,6 +16,7 @@ import { arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable'
 import { STAGES, type StageId } from '@/constants/pipeline'
 import { StageColumn } from './StageColumn'
 import { DealCard } from './DealCard'
+import { LossReasonModal } from './LossReasonModal'
 import type { Deal, GroupedDeals } from '@/types/deal.types'
 
 interface KanbanBoardProps {
@@ -28,6 +29,8 @@ interface KanbanBoardProps {
   onUpdatedDealConsumed?: () => void
   onEditDeal?: (deal: Deal) => void
   onDeleteDeal?: (dealId: string) => void
+  onStageChange?: (dealId: string, stageId: StageId) => void
+  onLossReasonConfirmed?: (dealId: string, reason: string) => void
 }
 
 function groupByStage(deals: Deal[]): GroupedDeals {
@@ -55,15 +58,24 @@ export function KanbanBoard({
   onUpdatedDealConsumed,
   onEditDeal,
   onDeleteDeal,
+  onStageChange,
+  onLossReasonConfirmed,
 }: KanbanBoardProps) {
   const [grouped, setGrouped] = useState<GroupedDeals>(() => groupByStage(initialDeals))
   const [activeId, setActiveId] = useState<string | null>(null)
+  const [pendingLossMove, setPendingLossMove] = useState<{ dealId: string; fromStage: StageId } | null>(null)
+  const consumedNewRef = useRef<string | null>(null)
+  const consumedUpdatedRef = useRef<string | null>(null)
   const groupedRef = useRef(grouped)
   groupedRef.current = grouped
+  const dragStartStageRef   = useRef<StageId | null>(null)
+  const dragCurrentStageRef = useRef<StageId | null>(null)
 
   // ── Optimistic insert for new leads ───────────────────────────────────────
   useEffect(() => {
     if (!pendingNewDeal) return
+    if (consumedNewRef.current === pendingNewDeal.id) return
+    consumedNewRef.current = pendingNewDeal.id
     setGrouped((prev) => ({
       ...prev,
       [pendingNewDeal.stage_id]: [pendingNewDeal, ...prev[pendingNewDeal.stage_id]],
@@ -74,6 +86,8 @@ export function KanbanBoard({
   // ── Sync updated deal into board state ────────────────────────────────────
   useEffect(() => {
     if (!pendingUpdatedDeal) return
+    if (consumedUpdatedRef.current === pendingUpdatedDeal.id) return
+    consumedUpdatedRef.current = pendingUpdatedDeal.id
     setGrouped((prev) => {
       const next = { ...prev }
       for (const sid of Object.keys(next) as StageId[]) {
@@ -109,10 +123,10 @@ export function KanbanBoard({
     for (const deals of Object.values(ownerFiltered)) {
       for (const d of deals) {
         if (
-          d.title.toLowerCase().includes(q) ||
-          d.company_name.toLowerCase().includes(q) ||
-          d.owner.name.toLowerCase().includes(q) ||
-          d.tags?.some((t) => t.toLowerCase().includes(q))
+          d.title?.toLowerCase().includes(q) ||
+          d.company_name?.toLowerCase().includes(q) ||
+          d.owner?.name?.toLowerCase().includes(q) ||
+          (d.tags as string[] | null)?.some((t) => t.toLowerCase().includes(q))
         ) {
           matching.add(d.id)
         }
@@ -125,10 +139,46 @@ export function KanbanBoard({
     ? Object.values(grouped).flat().find((d) => d.id === activeId)
     : null
 
+  // ── Loss reason modal handlers ────────────────────────────────────────────
+
+  function handleLossConfirm(reason: string) {
+    if (!pendingLossMove) return
+    const { dealId } = pendingLossMove
+    // Stamp loss_reason on the card in local state
+    setGrouped((prev) => ({
+      ...prev,
+      closed_lost: prev['closed_lost'].map((d) =>
+        d.id === dealId ? { ...d, loss_reason: reason } : d
+      ),
+    }))
+    onStageChange?.(dealId, 'closed_lost')
+    onLossReasonConfirmed?.(dealId, reason)
+    setPendingLossMove(null)
+  }
+
+  function handleLossCancel() {
+    if (!pendingLossMove) return
+    const { dealId, fromStage } = pendingLossMove
+    setGrouped((prev) => {
+      const deal = prev['closed_lost'].find((d) => d.id === dealId)
+      if (!deal) return prev
+      return {
+        ...prev,
+        closed_lost: prev['closed_lost'].filter((d) => d.id !== dealId),
+        [fromStage]: [{ ...deal, stage_id: fromStage }, ...prev[fromStage]],
+      }
+    })
+    setPendingLossMove(null)
+  }
+
   // ── DnD handlers ──────────────────────────────────────────────────────────
 
   const onDragStart = useCallback(({ active }: DragStartEvent) => {
-    setActiveId(String(active.id))
+    const aId = String(active.id)
+    setActiveId(aId)
+    const stage = findContainerId(groupedRef.current, aId) ?? null
+    dragStartStageRef.current   = stage
+    dragCurrentStageRef.current = stage
   }, [])
 
   const onDragOver = useCallback(({ active, over }: DragOverEvent) => {
@@ -139,6 +189,7 @@ export function KanbanBoard({
     const from = findContainerId(g, aId)
     const to   = findContainerId(g, oId)
     if (!from || !to || from === to) return
+    dragCurrentStageRef.current = to
     setGrouped((prev) => {
       const fromItems = prev[from]
       const toItems   = prev[to]
@@ -157,9 +208,22 @@ export function KanbanBoard({
 
   const onDragEnd = useCallback(({ active, over }: DragEndEvent) => {
     setActiveId(null)
+    const aId = String(active.id)
+
+    const startStage   = dragStartStageRef.current
+    const currentStage = dragCurrentStageRef.current
+
+    if (startStage && currentStage && startStage !== currentStage) {
+      if (currentStage === 'closed_lost') {
+        // Defer: show modal before committing
+        setPendingLossMove({ dealId: aId, fromStage: startStage })
+      } else {
+        onStageChange?.(aId, currentStage)
+      }
+    }
+
     if (!over) return
     const g    = groupedRef.current
-    const aId  = String(active.id)
     const oId  = String(over.id)
     const from = findContainerId(g, aId)
     const to   = findContainerId(g, oId)
@@ -173,11 +237,31 @@ export function KanbanBoard({
         [from]: arrayMove(prev[from], fromIdx, toIdx),
       }))
     }
-  }, [])
+  }, [onStageChange])
 
   // ── Quick-action move ─────────────────────────────────────────────────────
 
   const onMoveDeal = useCallback((dealId: string, targetStage: StageId) => {
+    if (targetStage === 'closed_lost') {
+      let fromStage: StageId | undefined
+      for (const [sid, deals] of Object.entries(groupedRef.current)) {
+        if (deals.some((d) => d.id === dealId)) { fromStage = sid as StageId; break }
+      }
+      if (!fromStage || fromStage === 'closed_lost') return
+      // Move visually first so modal shows the card in the correct column
+      setGrouped((prev) => {
+        const deal = prev[fromStage!].find((d) => d.id === dealId)
+        if (!deal) return prev
+        return {
+          ...prev,
+          [fromStage!]: prev[fromStage!].filter((d) => d.id !== dealId),
+          closed_lost: [{ ...deal, stage_id: 'closed_lost' }, ...prev['closed_lost']],
+        }
+      })
+      setPendingLossMove({ dealId, fromStage })
+      return
+    }
+
     setGrouped((prev) => {
       let from: StageId | undefined
       for (const [sid, deals] of Object.entries(prev)) {
@@ -192,7 +276,8 @@ export function KanbanBoard({
         [targetStage]: [{ ...deal, stage_id: targetStage }, ...prev[targetStage]],
       }
     })
-  }, [])
+    onStageChange?.(dealId, targetStage)
+  }, [onStageChange])
 
   // ── Delete from board ─────────────────────────────────────────────────────
 
@@ -207,31 +292,47 @@ export function KanbanBoard({
     onDeleteDeal?.(dealId)
   }, [onDeleteDeal])
 
-  return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={closestCorners}
-      onDragStart={onDragStart}
-      onDragOver={onDragOver}
-      onDragEnd={onDragEnd}
-    >
-      <div className="flex h-full gap-[14px] overflow-x-auto pb-4 pt-0.5 px-0.5">
-        {STAGES.map((stage) => (
-          <StageColumn
-            key={stage.id}
-            stage={stage}
-            deals={ownerFiltered[stage.id] ?? []}
-            dimmedIds={dimmedIds}
-            onMoveDeal={onMoveDeal}
-            onEditDeal={onEditDeal}
-            onDeleteDeal={handleDeleteDeal}
-          />
-        ))}
-      </div>
+  // ── Pending loss deal title ───────────────────────────────────────────────
 
-      <DragOverlay dropAnimation={{ duration: 180, easing: 'ease' }}>
-        {activeDeal ? <DealCard deal={activeDeal} isOverlay /> : null}
-      </DragOverlay>
-    </DndContext>
+  const pendingLossDeal = pendingLossMove
+    ? Object.values(grouped).flat().find((d) => d.id === pendingLossMove.dealId)
+    : null
+
+  return (
+    <>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCorners}
+        onDragStart={onDragStart}
+        onDragOver={onDragOver}
+        onDragEnd={onDragEnd}
+      >
+        <div className="kanban-board-scroll flex h-full gap-[14px] overflow-x-auto pb-4 pt-0.5" style={{ paddingLeft: '2px', paddingRight: '24px' }}>
+          {STAGES.map((stage) => (
+            <StageColumn
+              key={stage.id}
+              stage={stage}
+              deals={ownerFiltered[stage.id] ?? []}
+              dimmedIds={dimmedIds}
+              onMoveDeal={onMoveDeal}
+              onEditDeal={onEditDeal}
+              onDeleteDeal={handleDeleteDeal}
+            />
+          ))}
+        </div>
+
+        <DragOverlay dropAnimation={{ duration: 180, easing: 'ease' }}>
+          {activeDeal ? <DealCard deal={activeDeal} isOverlay /> : null}
+        </DragOverlay>
+      </DndContext>
+
+      {pendingLossMove && pendingLossDeal && (
+        <LossReasonModal
+          dealTitle={pendingLossDeal.title}
+          onConfirm={handleLossConfirm}
+          onCancel={handleLossCancel}
+        />
+      )}
+    </>
   )
 }

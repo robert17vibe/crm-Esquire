@@ -16,7 +16,13 @@
       "Bash(git remote *)",
       "Bash(git add *)",
       "Bash(git commit -m ' *)",
-      "Bash(git init *)"
+      "Bash(git init *)",
+      "Bash(git push *)",
+      "Bash(vercel *)",
+      "Bash(taskkill /F /IM node.exe)",
+      "WebFetch(domain:localhost)",
+      "Bash(npx vite *)",
+      "Bash(powershell *)"
     ]
   }
 }

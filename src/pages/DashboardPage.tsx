@@ -6,7 +6,7 @@ import {
 } from 'lucide-react'
 import { useDealStore } from '@/store/useDealStore'
 import { useThemeStore } from '@/store/useThemeStore'
-import { STAGES } from '@/constants/pipeline'
+import { STAGES, getStageColor } from '@/constants/pipeline'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -135,7 +135,7 @@ export function DashboardPage() {
 
         {/* KPIs */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
-          <KpiCard label="Pipeline Ativo"  value={fmt(pipelineVal)}  sub={`${activeDeals.length} deals ativos`}     icon={TrendingUp} accent="#5b50e8" isDark={isDark} />
+          <KpiCard label="Pipeline Ativo"  value={fmt(pipelineVal)}  sub={`${activeDeals.length} deals ativos`}     icon={TrendingUp} accent="#2c5545" isDark={isDark} />
           <KpiCard label="Deals Ativos"    value={String(activeDeals.length)} sub="em andamento"              icon={Briefcase}  accent="#4a90d9" isDark={isDark} />
           <KpiCard label="Win Rate"        value={`${winRate}%`}     sub={`${closedWon.length} fechados ganhos`}    icon={Target}     accent="#2d9e6b" isDark={isDark} />
           <KpiCard label="Ticket Médio"    value={fmt(avgTicket)}    sub={fmt(wonVal) + ' em contratos'}           icon={DollarSign} accent="#78909c" isDark={isDark} />
@@ -178,7 +178,7 @@ export function DashboardPage() {
 
             <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: `1px solid ${border}`, display: 'flex', gap: '24px' }}>
               {[
-                { label: 'Ganhos', value: wonVal, color: '#2d9e6b' },
+                { label: 'Ganhos', value: wonVal, color: getStageColor('closed_won') },
                 { label: 'Perdidos', value: closedLost.reduce((s, d) => s + d.value, 0), color: isDark ? '#fc8181' : '#c53030' },
                 { label: 'Win Rate', value: null, color: text },
               ].map(({ label, value: v, color }) => (
@@ -264,7 +264,7 @@ export function DashboardPage() {
                 background: 'none', border: 'none', cursor: 'pointer',
                 transition: 'color 0.15s ease',
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = '#5b50e8')}
+              onMouseEnter={(e) => (e.currentTarget.style.color = '#2c5545')}
               onMouseLeave={(e) => (e.currentTarget.style.color = muted)}
             >
               Ver pipeline

@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
 const STAGE_IDS = [
+  'leads',
   'prospecting',
   'qualification',
   'proposal',
