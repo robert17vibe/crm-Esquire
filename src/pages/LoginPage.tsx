@@ -3,16 +3,18 @@ import { Link } from 'react-router-dom'
 import { Eye, EyeOff, Loader2 } from 'lucide-react'
 import { useThemeStore } from '@/store/useThemeStore'
 import { useAuthStore } from '@/store/useAuthStore'
+import { supabase } from '@/lib/supabase'
 
 export function LoginPage() {
   const signIn = useAuthStore((s) => s.signIn)
   const isDark = useThemeStore((s) => s.isDark)
 
-  const [email, setEmail]       = useState('')
+  const [email,    setEmail]    = useState('')
   const [password, setPassword] = useState('')
   const [showPass, setShowPass] = useState(false)
-  const [error, setError]       = useState<string | null>(null)
-  const [loading, setLoading]   = useState(false)
+  const [error,    setError]    = useState<string | null>(null)
+  const [loading,  setLoading]  = useState(false)
+  const [msLoading, setMsLoading] = useState(false)
 
   const bg      = isDark ? '#0d0c0a' : '#f5f4f0'
   const cardBg  = isDark ? '#161614' : '#ffffff'
@@ -30,6 +32,17 @@ export function LoginPage() {
     const err = await signIn(email, password)
     setLoading(false)
     if (err) setError(translateError(err))
+  }
+
+  async function handleMicrosoft() {
+    setError(null)
+    setMsLoading(true)
+    const { error: err } = await supabase.auth.signInWithOAuth({
+      provider: 'azure',
+      options: { scopes: 'email profile openid' },
+    })
+    setMsLoading(false)
+    if (err) setError('Login com Microsoft não está configurado ainda.')
   }
 
   return (
@@ -168,6 +181,40 @@ export function LoginPage() {
             </Link>
           </div>
 
+          {/* Divisor */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '4px' }}>
+            <div style={{ flex: 1, height: '1px', backgroundColor: border }} />
+            <span style={{ fontSize: '11px', color: muted, fontWeight: 500 }}>ou</span>
+            <div style={{ flex: 1, height: '1px', backgroundColor: border }} />
+          </div>
+
+          {/* Microsoft */}
+          <button
+            type="button"
+            onClick={handleMicrosoft}
+            disabled={msLoading}
+            style={{
+              width: '100%', height: '40px', borderRadius: '8px',
+              backgroundColor: 'transparent',
+              border: `1px solid ${border}`,
+              color: text,
+              fontSize: '13px', fontWeight: 600,
+              cursor: msLoading ? 'not-allowed' : 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+              opacity: msLoading ? 0.6 : 1,
+              transition: 'border-color 0.15s ease, opacity 0.15s ease',
+            }}
+            onMouseEnter={(e) => { if (!msLoading) e.currentTarget.style.borderColor = isDark ? '#4a9080' : '#2c5545' }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = border }}
+          >
+            {msLoading ? (
+              <Loader2 style={{ width: '14px', height: '14px' }} className="animate-spin" />
+            ) : (
+              <MicrosoftIcon />
+            )}
+            {msLoading ? 'Conectando...' : 'Entrar com Microsoft'}
+          </button>
+
         </form>
       </div>
     </div>
@@ -180,4 +227,15 @@ function translateError(msg: string): string {
   if (msg.includes('Too many requests'))          return 'Muitas tentativas. Aguarde alguns minutos.'
   if (msg.includes('User not found'))             return 'Usuário não encontrado.'
   return msg
+}
+
+function MicrosoftIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+      <rect x="0"  y="0"  width="7.5" height="7.5" fill="#F25022" />
+      <rect x="8.5" y="0"  width="7.5" height="7.5" fill="#7FBA00" />
+      <rect x="0"  y="8.5" width="7.5" height="7.5" fill="#00A4EF" />
+      <rect x="8.5" y="8.5" width="7.5" height="7.5" fill="#FFB900" />
+    </svg>
+  )
 }

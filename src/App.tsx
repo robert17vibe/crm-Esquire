@@ -10,6 +10,7 @@ import { DealDetailPage } from '@/pages/DealDetailPage'
 import { LandingPage } from '@/pages/LandingPage'
 import { LoginPage } from '@/pages/LoginPage'
 import { ForgotPasswordPage } from '@/pages/ForgotPasswordPage'
+import { ResetPasswordPage } from '@/pages/ResetPasswordPage'
 import { useThemeStore } from '@/store/useThemeStore'
 import { useAuthStore } from '@/store/useAuthStore'
 
@@ -58,10 +59,8 @@ export default function App() {
         path="/login"
         element={session ? <Navigate to="/pipeline" replace /> : <LoginPage />}
       />
-      <Route
-        path="/forgot-password"
-        element={<ForgotPasswordPage />}
-      />
+      <Route path="/forgot-password"  element={<ForgotPasswordPage />} />
+      <Route path="/reset-password"   element={<ResetPasswordPage />} />
       <Route
         element={session ? <AppLayout /> : <Navigate to="/login" replace />}
       >
