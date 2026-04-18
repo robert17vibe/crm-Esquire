@@ -205,7 +205,6 @@ function MeetingCard({ meeting, isDark }: { meeting: DealMeeting; isDark: boolea
 export function MeetingsPage() {
   const isDark    = useThemeStore((s) => s.isDark)
   const meetings  = useMeetingStore((s) => s.meetings)
-  const loading   = useMeetingStore((s) => s.loading)
 
   const border = isDark ? '#242422' : '#e4e0da'
   const text   = isDark ? '#e8e4dc' : '#1a1814'
@@ -242,9 +241,7 @@ export function MeetingsPage() {
 
       {/* List */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        {loading ? (
-          <p style={{ fontSize: '12px', color: muted, textAlign: 'center', paddingTop: '40px' }}>Carregando...</p>
-        ) : sorted.length === 0 ? (
+        {sorted.length === 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, gap: '8px', textAlign: 'center' }}>
             <Mic style={{ width: '28px', height: '28px', color: border }} />
             <p style={{ fontSize: '13px', fontWeight: 600, color: muted }}>Nenhuma reunião registrada</p>

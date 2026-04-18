@@ -12,7 +12,6 @@ import type { Deal } from '@/types/deal.types'
 
 export function PipelinePage() {
   const deals          = useDealStore((s) => s.deals)
-  const loading        = useDealStore((s) => s.loading)
   const deleteDeal     = useDealStore((s) => s.deleteDeal)
   const moveDeal       = useDealStore((s) => s.moveDeal)
   const setLossReason  = useDealStore((s) => s.setLossReason)
@@ -346,26 +345,19 @@ export function PipelinePage() {
 
       {/* ── Board ── */}
       <div style={{ flex: 1, minHeight: 0 }}>
-        {loading && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-            <p style={{ fontSize: '12px', color: isDark ? '#3a3834' : '#c4bfb8' }}>Carregando pipeline...</p>
-          </div>
-        )}
-        {!loading && (
-          <KanbanBoard
-            initialDeals={deals}
-            visibleOwnerIds={selectedOwners.length > 0 ? selectedOwners : undefined}
-            searchQuery={searchQuery}
-            pendingNewDeal={pendingNewDeal}
-            onNewDealConsumed={() => setPendingNewDeal(null)}
-            pendingUpdatedDeal={updatedDeal}
-            onUpdatedDealConsumed={() => setUpdatedDeal(null)}
-            onEditDeal={setEditingDeal}
-            onDeleteDeal={(id) => { deleteDeal(id) }}
-            onStageChange={(id, stageId) => { moveDeal(id, stageId) }}
-            onLossReasonConfirmed={(id, reason) => { setLossReason(id, reason) }}
-          />
-        )}
+        <KanbanBoard
+          initialDeals={deals}
+          visibleOwnerIds={selectedOwners.length > 0 ? selectedOwners : undefined}
+          searchQuery={searchQuery}
+          pendingNewDeal={pendingNewDeal}
+          onNewDealConsumed={() => setPendingNewDeal(null)}
+          pendingUpdatedDeal={updatedDeal}
+          onUpdatedDealConsumed={() => setUpdatedDeal(null)}
+          onEditDeal={setEditingDeal}
+          onDeleteDeal={(id) => { deleteDeal(id) }}
+          onStageChange={(id, stageId) => { moveDeal(id, stageId) }}
+          onLossReasonConfirmed={(id, reason) => { setLossReason(id, reason) }}
+        />
       </div>
 
       {/* ── Modals ── */}

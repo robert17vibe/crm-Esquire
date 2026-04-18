@@ -1,42 +1,27 @@
 import { create } from 'zustand'
+import { MOCK_DEALS, MOCK_OWNERS } from '@/lib/mock-data'
 import { DEFAULT_PROBABILITIES } from '@/constants/pipeline'
-import { fetchDeals, insertDeal, patchDeal, removeDeal } from '@/services/deal.service'
-import { useOwnerStore } from '@/store/useOwnerStore'
-import { MOCK_DEALS } from '@/lib/mock-data'
 import type { Deal } from '@/types/deal.types'
 import type { StageId } from '@/constants/pipeline'
 import type { NewLeadFormValues } from '@/lib/schemas/deal.schema'
 
 interface DealStore {
   deals: Deal[]
-  loading: boolean
-  init: () => Promise<void>
-  createDeal: (values: NewLeadFormValues) => Promise<Deal>
-  updateDeal: (id: string, values: NewLeadFormValues) => Promise<Deal>
-  deleteDeal: (id: string) => Promise<void>
-  moveDeal: (id: string, stageId: StageId) => Promise<void>
+  createDeal: (values: NewLeadFormValues) => Deal
+  updateDeal: (id: string, values: NewLeadFormValues) => Deal
+  deleteDeal: (id: string) => void
+  moveDeal: (id: string, stageId: StageId) => void
   setLossReason: (id: string, reason: string) => void
 }
 
 export const useDealStore = create<DealStore>((set, get) => ({
   deals: MOCK_DEALS,
-  loading: false,
 
-  init: async () => {
-    set({ loading: true })
-    try {
-      const remote = await fetchDeals()
-      if (remote.length > 0) set({ deals: remote })
-    } catch {
-      // remote unavailable — keep mock data
-    } finally {
-      set({ loading: false })
-    }
-  },
-
-  createDeal: async (values) => {
-    const owner = useOwnerStore.getState().getById(values.owner_id, values.contact_name)
-    const deal = await insertDeal({
+  createDeal: (values) => {
+    const owner = MOCK_OWNERS.find((o) => o.id === values.owner_id) ?? MOCK_OWNERS[0]
+    const now = new Date().toISOString().slice(0, 10)
+    const deal: Deal = {
+      id: `d-${Date.now()}`,
       company_id: `c-${Date.now()}`,
       title: `${values.company_name} — ${values.contact_name}`,
       stage_id: values.stage_id,
@@ -56,15 +41,19 @@ export const useDealStore = create<DealStore>((set, get) => ({
       company_sector: values.company_sector,
       company_size: values.company_size,
       lead_source: values.lead_source,
-    })
+      created_at: now,
+      updated_at: now,
+    }
     set((state) => ({ deals: [deal, ...state.deals] }))
     return deal
   },
 
-  updateDeal: async (id, values) => {
-    const owner = useOwnerStore.getState().getById(values.owner_id, values.contact_name)
+  updateDeal: (id, values) => {
+    const owner = MOCK_OWNERS.find((o) => o.id === values.owner_id) ?? MOCK_OWNERS[0]
+    const now = new Date().toISOString().slice(0, 10)
     const existing = get().deals.find((d) => d.id === id)
-    const updated = await patchDeal(id, {
+    const updated: Deal = {
+      ...(existing ?? ({} as Deal)),
       title: `${values.company_name} — ${values.contact_name}`,
       stage_id: values.stage_id,
       value: values.value ?? existing?.value ?? 0,
@@ -78,28 +67,28 @@ export const useDealStore = create<DealStore>((set, get) => ({
       contact_phone: values.contact_phone,
       contact_linkedin: values.contact_linkedin || undefined,
       company_name: values.company_name,
-      company_sector: values.company_sector || existing?.company_sector,
-      company_size: values.company_size ?? existing?.company_size,
-      lead_source: values.lead_source ?? existing?.lead_source,
-    })
+      company_sector: values.company_sector,
+      company_size: values.company_size,
+      lead_source: values.lead_source,
+      updated_at: now,
+    }
     set((state) => ({
       deals: state.deals.map((d) => (d.id === id ? updated : d)),
     }))
     return updated
   },
 
-  deleteDeal: async (id) => {
-    await removeDeal(id)
+  deleteDeal: (id) => {
     set((state) => ({ deals: state.deals.filter((d) => d.id !== id) }))
   },
 
-  moveDeal: async (id, stageId) => {
-    const updated = await patchDeal(id, {
-      stage_id: stageId,
-      probability: DEFAULT_PROBABILITIES[stageId],
-    })
+  moveDeal: (id, stageId) => {
     set((state) => ({
-      deals: state.deals.map((d) => (d.id === id ? updated : d)),
+      deals: state.deals.map((d) =>
+        d.id === id
+          ? { ...d, stage_id: stageId, probability: DEFAULT_PROBABILITIES[stageId] }
+          : d
+      ),
     }))
   },
 

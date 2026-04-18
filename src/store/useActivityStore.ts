@@ -1,38 +1,30 @@
 import { create } from 'zustand'
-import { fetchActivitiesByDeal, insertActivity } from '@/services/activity.service'
 import { MOCK_ACTIVITIES } from '@/lib/mock-data'
 import type { DealActivity, Owner } from '@/types/deal.types'
 
 interface ActivityStore {
   byDeal: Record<string, DealActivity[]>
-  loading: Record<string, boolean>
-  fetchForDeal: (dealId: string) => Promise<void>
+  fetchForDeal: (dealId: string) => void
   addActivity: (
     dealId: string,
     payload: { type: DealActivity['type']; subject: string; body?: string; owner: Owner },
-  ) => Promise<DealActivity>
+  ) => DealActivity
 }
 
-export const useActivityStore = create<ActivityStore>((set) => ({
-  byDeal:  MOCK_ACTIVITIES,
-  loading: {},
+export const useActivityStore = create<ActivityStore>((set, get) => ({
+  byDeal: MOCK_ACTIVITIES,
 
-  fetchForDeal: async (dealId) => {
-    set((s) => ({ loading: { ...s.loading, [dealId]: true } }))
-    try {
-      const remote = await fetchActivitiesByDeal(dealId)
-      if (remote.length > 0) {
-        set((s) => ({ byDeal: { ...s.byDeal, [dealId]: remote } }))
-      }
-    } catch {
-      // remote unavailable — keep mock activities
-    } finally {
-      set((s) => ({ loading: { ...s.loading, [dealId]: false } }))
-    }
+  fetchForDeal: (_dealId) => {
+    // mock data already loaded in initial state — no-op
   },
 
-  addActivity: async (dealId, payload) => {
-    const activity = await insertActivity({ deal_id: dealId, ...payload })
+  addActivity: (dealId, payload) => {
+    const activity: DealActivity = {
+      id: `a-${Date.now()}`,
+      deal_id: dealId,
+      ...payload,
+      created_at: new Date().toISOString(),
+    }
     set((s) => ({
       byDeal: { ...s.byDeal, [dealId]: [activity, ...(s.byDeal[dealId] ?? [])] },
     }))

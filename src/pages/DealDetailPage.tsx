@@ -415,7 +415,6 @@ export function DealDetailPage() {
   const navigate = useNavigate()
   const isDark   = useThemeStore((s) => s.isDark)
   const deal     = useDealStore((s) => s.deals.find((d) => d.id === id))
-  const storeLoading = useDealStore((s) => s.loading)
 
   const fetchActivities = useActivityStore((s) => s.fetchForDeal)
   const byDeal          = useActivityStore((s) => s.byDeal)
@@ -461,7 +460,7 @@ export function DealDetailPage() {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: '12px' }}>
         <p style={{ fontSize: '15px', fontWeight: 700, color: '#8a857d' }}>
-          {storeLoading ? 'Carregando...' : 'Lead não encontrado'}
+          {'Lead não encontrado'}
         </p>
         <button type="button" onClick={() => navigate('/pipeline')} style={{ fontSize: '13px', fontWeight: 600, color: '#2c5545', background: 'none', border: 'none', cursor: 'pointer' }}>
           Voltar ao Pipeline

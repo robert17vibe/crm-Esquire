@@ -17,7 +17,6 @@ const SIZE_LABELS: Record<string, string> = {
 
 export function ClientsPage() {
   const deals    = useDealStore((s) => s.deals)
-  const loading  = useDealStore((s) => s.loading)
   const isDark   = useThemeStore((s) => s.isDark)
   const navigate = useNavigate()
 
@@ -87,10 +86,7 @@ export function ClientsPage() {
         <div>
           <p style={{ fontSize: '13px', fontWeight: 700, color: text, letterSpacing: '-0.01em' }}>Clientes</p>
           <p style={{ fontSize: '10px', color: muted, marginTop: '2px' }}>
-            {loading
-              ? 'Carregando...'
-              : `${companies.length} empresas · ${fmt(totalPipeline)} em pipeline · ${fmt(totalWon)} fechado`
-            }
+            {`${companies.length} empresas · ${fmt(totalPipeline)} em pipeline · ${fmt(totalWon)} fechado`}
           </p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', fontWeight: 600, color: '#2c5545', backgroundColor: '#2c554514', border: '1px solid #2c554530', borderRadius: '6px', padding: '5px 10px' }}>
@@ -101,11 +97,7 @@ export function ClientsPage() {
 
       {/* Table */}
       <div style={{ flex: 1, overflowY: 'auto' }}>
-        {loading ? (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-            <p style={{ fontSize: '12px', color: muted }}>Carregando clientes...</p>
-          </div>
-        ) : companies.length === 0 ? (
+        {companies.length === 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: '8px' }}>
             <Building2 style={{ width: '28px', height: '28px', color: border }} />
             <p style={{ fontSize: '13px', fontWeight: 600, color: muted }}>Nenhum cliente ainda</p>
