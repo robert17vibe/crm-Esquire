@@ -16,9 +16,9 @@ interface AuthStore {
   session: Session | null
   profile: Profile | null
   loading: boolean
-  init: () => () => void
+  initialize: () => () => void
   signIn: (email: string, password: string) => Promise<string | null>
-  logout: () => Promise<void>
+  signOut: () => Promise<void>
   loadProfile: () => Promise<void>
 }
 
@@ -39,7 +39,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     set({ user, profile: data ?? null })
   },
 
-  init: () => {
+  initialize: () => {
     supabase.auth.getSession().then(async ({ data }) => {
       set({ session: data.session, loading: false })
       if (data.session) await get().loadProfile()
@@ -59,7 +59,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     return null
   },
 
-  logout: async () => {
+  signOut: async () => {
     await supabase.auth.signOut()
     set({ user: null, session: null, profile: null })
   },

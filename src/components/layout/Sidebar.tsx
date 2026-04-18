@@ -19,8 +19,6 @@ function grayHashColor(name: string): string {
   return (['#2a2a2a', '#3a3a3a', '#4a4a4a', '#5a5a5a'])[Math.abs(h) % 4]
 }
 
-const CURRENT_USER = { name: 'Robert Ferreira', role: 'Admin', initials: 'RF' }
-
 // ─── Nav item ─────────────────────────────────────────────────────────────────
 
 function NavItem({
@@ -118,7 +116,13 @@ function SettingsItem({ activeItemBg, collapsed }: { activeItemBg: string; colla
 export function Sidebar() {
   const isDark   = useThemeStore((s) => s.isDark)
   const location = useLocation()
-  const logout   = useAuthStore((s) => s.logout)
+  const signOut  = useAuthStore((s) => s.signOut)
+  const profile  = useAuthStore((s) => s.profile)
+
+  const displayName    = profile?.full_name || 'Esquire User'
+  const displayRole    = profile?.role === 'admin' ? 'Admin' : 'User'
+  const displayInitials = displayName.split(' ').map((p) => p[0]).slice(0, 2).join('').toUpperCase()
+  const displayColor   = profile?.avatar_color ?? '#2c5545'
 
   const [collapsed, setCollapsed] = useState(() => window.innerWidth < 900)
 
@@ -138,8 +142,6 @@ export function Sidebar() {
 
   const sidebarBg    = isDark ? '#0a0a0a' : '#1a1a1a'
   const activeItemBg = isDark ? '#1a1a1a' : '#2a2a2a'
-  const avatarColor  = grayHashColor(CURRENT_USER.name)
-  // Content background (matches AppLayout bg-surface-base)
   const contentBg    = isDark ? '#0d0c0a' : '#f5f4f0'
 
   const sidebarWidth = collapsed ? 56 : 200
@@ -291,26 +293,26 @@ export function Sidebar() {
         {/* User */}
         {collapsed ? (
           <div style={{ display: 'flex', justifyContent: 'center' }}>
-            <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: avatarColor, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#f0ede5', fontSize: '11px', fontWeight: 600 }}>
-              {CURRENT_USER.initials}
+            <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: displayColor, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#f0ede5', fontSize: '11px', fontWeight: 600 }}>
+              {displayInitials}
             </div>
           </div>
         ) : (
           <div className="sidebar-user-details" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: avatarColor, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#f0ede5', fontSize: '11px', fontWeight: 600 }}>
-              {CURRENT_USER.initials}
+            <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: displayColor, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#f0ede5', fontSize: '11px', fontWeight: 600 }}>
+              {displayInitials}
             </div>
             <div style={{ minWidth: 0, flex: 1 }}>
               <p style={{ fontSize: '12px', fontWeight: 500, color: '#f0ede5', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: 1.3 }}>
-                {CURRENT_USER.name}
+                {displayName}
               </p>
               <p style={{ fontSize: '10px', color: '#6b6b6b', textTransform: 'uppercase', letterSpacing: '0.08em', lineHeight: 1.4, marginTop: '1px' }}>
-                {CURRENT_USER.role}
+                {displayRole}
               </p>
             </div>
             <button
               type="button"
-              onClick={() => logout()}
+              onClick={() => signOut()}
               title="Sair"
               style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', flexShrink: 0, color: '#4a4a4a', transition: 'color 0.15s ease' }}
               onMouseEnter={(e) => (e.currentTarget.style.color = '#f0ede5')}
