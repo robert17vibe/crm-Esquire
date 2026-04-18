@@ -86,54 +86,20 @@ export function PipelinePage() {
           gap: '16px',
         }}
       >
-        {/* ── Zone left: title + subtitle ── */}
-        <div style={{ flexShrink: 0 }}>
-          <p style={{ fontSize: '13px', fontWeight: 700, color: isDark ? '#e8e4dc' : '#1a1814', letterSpacing: '-0.01em', lineHeight: 1.2 }}>
-            Pipeline
-          </p>
-          <p style={{ fontSize: '10px', fontWeight: 500, color: subtitleColor, marginTop: '2px', fontVariantNumeric: 'tabular-nums', letterSpacing: '0.01em' }}>
-            <span style={{ fontFamily: 'monospace' }}>{formattedTotal}</span>
-            <span style={{ margin: '0 5px', opacity: 0.5 }}>·</span>
-            {activeDeals.length} ativos
-          </p>
-        </div>
-
-        {/* ── Zone center: search + filter ── */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: 1, maxWidth: '520px' }}>
-
-          {/* Search */}
-          <div style={{ position: 'relative', flex: 1 }}>
-            <Search
-              style={{
-                position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)',
-                width: '13px', height: '13px', color: inputPlaceholder, pointerEvents: 'none',
-              }}
-            />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Buscar lead, empresa..."
-              style={{
-                width: '100%',
-                height: '32px',
-                paddingLeft: '30px',
-                paddingRight: '10px',
-                fontSize: '12px',
-                fontWeight: 500,
-                backgroundColor: inputBg,
-                border: `1px solid ${inputBorder}`,
-                borderRadius: '6px',
-                color: inputText,
-                outline: 'none',
-                transition: 'border-color 0.15s ease',
-              }}
-              onFocus={(e) => (e.currentTarget.style.borderColor = isDark ? '#3a3a3a' : '#c8c4be')}
-              onBlur={(e)  => (e.currentTarget.style.borderColor = inputBorder)}
-            />
+        {/* ── Zone left: title + subtitle + filter ── */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
+          <div>
+            <p style={{ fontSize: '13px', fontWeight: 700, color: isDark ? '#e8e4dc' : '#1a1814', letterSpacing: '-0.01em', lineHeight: 1.2 }}>
+              Pipeline
+            </p>
+            <p style={{ fontSize: '10px', fontWeight: 500, color: subtitleColor, marginTop: '2px', fontVariantNumeric: 'tabular-nums', letterSpacing: '0.01em' }}>
+              <span style={{ fontFamily: 'monospace' }}>{formattedTotal}</span>
+              <span style={{ margin: '0 5px', opacity: 0.5 }}>·</span>
+              {activeDeals.length} ativos
+            </p>
           </div>
 
-          {/* Filter Popover */}
+          {/* Filter Popover — moved here, alongside the title */}
           <Popover.Root>
             <Popover.Trigger asChild>
               <button
@@ -293,6 +259,38 @@ export function PipelinePage() {
               </Popover.Content>
             </Popover.Portal>
           </Popover.Root>
+        </div>
+
+        {/* ── Zone center: search ── */}
+        <div style={{ position: 'relative', flex: 1, maxWidth: '400px' }}>
+          <Search
+            style={{
+              position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)',
+              width: '13px', height: '13px', color: inputPlaceholder, pointerEvents: 'none',
+            }}
+          />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Buscar lead, empresa..."
+            style={{
+              width: '100%',
+              height: '32px',
+              paddingLeft: '30px',
+              paddingRight: '10px',
+              fontSize: '12px',
+              fontWeight: 500,
+              backgroundColor: inputBg,
+              border: `1px solid ${inputBorder}`,
+              borderRadius: '6px',
+              color: inputText,
+              outline: 'none',
+              transition: 'border-color 0.15s ease',
+            }}
+            onFocus={(e) => (e.currentTarget.style.borderColor = isDark ? '#3a3a3a' : '#c8c4be')}
+            onBlur={(e)  => (e.currentTarget.style.borderColor = inputBorder)}
+          />
         </div>
 
         {/* ── Zone right: new lead ── */}

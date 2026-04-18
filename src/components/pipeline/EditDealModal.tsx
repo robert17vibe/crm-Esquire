@@ -12,12 +12,12 @@ import type { Deal } from '@/types/deal.types'
 // ─── Design tokens ────────────────────────────────────────────────────────────
 
 const T = {
-  border:      'border border-[#dddaf5] dark:border-[#2e2b4a]',
-  inputBg:     'bg-[#f8f7ff] dark:bg-[#1e1d3a]',
-  focusBorder: 'focus:border-[#2c5545] focus:ring-2 focus:ring-[#2c5545]/15',
+  border:      'border border-[#e4e0da] dark:border-[#242422]',
+  inputBg:     'bg-[#f5f4f0] dark:bg-[#111110]',
+  focusBorder: 'focus:border-[#2c5545] dark:focus:border-[#4a9080] focus:ring-2 focus:ring-[#2c5545]/15 dark:focus:ring-[#4a9080]/15',
   errBorder:   'border-[#ef4444] focus:border-[#ef4444] focus:ring-[#ef4444]/15',
-  labelColor:  'text-[#1a1a2e] dark:text-[#a8a6d4]',
-  separator:   'bg-[#f0eeff] dark:bg-[#2a2860]',
+  labelColor:  'text-[#8a857d] dark:text-[#6b6560]',
+  separator:   'bg-[#e4e0da] dark:bg-[#242422]',
 } as const
 
 function FLabel({ htmlFor, children, required }: { htmlFor: string; children: React.ReactNode; required?: boolean }) {
@@ -39,7 +39,7 @@ type InputProps = React.InputHTMLAttributes<HTMLInputElement> & { hasError?: boo
 function Input({ hasError, className, style, ...rest }: InputProps) {
   return (
     <input
-      className={cn('w-full outline-none transition-all duration-150', 'text-[#1a1a2e] dark:text-[#e8e6ff] placeholder-[#c5c4d6]', T.inputBg, T.border, hasError ? T.errBorder : T.focusBorder, className)}
+      className={cn('w-full outline-none transition-all duration-150', 'text-[#1a1814] dark:text-[#e8e4dc] placeholder-[#c4bfb8] dark:placeholder-[#3a3834]', T.inputBg, T.border, hasError ? T.errBorder : T.focusBorder, className)}
       style={{ height: '40px', borderRadius: '10px', fontSize: '13px', fontWeight: 500, paddingLeft: '12px', paddingRight: '12px', ...style }}
       {...rest}
     />
@@ -52,7 +52,7 @@ function Select({ hasError, className, style, children, ...rest }: SelectProps) 
   return (
     <div className="relative">
       <select
-        className={cn('w-full outline-none appearance-none transition-all duration-150 cursor-pointer', 'text-[#1a1a2e] dark:text-[#e8e6ff]', T.inputBg, T.border, hasError ? T.errBorder : T.focusBorder, className)}
+        className={cn('w-full outline-none appearance-none transition-all duration-150 cursor-pointer', 'text-[#1a1814] dark:text-[#e8e4dc]', T.inputBg, T.border, hasError ? T.errBorder : T.focusBorder, className)}
         style={{ height: '40px', borderRadius: '10px', fontSize: '13px', fontWeight: 500, paddingLeft: '12px', paddingRight: '36px', ...style }}
         {...rest}
       >
@@ -66,7 +66,7 @@ function Select({ hasError, className, style, children, ...rest }: SelectProps) 
 function SectionHead({ title, first }: { title: string; first?: boolean }) {
   return (
     <div style={{ paddingTop: first ? '4px' : '24px', paddingBottom: '14px' }}>
-      <p className="text-[#8b8aa3] uppercase" style={{ fontSize: '10px', fontWeight: 600, letterSpacing: '0.1em', marginBottom: '10px' }}>{title}</p>
+      <p className="text-[#8a857d] dark:text-[#6b6560] uppercase" style={{ fontSize: '10px', fontWeight: 600, letterSpacing: '0.1em', marginBottom: '10px' }}>{title}</p>
       <div className={T.separator} style={{ height: '1px' }} />
     </div>
   )
@@ -131,7 +131,7 @@ export function EditDealModal({ deal, open, onClose, onUpdated }: Props) {
           className={cn(
             'fixed z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2',
             'max-w-[calc(100vw-32px)] max-h-[90vh]',
-            'bg-white dark:bg-[#16152a]',
+            'bg-white dark:bg-[#161614]',
             T.border,
             'flex flex-col',
             'data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95',
@@ -143,15 +143,15 @@ export function EditDealModal({ deal, open, onClose, onUpdated }: Props) {
           {/* ── Header ── */}
           <div className="flex items-start justify-between shrink-0" style={{ padding: '28px 32px 20px' }}>
             <div>
-              <Dialog.Title className="text-[#1a1a2e] dark:text-[#e8e6ff]" style={{ fontSize: '18px', fontWeight: 700, lineHeight: 1.2 }}>
+              <Dialog.Title className="text-[#1a1814] dark:text-[#e8e4dc]" style={{ fontSize: '18px', fontWeight: 700, lineHeight: 1.2 }}>
                 Editar Lead
               </Dialog.Title>
-              <Dialog.Description style={{ fontSize: '13px', color: '#8b8aa3', marginTop: '4px' }}>
+              <Dialog.Description className="text-[#8a857d] dark:text-[#6b6560]" style={{ fontSize: '13px', marginTop: '4px' }}>
                 {deal?.company_name ?? '—'} — {deal?.contact_name ?? '—'}
               </Dialog.Description>
             </div>
             <Dialog.Close asChild>
-              <button type="button" aria-label="Fechar" className="flex items-center justify-center rounded-[8px] transition-colors duration-150 hover:text-[#1a1a2e] dark:hover:text-[#e8e6ff]" style={{ width: '32px', height: '32px', color: '#8b8aa3', flexShrink: 0, marginTop: '-2px', marginRight: '-4px' }}>
+              <button type="button" aria-label="Fechar" className="flex items-center justify-center rounded-[8px] transition-colors duration-150 text-[#8a857d] dark:text-[#6b6560] hover:text-[#1a1814] dark:hover:text-[#e8e4dc]" style={{ width: '32px', height: '32px', flexShrink: 0, marginTop: '-2px', marginRight: '-4px' }}>
                 <X style={{ width: '18px', height: '18px' }} />
               </button>
             </Dialog.Close>
@@ -263,7 +263,7 @@ export function EditDealModal({ deal, open, onClose, onUpdated }: Props) {
                 id="e_notes"
                 rows={3}
                 placeholder="Contexto do lead, notas, próximos passos…"
-                className={cn('w-full outline-none resize-none transition-all duration-150', 'text-[#1a1a2e] dark:text-[#e8e6ff] placeholder-[#c5c4d6]', T.inputBg, T.border, T.focusBorder)}
+                className={cn('w-full outline-none resize-none transition-all duration-150', 'text-[#1a1814] dark:text-[#e8e4dc] placeholder-[#c4bfb8] dark:placeholder-[#3a3834]', T.inputBg, T.border, T.focusBorder)}
                 style={{ borderRadius: '10px', fontSize: '13px', fontWeight: 500, padding: '10px 12px', lineHeight: 1.6 }}
                 {...register('notes')}
               />
@@ -274,7 +274,7 @@ export function EditDealModal({ deal, open, onClose, onUpdated }: Props) {
 
           {/* ── Footer ── */}
           <div className="flex items-center justify-end shrink-0" style={{ padding: '16px 32px 24px', gap: '10px' }}>
-            <button type="button" onClick={handleClose} className={cn('transition-colors duration-150', 'border border-[#dddaf5] dark:border-[#2e2b4a]', 'text-[#8b8aa3] hover:bg-[#f8f7ff] dark:hover:bg-[#1e1d3a]')} style={{ height: '40px', borderRadius: '10px', padding: '0 24px', fontSize: '13px', fontWeight: 600, background: 'transparent', cursor: 'pointer' }}>
+            <button type="button" onClick={handleClose} className={cn('transition-colors duration-150 text-[#8a857d] dark:text-[#6b6560]', 'border border-[#e4e0da] dark:border-[#242422]', 'hover:bg-[#f5f4f0] dark:hover:bg-[#1e1e1c] hover:text-[#1a1814] dark:hover:text-[#e8e4dc]')} style={{ height: '40px', borderRadius: '10px', padding: '0 24px', fontSize: '13px', fontWeight: 600, background: 'transparent', cursor: 'pointer' }}>
               Cancelar
             </button>
             <button type="submit" form="edit-deal-form" disabled={isSubmitting} className="flex items-center gap-2 transition-opacity duration-150 disabled:opacity-70 disabled:cursor-not-allowed" style={{ height: '40px', borderRadius: '10px', padding: '0 28px', fontSize: '13px', fontWeight: 700, backgroundColor: '#2c5545', color: '#ffffff', border: 'none', cursor: isSubmitting ? 'not-allowed' : 'pointer', boxShadow: '0 2px 12px rgba(44,85,69,0.35)' }}>

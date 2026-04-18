@@ -96,7 +96,7 @@ export function ClientsPage() {
       </div>
 
       {/* Table */}
-      <div style={{ flex: 1, overflowY: 'auto' }}>
+      <div style={{ flex: 1, overflowY: 'auto', overflowX: 'auto' }}>
         {companies.length === 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: '8px' }}>
             <Building2 style={{ width: '28px', height: '28px', color: border }} />
@@ -104,14 +104,17 @@ export function ClientsPage() {
             <p style={{ fontSize: '12px', color: isDark ? '#3a3834' : '#c4bfb8' }}>Adicione deals no Pipeline para ver clientes aqui</p>
           </div>
         ) : (
-          <>
+          <div style={{ minWidth: '640px' }}>
             {/* Column headers */}
             <div style={{
-              display: 'grid', gridTemplateColumns: '2fr 100px 80px 120px 120px 32px',
-              padding: '8px 20px', gap: '12px',
+              display: 'grid', gridTemplateColumns: 'minmax(180px, 2fr) minmax(80px, 110px) minmax(60px, 80px) minmax(100px, 120px) minmax(100px, 120px) 32px',
+              padding: '8px 20px', gap: '10px',
               borderBottom: `1px solid ${border}`, flexShrink: 0,
+              position: 'sticky', top: 0,
+              backgroundColor: isDark ? '#0d0c0a' : '#f5f4f0',
+              zIndex: 1,
             }}>
-              {['Empresa', 'Setor', 'Tamanho', 'Pipeline', 'Fechado'].map((h) => (
+              {['Empresa', 'Setor', 'Tam.', 'Pipeline', 'Fechado'].map((h) => (
                 <p key={h} style={{ fontSize: '10px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{h}</p>
               ))}
               <span />
@@ -132,8 +135,8 @@ export function ClientsPage() {
                   type="button"
                   onClick={() => latestDeal && navigate(`/deal/${latestDeal.id}`)}
                   style={{
-                    display: 'grid', gridTemplateColumns: '2fr 100px 80px 120px 120px 32px',
-                    width: '100%', padding: '14px 20px', gap: '12px', alignItems: 'center',
+                    display: 'grid', gridTemplateColumns: 'minmax(180px, 2fr) minmax(80px, 110px) minmax(60px, 80px) minmax(100px, 120px) minmax(100px, 120px) 32px',
+                    width: '100%', padding: '12px 20px', gap: '10px', alignItems: 'center',
                     borderBottom: `1px solid ${border}`,
                     background: 'none',
                     cursor: latestDeal ? 'pointer' : 'default',
@@ -218,7 +221,7 @@ export function ClientsPage() {
                 </button>
               )
             })}
-          </>
+          </div>
         )}
       </div>
     </div>
