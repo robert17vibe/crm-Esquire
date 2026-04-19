@@ -1,18 +1,20 @@
-import { useEffect } from 'react'
+import { useEffect, lazy, Suspense } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { AppLayout } from '@/components/layout/AppLayout'
-import { DashboardPage } from '@/pages/DashboardPage'
-import { PipelinePage } from '@/pages/PipelinePage'
-import { ClientsPage } from '@/pages/ClientsPage'
-import { MeetingsPage } from '@/pages/MeetingsPage'
-import { SettingsPage } from '@/pages/SettingsPage'
-import { DealDetailPage } from '@/pages/DealDetailPage'
-import { LandingPage } from '@/pages/LandingPage'
-import { LoginPage } from '@/pages/LoginPage'
-import { ForgotPasswordPage } from '@/pages/ForgotPasswordPage'
-import { ResetPasswordPage } from '@/pages/ResetPasswordPage'
 import { useThemeStore } from '@/store/useThemeStore'
 import { useAuthStore } from '@/store/useAuthStore'
+
+const DashboardPage    = lazy(() => import('@/pages/DashboardPage').then((m) => ({ default: m.DashboardPage })))
+const PipelinePage     = lazy(() => import('@/pages/PipelinePage').then((m) => ({ default: m.PipelinePage })))
+const ClientsPage      = lazy(() => import('@/pages/ClientsPage').then((m) => ({ default: m.ClientsPage })))
+const MeetingsPage     = lazy(() => import('@/pages/MeetingsPage').then((m) => ({ default: m.MeetingsPage })))
+const CalendarPage     = lazy(() => import('@/pages/CalendarPage').then((m) => ({ default: m.CalendarPage })))
+const SettingsPage     = lazy(() => import('@/pages/SettingsPage').then((m) => ({ default: m.SettingsPage })))
+const DealDetailPage   = lazy(() => import('@/pages/DealDetailPage').then((m) => ({ default: m.DealDetailPage })))
+const LandingPage      = lazy(() => import('@/pages/LandingPage').then((m) => ({ default: m.LandingPage })))
+const LoginPage        = lazy(() => import('@/pages/LoginPage').then((m) => ({ default: m.LoginPage })))
+const ForgotPasswordPage = lazy(() => import('@/pages/ForgotPasswordPage').then((m) => ({ default: m.ForgotPasswordPage })))
+const ResetPasswordPage  = lazy(() => import('@/pages/ResetPasswordPage').then((m) => ({ default: m.ResetPasswordPage })))
 
 export default function App() {
   const isDark       = useThemeStore((s) => s.isDark)
@@ -54,6 +56,7 @@ export default function App() {
   }
 
   return (
+    <Suspense fallback={null}>
     <Routes>
       <Route
         path="/login"
@@ -70,10 +73,12 @@ export default function App() {
         <Route path="/pipeline"  element={<PipelinePage />} />
         <Route path="/clients"   element={<ClientsPage />} />
         <Route path="/meetings"  element={<MeetingsPage />} />
+        <Route path="/calendar"  element={<CalendarPage />} />
         <Route path="/settings"  element={<SettingsPage />} />
         <Route path="/deal/:id"  element={<DealDetailPage />} />
       </Route>
       <Route path="*" element={<Navigate to={session ? '/dashboard' : '/login'} replace />} />
     </Routes>
+    </Suspense>
   )
 }

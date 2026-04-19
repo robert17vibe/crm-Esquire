@@ -1,23 +1,19 @@
-import { useState, useRef, useLayoutEffect, useEffect } from 'react'
+import { useState, useRef, useLayoutEffect, useEffect, useMemo } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
-import { LayoutDashboard, Kanban, Users, Mic, Settings, LogOut } from 'lucide-react'
+import { LayoutDashboard, Kanban, Users, Mic, CalendarDays, Settings, LogOut } from 'lucide-react'
 import { useThemeStore } from '@/store/useThemeStore'
 import { useAuthStore } from '@/store/useAuthStore'
+import { useDealStore } from '@/store/useDealStore'
 
 const NAV_ITEMS = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/pipeline',  label: 'Jornada',   icon: Kanban          },
   { to: '/clients',   label: 'Clientes',  icon: Users           },
   { to: '/meetings',  label: 'Registro',  icon: Mic             },
+  { to: '/calendar',  label: 'Calendário', icon: CalendarDays   },
 ] as const
 
 type NavTo = (typeof NAV_ITEMS)[number]['to']
-
-function grayHashColor(name: string): string {
-  let h = 0
-  for (let i = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h)
-  return (['#2a2a2a', '#3a3a3a', '#4a4a4a', '#5a5a5a'])[Math.abs(h) % 4]
-}
 
 // ─── Nav item ─────────────────────────────────────────────────────────────────
 
@@ -27,12 +23,14 @@ function NavItem({
   icon: Icon,
   activeItemBg,
   collapsed,
+  badge,
 }: {
   to: NavTo
   label: string
   icon: React.ComponentType<{ style?: React.CSSProperties }>
   activeItemBg: string
   collapsed: boolean
+  badge?: number
 }) {
   const [hovered, setHovered] = useState(false)
 
@@ -59,12 +57,36 @@ function NavItem({
         transition: 'background-color 0.2s ease, color 0.2s ease',
         backgroundColor: isActive ? activeItemBg : hovered ? '#242424' : 'transparent',
         color: isActive || hovered ? '#f0ede5' : '#9a9a9a',
+        position: 'relative',
       })}
     >
       {({ isActive }) => (
         <>
-          <Icon style={{ width: '16px', height: '16px', flexShrink: 0, color: isActive || hovered ? '#f0ede5' : '#9a9a9a', transition: 'color 0.2s ease' }} />
-          {!collapsed && <span className="sidebar-label">{label}</span>}
+          <div style={{ position: 'relative', flexShrink: 0 }}>
+            <Icon style={{ width: '16px', height: '16px', color: isActive || hovered ? '#f0ede5' : '#9a9a9a', transition: 'color 0.2s ease' }} />
+            {badge && badge > 0 && collapsed && (
+              <span style={{
+                position: 'absolute', top: '-4px', right: '-4px',
+                width: '8px', height: '8px', borderRadius: '50%',
+                backgroundColor: '#dc2626', border: '1.5px solid #0a0a0a',
+              }} />
+            )}
+          </div>
+          {!collapsed && (
+            <>
+              <span className="sidebar-label" style={{ flex: 1 }}>{label}</span>
+              {badge && badge > 0 && (
+                <span style={{
+                  fontSize: '9px', fontWeight: 700, minWidth: '16px', height: '16px',
+                  borderRadius: '8px', backgroundColor: '#dc2626', color: '#fff',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  padding: '0 4px', flexShrink: 0,
+                }}>
+                  {badge > 9 ? '9+' : badge}
+                </span>
+              )}
+            </>
+          )}
         </>
       )}
     </NavLink>
@@ -118,6 +140,17 @@ export function Sidebar() {
   const location = useLocation()
   const signOut  = useAuthStore((s) => s.signOut)
   const profile  = useAuthStore((s) => s.profile)
+  const deals    = useDealStore((s) => s.deals)
+
+  const today = new Date().toISOString().slice(0, 10)
+  const overdueCount = useMemo(() =>
+    deals.filter((d) =>
+      !['closed_won', 'closed_lost'].includes(d.stage_id) &&
+      !!d.next_activity?.due_date &&
+      d.next_activity.due_date < today
+    ).length,
+    [deals, today],
+  )
 
   const displayName    = profile?.full_name || 'Esquire User'
   const displayRole    = profile?.role === 'admin' ? 'Admin' : 'User'
@@ -274,7 +307,14 @@ export function Sidebar() {
             key={to}
             ref={(el) => { if (el) wrapperRefs.current[to] = el }}
           >
-            <NavItem to={to} label={label} icon={icon} activeItemBg={activeItemBg} collapsed={collapsed} />
+            <NavItem
+              to={to}
+              label={label}
+              icon={icon}
+              activeItemBg={activeItemBg}
+              collapsed={collapsed}
+              badge={to === '/pipeline' ? overdueCount : undefined}
+            />
           </div>
         ))}
       </nav>

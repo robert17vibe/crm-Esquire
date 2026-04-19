@@ -139,6 +139,9 @@ export function DealCard({
   const isLost    = deal.stage_id === 'closed_lost'
   const isSpecial = isWon || isLost
 
+  const today     = new Date().toISOString().slice(0, 10)
+  const isOverdue = !isSpecial && !!deal.next_activity?.due_date && deal.next_activity.due_date < today
+
   // Base colors
   const cardBg      = isWon
     ? (isDark ? '#0d1a14' : '#f0f7f3')
@@ -157,7 +160,7 @@ export function DealCard({
   const cardStyle: React.CSSProperties = {
     borderRadius: '6px',
     backgroundColor: cardBg,
-    border: `1px solid ${cardBorder}`,
+    border: isOverdue ? '1px solid rgba(197,48,48,0.35)' : `1px solid ${cardBorder}`,
     ...(isSpecial && { borderLeft: `3px solid ${stageColor}` }),
     overflow: 'hidden',
     boxShadow: isOverlay
@@ -212,6 +215,13 @@ export function DealCard({
           )}
 
           <div className="flex items-center gap-1.5 shrink-0">
+            {isOverdue && (
+              <span
+                title={`Atividade vencida: ${deal.next_activity!.label}`}
+                className="overdue-pulse"
+                style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#dc2626', flexShrink: 0 }}
+              />
+            )}
             <span style={{
               fontSize: '11px', fontWeight: 500,
               color: deal.days_in_stage > 90 ? '#8b1a1a' : textMuted,

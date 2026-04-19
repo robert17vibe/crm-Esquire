@@ -1,5 +1,6 @@
 import * as Dialog from '@radix-ui/react-dialog'
-import { useForm } from 'react-hook-form'
+import { useState } from 'react'
+import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { X, ChevronDown, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -63,6 +64,59 @@ function Select({ hasError, className, style, children, ...rest }: SelectProps) 
   )
 }
 
+// ─── Currency input ───────────────────────────────────────────────────────────
+
+function formatBRL(raw: number | undefined) {
+  if (!raw && raw !== 0) return ''
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(raw)
+}
+
+function parseBRL(display: string): number {
+  const digits = display.replace(/\D/g, '')
+  return digits === '' ? 0 : parseInt(digits, 10)
+}
+
+function CurrencyInput({
+  value,
+  onChange,
+  hasError,
+  id,
+}: {
+  value?: number
+  onChange: (v: number) => void
+  hasError?: boolean
+  id: string
+}) {
+  const [display, setDisplay] = useState(value ? formatBRL(value) : '')
+
+  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const raw = parseBRL(e.target.value)
+    setDisplay(raw === 0 ? '' : formatBRL(raw))
+    onChange(raw)
+  }
+
+  return (
+    <input
+      id={id}
+      type="text"
+      inputMode="numeric"
+      placeholder="R$ 0"
+      value={display}
+      onChange={handleChange}
+      className={cn(
+        'w-full outline-none transition-all duration-150',
+        'text-[#1a1814] dark:text-[#e8e4dc] placeholder-[#c4bfb8] dark:placeholder-[#3a3834]',
+        T.inputBg, T.border, hasError ? T.errBorder : T.focusBorder,
+      )}
+      style={{
+        height: '40px', borderRadius: '10px', fontSize: '13px',
+        fontWeight: 500, paddingLeft: '12px', paddingRight: '12px',
+        fontFamily: 'JetBrains Mono, monospace', fontVariantNumeric: 'tabular-nums',
+      }}
+    />
+  )
+}
+
 function SectionHead({ title, first }: { title: string; first?: boolean }) {
   return (
     <div style={{ paddingTop: first ? '4px' : '24px', paddingBottom: '14px' }}>
@@ -89,7 +143,7 @@ export function EditDealModal({ deal, open, onClose, onUpdated }: Props) {
   const updateDeal = useDealStore((s) => s.updateDeal)
   const owners = useOwnerStore((s) => s.owners)
 
-  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<NewLeadFormValues>({
+  const { register, handleSubmit, reset, control, formState: { errors, isSubmitting } } = useForm<NewLeadFormValues>({
     resolver: zodResolver(newLeadSchema),
     values: deal
       ? {
@@ -217,7 +271,18 @@ export function EditDealModal({ deal, open, onClose, onUpdated }: Props) {
             <Row>
               <div>
                 <FLabel htmlFor="e_value">Valor estimado (R$)</FLabel>
-                <Input id="e_value" type="number" min="0" step="1000" placeholder="500000" hasError={!!errors.value} style={{ fontFamily: 'JetBrains Mono, monospace', fontVariantNumeric: 'tabular-nums' }} {...register('value')} />
+                <Controller
+                  name="value"
+                  control={control}
+                  render={({ field }) => (
+                    <CurrencyInput
+                      id="e_value"
+                      value={field.value}
+                      onChange={field.onChange}
+                      hasError={!!errors.value}
+                    />
+                  )}
+                />
                 <FError msg={errors.value?.message} />
               </div>
               <div>

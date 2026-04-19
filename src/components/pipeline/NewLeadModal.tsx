@@ -1,6 +1,6 @@
 import * as Dialog from '@radix-ui/react-dialog'
-import { useEffect } from 'react'
-import { useForm } from 'react-hook-form'
+import { useEffect, useState } from 'react'
+import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { X, ChevronDown, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -113,6 +113,59 @@ function Select({ hasError, className, style, children, ...rest }: SelectProps) 
   )
 }
 
+// ─── Currency input ───────────────────────────────────────────────────────────
+
+function formatBRL(raw: number | undefined) {
+  if (!raw && raw !== 0) return ''
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(raw)
+}
+
+function parseBRL(display: string): number {
+  const digits = display.replace(/\D/g, '')
+  return digits === '' ? 0 : parseInt(digits, 10)
+}
+
+function CurrencyInput({
+  value,
+  onChange,
+  hasError,
+  id,
+}: {
+  value?: number
+  onChange: (v: number) => void
+  hasError?: boolean
+  id: string
+}) {
+  const [display, setDisplay] = useState(value ? formatBRL(value) : '')
+
+  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const raw = parseBRL(e.target.value)
+    setDisplay(raw === 0 ? '' : formatBRL(raw))
+    onChange(raw)
+  }
+
+  return (
+    <input
+      id={id}
+      type="text"
+      inputMode="numeric"
+      placeholder="R$ 0"
+      value={display}
+      onChange={handleChange}
+      className={cn(
+        'w-full outline-none transition-all duration-150',
+        T.inputText, T.inputBg, T.border, T.placeholder,
+        hasError ? T.errBorder : T.focusBorder,
+      )}
+      style={{
+        height: '38px', borderRadius: '8px', fontSize: '13px',
+        fontWeight: 500, paddingLeft: '12px', paddingRight: '12px',
+        fontFamily: 'JetBrains Mono, monospace', fontVariantNumeric: 'tabular-nums',
+      }}
+    />
+  )
+}
+
 // ─── Section header ───────────────────────────────────────────────────────────
 
 function SectionHead({ title, first }: { title: string; first?: boolean }) {
@@ -153,10 +206,11 @@ export function NewLeadModal({ open, onClose, onCreated }: Props) {
     handleSubmit,
     reset,
     setValue,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<NewLeadFormValues>({
     resolver: zodResolver(newLeadSchema),
-    defaultValues: { stage_id: 'leads', owner_id: '' },
+    defaultValues: { stage_id: 'leads', owner_id: '', value: 0 },
   })
 
   useEffect(() => {
@@ -301,11 +355,17 @@ export function NewLeadModal({ open, onClose, onCreated }: Props) {
             <Row>
               <div>
                 <FLabel htmlFor="value">Valor estimado (R$)</FLabel>
-                <Input
-                  id="value" type="number" min="0" step="1000" placeholder="500000"
-                  hasError={!!errors.value}
-                  style={{ fontFamily: 'JetBrains Mono, monospace', fontVariantNumeric: 'tabular-nums' }}
-                  {...register('value')}
+                <Controller
+                  name="value"
+                  control={control}
+                  render={({ field }) => (
+                    <CurrencyInput
+                      id="value"
+                      value={field.value}
+                      onChange={field.onChange}
+                      hasError={!!errors.value}
+                    />
+                  )}
                 />
                 <FError msg={errors.value?.message} />
               </div>

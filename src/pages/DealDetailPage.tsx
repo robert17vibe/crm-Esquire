@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import type { LucideIcon } from 'lucide-react'
 import {
   ArrowLeft, Mail, Phone, Linkedin, Globe,
-  Building2, Users, Target, CalendarClock, MapPin,
+  Building2, Users, Target, MapPin,
   Zap, Clock, Video, CheckSquare, FileText,
   Mic, ChevronDown, Plus, X,
 } from 'lucide-react'
@@ -105,6 +105,109 @@ function SectionHead({ title, border, muted }: { title: string; border: string; 
       <p style={{ fontSize: '10px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
         {title}
       </p>
+    </div>
+  )
+}
+
+// ─── Timeline helpers ─────────────────────────────────────────────────────────
+
+type TimelineEntry =
+  | { kind: 'activity'; date: string; activity: DealActivity; meeting?: DealMeeting }
+  | { kind: 'meeting';  date: string; meeting: DealMeeting }
+
+function getGroupLabel(dateStr: string): string {
+  const d    = new Date(dateStr + 'T00:00:00')
+  const now  = new Date()
+  const diff = Math.floor((now.getTime() - d.getTime()) / 86_400_000)
+  if (diff === 0) return 'Hoje'
+  if (diff === 1) return 'Ontem'
+  if (diff <= 7)  return 'Esta semana'
+  if (diff <= 30) return 'Este mês'
+  return new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(d)
+}
+
+function buildTimeline(activities: DealActivity[], meetings: DealMeeting[]): TimelineEntry[] {
+  const actEntries: TimelineEntry[] = activities.map((a) => ({
+    kind: 'activity',
+    date: a.created_at.slice(0, 10),
+    activity: a,
+    meeting: meetings.find((m) => m.id === a.meeting_id),
+  }))
+
+  const linkedMeetingIds = new Set(activities.map((a) => a.meeting_id).filter(Boolean))
+  const meetingEntries: TimelineEntry[] = meetings
+    .filter((m) => !linkedMeetingIds.has(m.id))
+    .map((m) => ({ kind: 'meeting', date: m.scheduled_at.slice(0, 10), meeting: m }))
+
+  return [...actEntries, ...meetingEntries].sort((a, b) => b.date.localeCompare(a.date))
+}
+
+// ─── Standalone meeting entry ─────────────────────────────────────────────────
+
+function StandaloneMeetingEntry({ meeting, isDark }: { meeting: DealMeeting; isDark: boolean }) {
+  const [expanded, setExpanded] = useState(false)
+  const color  = '#2c5545'
+  const text   = isDark ? '#e8e4dc' : '#1a1814'
+  const muted  = isDark ? '#6b6560' : '#8a857d'
+  const cardBg = isDark ? '#1a1a18' : '#f8f7f4'
+  const border = isDark ? '#242422' : '#e4e0da'
+
+  return (
+    <div style={{ display: 'flex', gap: '12px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
+        <div style={{
+          width: '28px', height: '28px', borderRadius: '6px',
+          backgroundColor: `${color}14`, border: `1px solid ${color}30`,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <Mic style={{ width: '12px', height: '12px', color }} />
+        </div>
+        <div style={{ width: '1px', flex: 1, backgroundColor: border, marginTop: '4px' }} />
+      </div>
+      <div style={{ flex: 1, paddingBottom: '16px', minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px' }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '9px', fontWeight: 700, color, backgroundColor: `${color}14`, borderRadius: '3px', padding: '1px 5px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                Reunião
+              </span>
+              {meeting.plaud_note_id && (
+                <span style={{ fontSize: '9px', fontWeight: 700, color, backgroundColor: `${color}14`, borderRadius: '3px', padding: '1px 5px', textTransform: 'uppercase', letterSpacing: '0.06em', border: `1px solid ${color}30` }}>
+                  Plaud
+                </span>
+              )}
+            </div>
+            <p style={{ fontSize: '13px', fontWeight: 600, color: text, marginTop: '4px' }}>{meeting.title}</p>
+            <p style={{ fontSize: '11px', color: muted, marginTop: '2px' }}>
+              {meeting.duration_minutes}min · {meeting.attendees?.length ?? 0} participantes
+            </p>
+          </div>
+          <span style={{ fontSize: '10px', color: muted, flexShrink: 0, marginTop: '2px' }}>
+            {relativeDate(meeting.scheduled_at)}
+          </span>
+        </div>
+        {(meeting.ai_summary || (meeting.key_points?.length ?? 0) > 0) && (
+          <div style={{ marginTop: '8px' }}>
+            <button type="button" onClick={() => setExpanded((v) => !v)} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', fontWeight: 600, color, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+              <Mic style={{ width: '10px', height: '10px' }} />
+              {expanded ? 'Ocultar insights' : 'Ver insights Plaud'}
+              <ChevronDown style={{ width: '10px', height: '10px', transform: expanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+            </button>
+            {expanded && meeting.ai_summary && (
+              <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '6px', padding: '12px', marginTop: '8px' }}>
+                <p style={{ fontSize: '10px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '5px' }}>Resumo IA</p>
+                <p style={{ fontSize: '12px', color: text, lineHeight: 1.6 }}>{meeting.ai_summary}</p>
+              </div>
+            )}
+          </div>
+        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginTop: '6px' }}>
+          <div style={{ width: '16px', height: '16px', borderRadius: '50%', backgroundColor: meeting.owner.avatar_color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '6px', fontWeight: 700 }}>
+            {meeting.owner.initials}
+          </div>
+          <span style={{ fontSize: '10px', color: muted }}>{meeting.owner.name.split(' ')[0]}</span>
+        </div>
+      </div>
     </div>
   )
 }
@@ -641,9 +744,9 @@ export function DealDetailPage() {
           {/* Center header */}
           <div style={{ padding: '18px 24px 12px', borderBottom: `1px solid ${border}`, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div>
-              <p style={{ fontSize: '14px', fontWeight: 700, color: text }}>Histórico & Atividades</p>
+              <p style={{ fontSize: '14px', fontWeight: 700, color: text }}>Timeline</p>
               <p style={{ fontSize: '11px', color: muted, marginTop: '2px' }}>
-                {activities.length} {activities.length === 1 ? 'registro' : 'registros'} · {meetings.filter((m) => m.plaud_note_id).length} com Plaud Note
+                {activities.length} atividade{activities.length !== 1 ? 's' : ''} · {meetings.length} reunião{meetings.length !== 1 ? 'ões' : ''} {meetings.filter((m) => m.plaud_note_id).length > 0 ? `· ${meetings.filter((m) => m.plaud_note_id).length} Plaud` : ''}
               </p>
             </div>
             <button
@@ -664,31 +767,49 @@ export function DealDetailPage() {
             </button>
           </div>
 
-          {/* Activities */}
+          {/* Unified timeline */}
           <div style={{ padding: '20px 24px' }}>
             {showAddActivity && (
               <AddActivityForm dealId={deal.id} owner={owner} onClose={() => setShowAddActivity(false)} isDark={isDark} />
             )}
-            {activities.length === 0 && !showAddActivity ? (
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '120px', textAlign: 'center', gap: '8px' }}>
-                <Zap style={{ width: '24px', height: '24px', color: border }} />
-                <p style={{ fontSize: '13px', fontWeight: 600, color: muted }}>Nenhuma atividade registrada</p>
-                <p style={{ fontSize: '12px', color: isDark ? '#3a3834' : '#c4bfb8', maxWidth: '220px', lineHeight: 1.6 }}>
-                  Clique em "Registrar" para adicionar ligações, emails e reuniões
-                </p>
-              </div>
-            ) : (
-              <div>
-                {activities.map((activity) => {
-                  const relatedMeeting = activity.meeting_id
-                    ? meetings.find((m) => m.id === activity.meeting_id)
-                    : undefined
-                  return (
-                    <ActivityEntry key={activity.id} activity={activity} meeting={relatedMeeting} isDark={isDark} />
-                  )
-                })}
-              </div>
-            )}
+            {(() => {
+              const timeline = buildTimeline(activities, meetings)
+              if (timeline.length === 0 && !showAddActivity) return (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '120px', textAlign: 'center', gap: '8px' }}>
+                  <Zap style={{ width: '24px', height: '24px', color: border }} />
+                  <p style={{ fontSize: '13px', fontWeight: 600, color: muted }}>Nenhuma atividade registrada</p>
+                  <p style={{ fontSize: '12px', color: isDark ? '#3a3834' : '#c4bfb8', maxWidth: '220px', lineHeight: 1.6 }}>
+                    Clique em "Registrar" para adicionar ligações, emails e reuniões
+                  </p>
+                </div>
+              )
+              let lastGroup = ''
+              return (
+                <div>
+                  {timeline.map((entry, i) => {
+                    const group = getGroupLabel(entry.date)
+                    const showGroup = group !== lastGroup
+                    lastGroup = group
+                    return (
+                      <div key={entry.kind === 'activity' ? entry.activity.id : entry.meeting.id}>
+                        {showGroup && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', marginTop: i > 0 ? '4px' : 0 }}>
+                            <span style={{ fontSize: '9px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.1em', whiteSpace: 'nowrap' }}>
+                              {group}
+                            </span>
+                            <div style={{ flex: 1, height: '1px', backgroundColor: border }} />
+                          </div>
+                        )}
+                        {entry.kind === 'activity'
+                          ? <ActivityEntry activity={entry.activity} meeting={entry.meeting} isDark={isDark} />
+                          : <StandaloneMeetingEntry meeting={entry.meeting} isDark={isDark} />
+                        }
+                      </div>
+                    )
+                  })}
+                </div>
+              )
+            })()}
           </div>
 
           {/* Notes section */}

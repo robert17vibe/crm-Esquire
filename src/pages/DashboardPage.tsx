@@ -1,4 +1,4 @@
-import { useMemo, useState, useRef } from 'react'
+import { useMemo, useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   TrendingUp, Briefcase, Target, DollarSign, Clock, Award,
@@ -117,10 +117,33 @@ function KpiCard({
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
+function KpiSkeleton({ isDark }: { isDark: boolean }) {
+  const bg     = isDark ? '#161614' : '#ffffff'
+  const border = isDark ? '#242422' : '#e4e0da'
+  return (
+    <div style={{ backgroundColor: bg, border: `1px solid ${border}`, borderRadius: '8px', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div className="skeleton" style={{ height: '10px', width: '80px', borderRadius: '4px' }} />
+        <div className="skeleton" style={{ width: '26px', height: '26px', borderRadius: '6px' }} />
+      </div>
+      <div>
+        <div className="skeleton" style={{ height: '22px', width: '100px', borderRadius: '4px' }} />
+        <div className="skeleton" style={{ height: '9px', width: '70px', borderRadius: '4px', marginTop: '6px' }} />
+      </div>
+    </div>
+  )
+}
+
 export function DashboardPage() {
   const deals    = useDealStore((s) => s.deals)
   const isDark   = useThemeStore((s) => s.isDark)
   const navigate = useNavigate()
+
+  const [loaded, setLoaded] = useState(false)
+  useEffect(() => {
+    const t = setTimeout(() => setLoaded(true), 280)
+    return () => clearTimeout(t)
+  }, [])
 
   // ── Metrics ────────────────────────────────────────────────────────────────
 
@@ -311,22 +334,25 @@ export function DashboardPage() {
             </span>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, minmax(0, 1fr))', gap: '10px' }}>
-            {kpiOrder.map((id, idx) => {
-              const kpi = kpiDefs[id]
-              if (!kpi) return null
-              return (
-                <KpiCard
-                  key={id}
-                  {...kpi}
-                  isDark={isDark}
-                  isDragging={draggingId === id}
-                  onDragStart={(e) => handleDragStart(id, idx, e)}
-                  onDragOver={(e) => e.preventDefault()}
-                  onDrop={() => handleDrop(idx)}
-                  onDragEnd={() => { dragIdx.current = null; setDraggingId(null) }}
-                />
-              )
-            })}
+            {!loaded
+              ? DEFAULT_KPI_ORDER.map((id) => <KpiSkeleton key={id} isDark={isDark} />)
+              : kpiOrder.map((id, idx) => {
+                  const kpi = kpiDefs[id]
+                  if (!kpi) return null
+                  return (
+                    <KpiCard
+                      key={id}
+                      {...kpi}
+                      isDark={isDark}
+                      isDragging={draggingId === id}
+                      onDragStart={(e) => handleDragStart(id, idx, e)}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={() => handleDrop(idx)}
+                      onDragEnd={() => { dragIdx.current = null; setDraggingId(null) }}
+                    />
+                  )
+                })
+            }
           </div>
         </div>
 

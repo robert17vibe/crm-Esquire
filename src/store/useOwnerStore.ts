@@ -8,7 +8,7 @@ interface OwnerStore {
   getById: (ownerId: string, fallbackName?: string) => Owner
 }
 
-export const useOwnerStore = create<OwnerStore>((set, get) => ({
+export const useOwnerStore = create<OwnerStore>((_set, get) => ({
   owners: MOCK_OWNERS,
 
   getById: (ownerId, fallbackName) => {

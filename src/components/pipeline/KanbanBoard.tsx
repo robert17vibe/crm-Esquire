@@ -115,25 +115,31 @@ export function KanbanBoard({
     return res
   }, [grouped, visibleOwnerIds])
 
-  // ── Search dimming ────────────────────────────────────────────────────────
-  const dimmedIds = useMemo<Set<string> | undefined>(() => {
+  // ── Search filter — hide non-matching cards completely ─────────────────────
+  const searchFiltered = useMemo<GroupedDeals>(() => {
     const q = searchQuery?.trim().toLowerCase()
-    if (!q) return undefined
-    const matching = new Set<string>()
-    for (const deals of Object.values(ownerFiltered)) {
-      for (const d of deals) {
-        if (
+    if (!q) return ownerFiltered
+    const res = {} as GroupedDeals
+    for (const sid of Object.keys(ownerFiltered) as StageId[]) {
+      res[sid] = ownerFiltered[sid].filter((d) => {
+        const val = String(d.value ?? '')
+        return (
           d.title?.toLowerCase().includes(q) ||
           d.company_name?.toLowerCase().includes(q) ||
+          d.contact_name?.toLowerCase().includes(q) ||
+          d.contact_email?.toLowerCase().includes(q) ||
+          d.contact_phone?.replace(/\D/g, '').includes(q.replace(/\D/g, '')) ||
           d.owner?.name?.toLowerCase().includes(q) ||
+          d.company_sector?.toLowerCase().includes(q) ||
+          val.includes(q) ||
           (d.tags as string[] | null)?.some((t) => t.toLowerCase().includes(q))
-        ) {
-          matching.add(d.id)
-        }
-      }
+        )
+      })
     }
-    return matching
+    return res
   }, [ownerFiltered, searchQuery])
+
+  const dimmedIds = undefined
 
   const activeDeal = activeId
     ? Object.values(grouped).flat().find((d) => d.id === activeId)
@@ -312,7 +318,7 @@ export function KanbanBoard({
             <StageColumn
               key={stage.id}
               stage={stage}
-              deals={ownerFiltered[stage.id] ?? []}
+              deals={searchFiltered[stage.id] ?? []}
               dimmedIds={dimmedIds}
               onMoveDeal={onMoveDeal}
               onEditDeal={onEditDeal}

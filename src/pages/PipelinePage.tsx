@@ -1,5 +1,7 @@
-import { useState, useMemo } from 'react'
-import { Plus, Search, SlidersHorizontal, Check } from 'lucide-react'
+import { useState, useMemo, useCallback } from 'react'
+import { useSearchParams } from 'react-router-dom'
+import { Plus, Search, SlidersHorizontal, Check, Download } from 'lucide-react'
+import { exportDealsToCSV } from '@/lib/csv'
 import * as Popover from '@radix-ui/react-popover'
 import * as Tooltip from '@radix-ui/react-tooltip'
 import { KanbanBoard } from '@/components/pipeline/KanbanBoard'
@@ -18,17 +20,42 @@ export function PipelinePage() {
   const owners     = useOwnerStore((s) => s.owners)
   const isDark     = useThemeStore((s) => s.isDark)
 
-  const [selectedOwners, setSelectedOwners] = useState<string[]>([])
-  const [searchQuery, setSearchQuery]       = useState('')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const searchQuery     = searchParams.get('search') ?? ''
+  const selectedOwners  = useMemo(() => {
+    const raw = searchParams.get('owners')
+    return raw ? raw.split(',').filter(Boolean) : []
+  }, [searchParams])
+
   const [showNewModal, setShowNewModal]     = useState(false)
   const [editingDeal, setEditingDeal]       = useState<Deal | null>(null)
   const [pendingNewDeal, setPendingNewDeal] = useState<Deal | null>(null)
   const [updatedDeal, setUpdatedDeal]       = useState<Deal | null>(null)
 
+  const setSearch = useCallback((q: string) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      if (q) next.set('search', q); else next.delete('search')
+      return next
+    }, { replace: true })
+  }, [setSearchParams])
+
   function toggleOwner(id: string) {
-    setSelectedOwners((prev) =>
-      prev.includes(id) ? prev.filter((o) => o !== id) : [...prev, id],
-    )
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      const cur = (next.get('owners') ?? '').split(',').filter(Boolean)
+      const updated = cur.includes(id) ? cur.filter((o) => o !== id) : [...cur, id]
+      if (updated.length) next.set('owners', updated.join(',')); else next.delete('owners')
+      return next
+    }, { replace: true })
+  }
+
+  function clearOwners() {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.delete('owners')
+      return next
+    }, { replace: true })
   }
 
   const activeDeals = useMemo(
@@ -169,7 +196,7 @@ export function PipelinePage() {
                   {filterActive && (
                     <button
                       type="button"
-                      onClick={() => setSelectedOwners([])}
+                      onClick={() => clearOwners()}
                       style={{ fontSize: '10px', fontWeight: 600, color: ownerMuted, cursor: 'pointer', background: 'none', border: 'none', padding: 0 }}
                     >
                       Limpar
@@ -180,7 +207,7 @@ export function PipelinePage() {
                 {/* Todos */}
                 <button
                   type="button"
-                  onClick={() => setSelectedOwners([])}
+                  onClick={() => clearOwners()}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -272,7 +299,7 @@ export function PipelinePage() {
           <input
             type="text"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => setSearch(e.target.value)}
             placeholder="Buscar lead, empresa..."
             style={{
               width: '100%',
@@ -293,7 +320,38 @@ export function PipelinePage() {
           />
         </div>
 
-        {/* ── Zone right: new lead ── */}
+        {/* ── Zone right: export + new lead ── */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+
+        <Tooltip.Provider delayDuration={400}>
+          <Tooltip.Root>
+            <Tooltip.Trigger asChild>
+              <button
+                type="button"
+                onClick={() => exportDealsToCSV(deals)}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  width: '32px', height: '32px', borderRadius: '8px',
+                  backgroundColor: filterBg,
+                  border: `1px solid ${filterBorder}`,
+                  cursor: 'pointer', flexShrink: 0,
+                  transition: 'opacity 0.15s ease',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.75')}
+                onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
+              >
+                <Download style={{ width: '14px', height: '14px', color: filterText }} />
+              </button>
+            </Tooltip.Trigger>
+            <Tooltip.Portal>
+              <Tooltip.Content sideOffset={6} style={{ fontSize: '11px', fontWeight: 500, color: isDark ? '#1a1814' : '#f0ede5', backgroundColor: isDark ? '#e8e4dc' : '#1a1814', borderRadius: '5px', padding: '4px 8px', zIndex: 50, userSelect: 'none' }}>
+                Exportar CSV
+                <Tooltip.Arrow style={{ fill: isDark ? '#e8e4dc' : '#1a1814' }} />
+              </Tooltip.Content>
+            </Tooltip.Portal>
+          </Tooltip.Root>
+        </Tooltip.Provider>
+
         <Tooltip.Provider delayDuration={400}>
           <Tooltip.Root>
             <Tooltip.Trigger asChild>
@@ -339,6 +397,8 @@ export function PipelinePage() {
             </Tooltip.Portal>
           </Tooltip.Root>
         </Tooltip.Provider>
+
+        </div>
       </div>
 
       {/* ── Board ── */}
