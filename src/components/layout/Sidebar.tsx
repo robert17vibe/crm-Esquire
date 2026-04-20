@@ -5,6 +5,13 @@ import { useThemeStore } from '@/store/useThemeStore'
 import { useAuthStore } from '@/store/useAuthStore'
 import { useDealStore } from '@/store/useDealStore'
 
+function hashColor(name: string): string {
+  let h = 0
+  for (let i = 0; i < name.length; i++) h = (Math.imul(31, h) + name.charCodeAt(i)) | 0
+  const hue = Math.abs(h) % 360
+  return `hsl(${hue}, 42%, 36%)`
+}
+
 const NAV_ITEMS = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/pipeline',  label: 'Jornada',   icon: Kanban          },
@@ -152,10 +159,10 @@ export function Sidebar() {
     [deals, today],
   )
 
-  const displayName    = profile?.full_name || 'Esquire User'
-  const displayRole    = profile?.role === 'admin' ? 'Admin' : 'User'
+  const displayName     = profile?.full_name || 'Robert Ferreira'
+  const displayRole     = profile?.role === 'admin' ? 'ADMIN' : profile?.role === 'user' ? 'USER' : 'ADMIN'
   const displayInitials = displayName.split(' ').map((p) => p[0]).slice(0, 2).join('').toUpperCase()
-  const displayColor   = profile?.avatar_color ?? '#2c5545'
+  const displayColor    = profile?.avatar_color || hashColor(displayName)
 
   const [collapsed, setCollapsed] = useState(() => window.innerWidth < 900)
 
@@ -169,35 +176,30 @@ export function Sidebar() {
 
   const asideRef     = useRef<HTMLElement>(null)
   const indicatorRef = useRef<HTMLDivElement>(null)
-  const tongueRef    = useRef<HTMLDivElement>(null)
   const wrapperRefs  = useRef<Partial<Record<NavTo, HTMLDivElement>>>({})
   const firstRender  = useRef(true)
 
   const sidebarBg    = isDark ? '#0a0a0a' : '#1a1a1a'
   const activeItemBg = isDark ? '#1a1a1a' : '#2a2a2a'
-  const contentBg    = isDark ? '#0d0c0a' : '#f5f4f0'
 
   const sidebarWidth = collapsed ? 56 : 200
 
   useLayoutEffect(() => {
     const aside     = asideRef.current
     const indicator = indicatorRef.current
-    const tongue    = tongueRef.current
-    if (!aside || !indicator || !tongue) return
+    if (!aside || !indicator) return
 
     const active = NAV_ITEMS.find(({ to }) => location.pathname.startsWith(to))
     const onSettings = location.pathname.startsWith('/settings')
 
     if (!active || onSettings) {
       indicator.style.opacity = '0'
-      tongue.style.opacity    = '0'
       return
     }
 
     const wrapper = wrapperRefs.current[active.to]
     if (!wrapper) {
       indicator.style.opacity = '0'
-      tongue.style.opacity    = '0'
       return
     }
 
@@ -207,24 +209,16 @@ export function Sidebar() {
 
     if (firstRender.current) {
       indicator.style.transition = 'none'
-      tongue.style.transition    = 'none'
       indicator.style.top        = `${topOffset}px`
       indicator.style.height     = `${wrapperRect.height}px`
       indicator.style.opacity    = '1'
-      tongue.style.top           = `${topOffset}px`
-      tongue.style.height        = `${wrapperRect.height}px`
-      tongue.style.opacity       = '1'
       void indicator.getBoundingClientRect()
       indicator.style.transition = 'top 0.3s cubic-bezier(0.4,0,0.2,1), height 0.3s cubic-bezier(0.4,0,0.2,1), opacity 0.15s ease'
-      tongue.style.transition    = 'top 0.3s cubic-bezier(0.4,0,0.2,1), height 0.3s cubic-bezier(0.4,0,0.2,1), opacity 0.15s ease'
       firstRender.current = false
     } else {
       indicator.style.top     = `${topOffset}px`
       indicator.style.height  = `${wrapperRect.height}px`
       indicator.style.opacity = '1'
-      tongue.style.top        = `${topOffset}px`
-      tongue.style.height     = `${wrapperRect.height}px`
-      tongue.style.opacity    = '1'
     }
   }, [location.pathname, collapsed])
 
@@ -241,48 +235,28 @@ export function Sidebar() {
         height: 'calc(100vh - 24px)',
         flexShrink: 0,
         zIndex: 10,
-        overflow: 'visible',
+        overflow: 'hidden',
         boxShadow: isDark
           ? '4px 0 20px rgba(0,0,0,0.3)'
           : '4px 0 20px rgba(0,0,0,0.08)',
         transition: 'width 0.25s cubic-bezier(0.4,0,0.2,1), background-color 0.3s ease',
       }}
     >
-      {/* Sliding accent indicator */}
+      {/* Sliding accent indicator — 2px left edge */}
       <div
         ref={indicatorRef}
         aria-hidden
         style={{
           position: 'absolute',
-          right: '-1px',
+          left: '0',
           top: 0,
           width: '2px',
           height: '36px',
           backgroundColor: '#f0ede5',
-          borderRadius: '2px 0 0 2px',
+          borderRadius: '0 2px 2px 0',
           opacity: 0,
           pointerEvents: 'none',
           zIndex: 20,
-          boxShadow: '2px 0 10px 1px rgba(240,237,229,0.18)',
-          transition: 'top 0.3s cubic-bezier(0.4,0,0.2,1), height 0.3s cubic-bezier(0.4,0,0.2,1), opacity 0.15s ease',
-        }}
-      />
-
-      {/* Tongue — active item connection to content */}
-      <div
-        ref={tongueRef}
-        aria-hidden
-        style={{
-          position: 'absolute',
-          right: '0',
-          top: 0,
-          width: '20px',
-          height: '36px',
-          backgroundColor: contentBg,
-          borderRadius: '12px 0 0 12px',
-          opacity: 0,
-          pointerEvents: 'none',
-          zIndex: 15,
           transition: 'top 0.3s cubic-bezier(0.4,0,0.2,1), height 0.3s cubic-bezier(0.4,0,0.2,1), opacity 0.15s ease',
         }}
       />
@@ -301,7 +275,7 @@ export function Sidebar() {
       <div style={{ height: '1px', backgroundColor: '#242424', marginBottom: '12px', flexShrink: 0 }} />
 
       {/* Navigation */}
-      <nav className="flex-1 flex flex-col" style={{ padding: collapsed ? '0 8px' : '0 12px', gap: '4px', overflow: 'visible' }}>
+      <nav className="flex-1 flex flex-col" style={{ padding: collapsed ? '0 8px' : '0 12px', gap: '4px' }}>
         {NAV_ITEMS.map(({ to, label, icon }) => (
           <div
             key={to}

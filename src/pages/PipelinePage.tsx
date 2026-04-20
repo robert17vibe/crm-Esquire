@@ -1,7 +1,6 @@
 import { useState, useMemo, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Plus, Search, SlidersHorizontal, Check, Download } from 'lucide-react'
-import { exportDealsToCSV } from '@/lib/csv'
+import { Plus, Search, SlidersHorizontal, Check } from 'lucide-react'
 import * as Popover from '@radix-ui/react-popover'
 import * as Tooltip from '@radix-ui/react-tooltip'
 import { KanbanBoard } from '@/components/pipeline/KanbanBoard'
@@ -287,37 +286,8 @@ export function PipelinePage() {
           </Popover.Root>
         </div>
 
-        {/* ── Zone right: export + new lead ── */}
+        {/* ── Zone right: new lead ── */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-
-        <Tooltip.Provider delayDuration={400}>
-          <Tooltip.Root>
-            <Tooltip.Trigger asChild>
-              <button
-                type="button"
-                onClick={() => exportDealsToCSV(deals)}
-                style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  width: '32px', height: '32px', borderRadius: '8px',
-                  backgroundColor: filterBg,
-                  border: `1px solid ${filterBorder}`,
-                  cursor: 'pointer', flexShrink: 0,
-                  transition: 'opacity 0.15s ease',
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.75')}
-                onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
-              >
-                <Download style={{ width: '14px', height: '14px', color: filterText }} />
-              </button>
-            </Tooltip.Trigger>
-            <Tooltip.Portal>
-              <Tooltip.Content sideOffset={6} style={{ fontSize: '11px', fontWeight: 500, color: isDark ? '#1a1814' : '#f0ede5', backgroundColor: isDark ? '#e8e4dc' : '#1a1814', borderRadius: '5px', padding: '4px 8px', zIndex: 50, userSelect: 'none' }}>
-                Exportar CSV
-                <Tooltip.Arrow style={{ fill: isDark ? '#e8e4dc' : '#1a1814' }} />
-              </Tooltip.Content>
-            </Tooltip.Portal>
-          </Tooltip.Root>
-        </Tooltip.Provider>
 
         <Tooltip.Provider delayDuration={400}>
           <Tooltip.Root>
