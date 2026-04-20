@@ -20,6 +20,7 @@ interface AuthStore {
   signIn: (email: string, password: string) => Promise<string | null>
   signOut: () => Promise<void>
   loadProfile: () => Promise<void>
+  updateProfile: (patch: Partial<Pick<Profile, 'full_name' | 'avatar_color'>>) => Promise<string | null>
 }
 
 export const useAuthStore = create<AuthStore>((set, get) => ({
@@ -62,5 +63,17 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   signOut: async () => {
     await supabase.auth.signOut()
     set({ user: null, session: null, profile: null })
+  },
+
+  updateProfile: async (patch) => {
+    const { user } = get()
+    if (!user) return 'Não autenticado'
+    const { error } = await supabase
+      .from('profiles')
+      .update(patch)
+      .eq('id', user.id)
+    if (error) return error.message
+    set((s) => ({ profile: s.profile ? { ...s.profile, ...patch } : s.profile }))
+    return null
   },
 }))

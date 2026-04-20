@@ -274,7 +274,7 @@ export function Sidebar() {
         aria-hidden
         style={{
           position: 'absolute',
-          right: '-20px',
+          right: '0',
           top: 0,
           width: '20px',
           height: '36px',

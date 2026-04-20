@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { MOCK_DEALS, MOCK_OWNERS } from '@/lib/mock-data'
 import { DEFAULT_PROBABILITIES, STAGES } from '@/constants/pipeline'
 import { useToastStore } from '@/store/useToastStore'
+import { useNotificationStore } from '@/store/useNotificationStore'
 import { fetchDeals, insertDeal, patchDeal, removeDeal } from '@/services/deal.service'
 import { supabase } from '@/lib/supabase'
 import type { Deal } from '@/types/deal.types'
@@ -135,6 +136,7 @@ export const useDealStore = create<DealStore>((set, get) => ({
       set({ deals: next })
       persistDeals(next)
       useToastStore.getState().addToast(`Lead criado — ${values.company_name}`, 'success')
+      useNotificationStore.getState().addNotification(confirmed.id, values.company_name)
       return confirmed
     } catch {
       // Revert optimistic

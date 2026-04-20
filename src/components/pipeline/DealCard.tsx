@@ -5,6 +5,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useThemeStore } from '@/store/useThemeStore'
+import { useNotificationStore } from '@/store/useNotificationStore'
 import { getStageColor, getTagStyle, STAGES, type StageId } from '@/constants/pipeline'
 import type { Deal } from '@/types/deal.types'
 
@@ -125,8 +126,12 @@ export function DealCard({
   dimmed = false,
 }: DealCardProps) {
   const [showMenu, setShowMenu] = useState(false)
-  const navigate  = useNavigate()
-  const isDark    = useThemeStore((s) => s.isDark)
+  const navigate      = useNavigate()
+  const isDark        = useThemeStore((s) => s.isDark)
+  const notifications = useNotificationStore((s) => s.notifications)
+  const clearByDeal   = useNotificationStore((s) => s.clearByDeal)
+
+  const isNew = notifications.some((n) => n.dealId === deal.id && !n.read)
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: deal.id, disabled: isOverlay })
@@ -185,7 +190,7 @@ export function DealCard({
       ref={setNodeRef}
       style={cardStyle}
       {...(isOverlay ? {} : { ...attributes, ...listeners })}
-      onClick={isOverlay ? undefined : () => navigate(`/deal/${deal.id}`)}
+      onClick={isOverlay ? undefined : () => { clearByDeal(deal.id); navigate(`/deal/${deal.id}`) }}
       className={cn(
         'deal-card group/card w-full select-none',
         !isOverlay && !isDragging && 'cursor-grab active:cursor-grabbing',
@@ -198,21 +203,31 @@ export function DealCard({
 
       <div style={{ padding: '8px 10px' }}>
 
-        {/* ── Line 1: Tag + days + menu ── */}
+        {/* ── Line 1: Tag + NEW badge + days + menu ── */}
         <div className="flex items-center justify-between gap-1">
-          {tagStyle && tag ? (
-            <span
-              className="truncate"
-              style={{
-                fontSize: '10px', fontWeight: 600, letterSpacing: '0.06em',
-                textTransform: 'uppercase', color: tagStyle.bg, flex: 1, minWidth: 0,
-              }}
-            >
-              {tag}
-            </span>
-          ) : (
-            <span style={{ flex: 1 }} />
-          )}
+          <div className="flex items-center gap-1.5 min-w-0 flex-1">
+            {isNew && (
+              <span style={{
+                fontSize: '8px', fontWeight: 800, letterSpacing: '0.1em',
+                textTransform: 'uppercase', color: '#fff',
+                backgroundColor: '#2c5545', borderRadius: '3px', padding: '1px 5px',
+                flexShrink: 0,
+              }}>
+                NOVO
+              </span>
+            )}
+            {tagStyle && tag ? (
+              <span
+                className="truncate"
+                style={{
+                  fontSize: '10px', fontWeight: 600, letterSpacing: '0.06em',
+                  textTransform: 'uppercase', color: tagStyle.bg, minWidth: 0,
+                }}
+              >
+                {tag}
+              </span>
+            ) : null}
+          </div>
 
           <div className="flex items-center gap-1.5 shrink-0">
             {isOverdue && (
