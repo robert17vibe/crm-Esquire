@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { MOCK_OWNERS } from '@/lib/mock-data'
 import { buildOwnerFallback } from '@/lib/owner'
-import { fetchOwners } from '@/services/owner.service'
+import { fetchOwners, updateOwnerTeam } from '@/services/owner.service'
 import { supabase } from '@/lib/supabase'
 import type { Owner } from '@/types/deal.types'
 
@@ -10,6 +10,7 @@ interface OwnerStore {
   initialize: () => Promise<void>
   subscribeRealtime: () => () => void
   getById: (ownerId: string, fallbackName?: string) => Owner
+  setOwnerTeam: (ownerId: string, teamId: string | null) => Promise<void>
 }
 
 export const useOwnerStore = create<OwnerStore>((set, get) => ({
@@ -40,5 +41,20 @@ export const useOwnerStore = create<OwnerStore>((set, get) => ({
   getById: (ownerId, fallbackName) => {
     const owner = get().owners.find((item) => item.id === ownerId)
     return owner ?? buildOwnerFallback(ownerId, fallbackName)
+  },
+
+  setOwnerTeam: async (ownerId, teamId) => {
+    set((s) => ({
+      owners: s.owners.map((o) =>
+        o.id === ownerId ? { ...o, team_id: teamId ?? undefined } : o
+      ),
+    }))
+    try {
+      await updateOwnerTeam(ownerId, teamId)
+    } catch {
+      // revert on failure
+      const owners = await fetchOwners()
+      if (owners.length > 0) set({ owners })
+    }
   },
 }))

@@ -13,7 +13,11 @@ import { useActivityStore } from '@/store/useActivityStore'
 import { useMeetingStore } from '@/store/useMeetingStore'
 import { useAppStore } from '@/store/useAppStore'
 import { STAGES, getStageColor } from '@/constants/pipeline'
-import type { Deal, DealActivity, DealMeeting, NextActivity } from '@/types/deal.types'
+import { supabase } from '@/lib/supabase'
+import { fetchDealEvents } from '@/services/deal-events.service'
+import { useTeamStore } from '@/store/useTeamStore'
+import { useNotificationStore } from '@/store/useNotificationStore'
+import type { Deal, DealActivity, DealMeeting, NextActivity, Stakeholder, CompanySize, ArrRange, DealEvent } from '@/types/deal.types'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -64,6 +68,27 @@ const NEXT_ACT_TYPES: { value: NextActivity['type']; label: string }[] = [
   { value: 'meeting', label: 'Reunião' },
   { value: 'task', label: 'Tarefa' },
   { value: 'email', label: 'Email' },
+]
+
+const FIELD_LABELS: Record<string, string> = {
+  stage_id: 'Etapa', value: 'Valor', probability: 'Probabilidade',
+  expected_close: 'Previsão', company_sector: 'Setor', company_size: 'Tamanho',
+  company_arr_range: 'ARR', owner_id: 'Responsável', stakeholders: 'Stakeholders',
+  next_activity: 'Próx. atividade', team_id: 'Time',
+}
+
+const SIZE_OPTIONS: { value: CompanySize; label: string }[] = [
+  { value: '1-50', label: '1–50 func.' },
+  { value: '51-200', label: '51–200 func.' },
+  { value: '201-1000', label: '201–1k func.' },
+  { value: '1000+', label: '1k+ func.' },
+]
+
+const ARR_OPTIONS: { value: ArrRange; label: string }[] = [
+  { value: '<100k', label: '< R$ 100k' },
+  { value: '100k-500k', label: 'R$ 100k–500k' },
+  { value: '500k-1M', label: 'R$ 500k–1M' },
+  { value: '>1M', label: '> R$ 1M' },
 ]
 
 // ─── Building blocks ──────────────────────────────────────────────────────────
@@ -541,16 +566,103 @@ export function DealDetailPage() {
   const setRightColWidth = useAppStore((s) => s.setRightColWidth)
 
   const [showAddActivity, setShowAddActivity] = useState(false)
-  const setNextActivity = useDealStore((s) => s.setNextActivity)
+  const setNextActivity    = useDealStore((s) => s.setNextActivity)
+  const patchDealFields    = useDealStore((s) => s.patchDealFields)
   const [editingNextAct, setEditingNextAct]   = useState(false)
   const [nextActType, setNextActType]         = useState<NextActivity['type']>('call')
   const [nextActLabel, setNextActLabel]       = useState('')
   const [nextActDate, setNextActDate]         = useState('')
   const [savingNextAct, setSavingNextAct]     = useState(false)
 
+  // ── Inline field edit ────────────────────────────────────────────────────────
+  const [editingField, setEditingField] = useState<string | null>(null)
+  const [editDraft, setEditDraft]       = useState('')
+  const [savingField, setSavingField]   = useState(false)
+
+  // ── Stakeholders ─────────────────────────────────────────────────────────────
+  const [showAddStakeholder, setShowAddStakeholder] = useState(false)
+  const [profiles, setProfiles] = useState<{ id: string; full_name: string; avatar_color: string }[]>([])
+  const [loadingProfiles, setLoadingProfiles] = useState(false)
+
+  // ── Teams ────────────────────────────────────────────────────────────────────
+  const teams = useTeamStore((s) => s.teams)
+
+  // ── Audit log ────────────────────────────────────────────────────────────────
+  const [showHistory, setShowHistory]     = useState(false)
+  const [dealEvents, setDealEvents]       = useState<DealEvent[]>([])
+  const [loadingEvents, setLoadingEvents] = useState(false)
+
+  const clearByDeal = useNotificationStore((s) => s.clearByDeal)
+
   useEffect(() => {
     if (id) fetchActivities(id)
   }, [id, fetchActivities])
+
+  useEffect(() => {
+    if (!id) return
+    const t = setTimeout(() => clearByDeal(id), 2000)
+    return () => clearTimeout(t)
+  }, [id, clearByDeal])
+
+  function startEdit(field: string, current: string) {
+    setEditingField(field)
+    setEditDraft(current)
+  }
+
+  async function saveField(patch: Partial<Deal>) {
+    if (savingField || !deal) return
+    setSavingField(true)
+    try {
+      await patchDealFields(deal.id, patch)
+      setEditingField(null)
+    } finally {
+      setSavingField(false)
+    }
+  }
+
+  function cancelEdit() {
+    setEditingField(null)
+    setEditDraft('')
+  }
+
+  async function loadProfiles(force = false) {
+    if (!force && profiles.length > 0) return
+    setLoadingProfiles(true)
+    try {
+      const { data } = await supabase.from('profiles').select('id, full_name, avatar_color')
+      setProfiles((data ?? []) as typeof profiles)
+    } finally {
+      setLoadingProfiles(false)
+    }
+  }
+
+  async function addStakeholder(profile: { id: string; full_name: string; avatar_color: string }) {
+    if (!deal) return
+    const existing = deal.stakeholders ?? []
+    const initials = profile.full_name.split(' ').slice(0, 2).map((w) => w[0] ?? '').join('').toUpperCase()
+    const newS: Stakeholder = { initials, color: profile.avatar_color, name: profile.full_name }
+    await patchDealFields(deal.id, { stakeholders: [...existing, newS] })
+    setShowAddStakeholder(false)
+  }
+
+  async function removeStakeholder(index: number) {
+    if (!deal) return
+    const existing = deal.stakeholders ?? []
+    await patchDealFields(deal.id, { stakeholders: existing.filter((_, i) => i !== index) })
+  }
+
+  async function loadEvents() {
+    if (!deal || loadingEvents) return
+    setLoadingEvents(true)
+    try {
+      const events = await fetchDealEvents(deal.id)
+      setDealEvents(events)
+    } catch {
+      setDealEvents([])
+    } finally {
+      setLoadingEvents(false)
+    }
+  }
 
   const startResizeLeft = useCallback((e: React.MouseEvent) => {
     e.preventDefault()
@@ -685,27 +797,62 @@ export function DealDetailPage() {
               </span>
             )}
 
-            {/* Summary grid — 3 key numbers */}
+            {/* Summary grid — editável */}
             <div style={{
               backgroundColor: isDark ? '#1a1a18' : '#f0eeea',
               borderRadius: '8px', padding: '12px 14px', marginTop: '14px',
               display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px',
             }}>
-              {[
-                { label: 'Valor', value: formatCurrency(deal.value) },
-                { label: 'Probabilidade', value: `${deal.probability}%` },
-                { label: 'Dias na etapa', value: `${deal.days_in_stage}d`, urgent: deal.days_in_stage > 90 },
-                { label: 'Previsão', value: formatDate(deal.expected_close) },
-              ].map(({ label, value: v, urgent }) => (
-                <div key={label}>
-                  <p style={{ fontSize: '9px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '3px' }}>
-                    {label}
-                  </p>
-                  <p style={{ fontSize: '13px', fontWeight: 700, color: urgent ? '#c53030' : text, lineHeight: 1.2, fontVariantNumeric: 'tabular-nums' }}>
-                    {v}
-                  </p>
-                </div>
-              ))}
+              {/* Valor */}
+              <div>
+                <p style={{ fontSize: '9px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '3px' }}>Valor</p>
+                {editingField === 'value' ? (
+                  <input
+                    type="number" autoFocus value={editDraft}
+                    onChange={(e) => setEditDraft(e.target.value)}
+                    onBlur={() => saveField({ value: Number(editDraft) || deal.value })}
+                    onKeyDown={(e) => { if (e.key === 'Enter') saveField({ value: Number(editDraft) || deal.value }); if (e.key === 'Escape') cancelEdit() }}
+                    style={{ width: '100%', fontSize: '12px', fontWeight: 700, backgroundColor: inputBg, border: `1px solid ${border}`, borderRadius: '4px', padding: '2px 5px', color: text, outline: 'none' }}
+                  />
+                ) : (
+                  <p onClick={() => startEdit('value', String(deal.value))} style={{ fontSize: '13px', fontWeight: 700, color: text, lineHeight: 1.2, fontVariantNumeric: 'tabular-nums', cursor: 'pointer', borderBottom: `1px dashed ${border}` }} title="Clique para editar">{formatCurrency(deal.value)}</p>
+                )}
+              </div>
+              {/* Probabilidade */}
+              <div>
+                <p style={{ fontSize: '9px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '3px' }}>Probabilidade</p>
+                {editingField === 'probability' ? (
+                  <input
+                    type="number" autoFocus min={0} max={100} value={editDraft}
+                    onChange={(e) => setEditDraft(e.target.value)}
+                    onBlur={() => saveField({ probability: Math.min(100, Math.max(0, Number(editDraft))) })}
+                    onKeyDown={(e) => { if (e.key === 'Enter') saveField({ probability: Math.min(100, Math.max(0, Number(editDraft))) }); if (e.key === 'Escape') cancelEdit() }}
+                    style={{ width: '100%', fontSize: '12px', fontWeight: 700, backgroundColor: inputBg, border: `1px solid ${border}`, borderRadius: '4px', padding: '2px 5px', color: text, outline: 'none' }}
+                  />
+                ) : (
+                  <p onClick={() => startEdit('probability', String(deal.probability))} style={{ fontSize: '13px', fontWeight: 700, color: text, lineHeight: 1.2, cursor: 'pointer', borderBottom: `1px dashed ${border}` }} title="Clique para editar">{deal.probability}%</p>
+                )}
+              </div>
+              {/* Dias na etapa — read-only */}
+              <div>
+                <p style={{ fontSize: '9px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '3px' }}>Dias na etapa</p>
+                <p style={{ fontSize: '13px', fontWeight: 700, color: deal.days_in_stage > 90 ? '#c53030' : text, lineHeight: 1.2, cursor: 'default' }} title="Calculado automaticamente">{deal.days_in_stage}d</p>
+              </div>
+              {/* Previsão */}
+              <div>
+                <p style={{ fontSize: '9px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '3px' }}>Previsão</p>
+                {editingField === 'expected_close' ? (
+                  <input
+                    type="date" autoFocus value={editDraft}
+                    onChange={(e) => setEditDraft(e.target.value)}
+                    onBlur={() => saveField({ expected_close: editDraft || undefined })}
+                    onKeyDown={(e) => { if (e.key === 'Enter') saveField({ expected_close: editDraft || undefined }); if (e.key === 'Escape') cancelEdit() }}
+                    style={{ width: '100%', fontSize: '11px', fontWeight: 700, backgroundColor: inputBg, border: `1px solid ${border}`, borderRadius: '4px', padding: '2px 5px', color: text, outline: 'none', colorScheme: isDark ? 'dark' : 'light' }}
+                  />
+                ) : (
+                  <p onClick={() => startEdit('expected_close', deal.expected_close ?? '')} style={{ fontSize: '13px', fontWeight: 700, color: text, lineHeight: 1.2, cursor: 'pointer', borderBottom: `1px dashed ${border}` }} title="Clique para editar">{formatDate(deal.expected_close)}</p>
+                )}
+              </div>
             </div>
 
             {/* Contato */}
@@ -717,9 +864,60 @@ export function DealDetailPage() {
 
             {/* Empresa */}
             <SectionHead title="Empresa" border={border} muted={muted} />
-            {deal.company_sector && <Field label="Setor" icon={Building2} muted={muted} text={text}>{deal.company_sector}</Field>}
-            {deal.company_size && <Field label="Tamanho" icon={Users} muted={muted} text={text}>{SIZE_LABELS[deal.company_size] ?? deal.company_size}</Field>}
-            {deal.company_arr_range && <Field label="ARR Estimado" icon={Target} muted={muted} text={text}>{ARR_LABELS[deal.company_arr_range] ?? deal.company_arr_range}</Field>}
+
+            {/* Setor — text edit */}
+            <div style={{ marginBottom: '10px' }}>
+              <p style={{ fontSize: '10px', fontWeight: 600, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '3px' }}>Setor</p>
+              {editingField === 'company_sector' ? (
+                <input
+                  autoFocus type="text" value={editDraft}
+                  onChange={(e) => setEditDraft(e.target.value)}
+                  onBlur={() => saveField({ company_sector: editDraft.trim() || undefined })}
+                  onKeyDown={(e) => { if (e.key === 'Enter') saveField({ company_sector: editDraft.trim() || undefined }); if (e.key === 'Escape') cancelEdit() }}
+                  placeholder="Ex: Energia, Finanças..."
+                  style={{ width: '100%', height: '28px', padding: '0 8px', fontSize: '12px', fontWeight: 500, backgroundColor: inputBg, border: `1px solid ${border}`, borderRadius: '5px', color: text, outline: 'none' }}
+                />
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }} onClick={() => startEdit('company_sector', deal.company_sector ?? '')} title="Clique para editar">
+                  <Building2 style={{ width: '13px', height: '13px', color: muted, flexShrink: 0 }} />
+                  <span style={{ fontSize: '13px', fontWeight: 500, color: deal.company_sector ? text : muted, fontStyle: deal.company_sector ? 'normal' : 'italic', borderBottom: `1px dashed ${border}` }}>
+                    {deal.company_sector ?? 'Adicionar setor...'}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Tamanho — select */}
+            <div style={{ marginBottom: '10px' }}>
+              <p style={{ fontSize: '10px', fontWeight: 600, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '3px' }}>Tamanho</p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Users style={{ width: '13px', height: '13px', color: muted, flexShrink: 0 }} />
+                <select
+                  value={deal.company_size ?? ''}
+                  onChange={(e) => saveField({ company_size: (e.target.value as CompanySize) || undefined })}
+                  style={{ fontSize: '12px', fontWeight: 500, color: deal.company_size ? text : muted, backgroundColor: inputBg, border: `1px solid ${border}`, borderRadius: '5px', padding: '2px 6px', cursor: 'pointer', outline: 'none', flex: 1 }}
+                >
+                  <option value="">Selecionar...</option>
+                  {SIZE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </div>
+            </div>
+
+            {/* ARR Estimado — select */}
+            <div style={{ marginBottom: '10px' }}>
+              <p style={{ fontSize: '10px', fontWeight: 600, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '3px' }}>ARR Estimado</p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Target style={{ width: '13px', height: '13px', color: muted, flexShrink: 0 }} />
+                <select
+                  value={deal.company_arr_range ?? ''}
+                  onChange={(e) => saveField({ company_arr_range: (e.target.value as ArrRange) || undefined })}
+                  style={{ fontSize: '12px', fontWeight: 500, color: deal.company_arr_range ? text : muted, backgroundColor: inputBg, border: `1px solid ${border}`, borderRadius: '5px', padding: '2px 6px', cursor: 'pointer', outline: 'none', flex: 1 }}
+                >
+                  <option value="">Selecionar...</option>
+                  {ARR_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </div>
+            </div>
 
             {/* Lead */}
             <SectionHead title="Lead" border={border} muted={muted} />
@@ -733,6 +931,25 @@ export function DealDetailPage() {
               </div>
             </div>
             {deal.lead_source && <Field label="Origem" icon={MapPin} muted={muted} text={text}>{deal.lead_source}</Field>}
+
+            {/* Time */}
+            {teams.length > 0 && (
+              <div style={{ marginBottom: '10px' }}>
+                <p style={{ fontSize: '10px', fontWeight: 600, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '3px' }}>Time</p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Users style={{ width: '13px', height: '13px', color: muted, flexShrink: 0 }} />
+                  <select
+                    value={(deal as Deal & { team_id?: string }).team_id ?? ''}
+                    onChange={(e) => saveField({ team_id: e.target.value || undefined } as Partial<Deal>)}
+                    style={{ fontSize: '12px', fontWeight: 500, color: (deal as Deal & { team_id?: string }).team_id ? text : muted, backgroundColor: inputBg, border: `1px solid ${border}`, borderRadius: '5px', padding: '2px 6px', cursor: 'pointer', outline: 'none', flex: 1 }}
+                  >
+                    <option value="">Sem time</option>
+                    {teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                  </select>
+                </div>
+              </div>
+            )}
+
             {/* ── Próxima atividade (editable) ── */}
             <div style={{ marginBottom: '10px' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
@@ -993,24 +1210,141 @@ export function DealDetailPage() {
               </div>
             )}
 
-            {/* Stakeholders */}
-            {deal.stakeholders && deal.stakeholders.length > 0 && (
-              <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '8px', padding: '14px' }}>
-                <p style={{ fontSize: '10px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>
-                  Stakeholders ({deal.stakeholders.length})
+            {/* Stakeholders — editável */}
+            <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '8px', padding: '14px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                <p style={{ fontSize: '10px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                  Stakeholders ({deal.stakeholders?.length ?? 0})
                 </p>
+                <button
+                  type="button"
+                  onClick={() => { setShowAddStakeholder((v) => !v); if (!showAddStakeholder) loadProfiles() }}
+                  style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '10px', fontWeight: 600, color: showAddStakeholder ? muted : '#2c5545', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px' }}
+                >
+                  {showAddStakeholder ? <><X style={{ width: '10px', height: '10px' }} />Fechar</> : <><Plus style={{ width: '10px', height: '10px' }} />Adicionar</>}
+                </button>
+              </div>
+
+              {/* Add stakeholder dropdown */}
+              {showAddStakeholder && (
+                <div style={{ marginBottom: '10px', padding: '8px', backgroundColor: isDark ? '#111110' : '#f5f4f0', borderRadius: '6px', border: `1px solid ${border}` }}>
+                  {loadingProfiles ? (
+                    <p style={{ fontSize: '11px', color: muted, textAlign: 'center', padding: '4px 0' }}>Carregando...</p>
+                  ) : profiles.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '4px 0' }}>
+                      <p style={{ fontSize: '11px', color: muted, fontStyle: 'italic', marginBottom: '6px' }}>Nenhum perfil encontrado</p>
+                      <button type="button" onClick={() => loadProfiles(true)} style={{ fontSize: '10px', fontWeight: 600, color: '#2c5545', background: 'none', border: 'none', cursor: 'pointer' }}>Tentar novamente</button>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '160px', overflowY: 'auto' }}>
+                      {profiles
+                        .filter((p) => !(deal.stakeholders ?? []).some((s) => s.name === p.full_name))
+                        .map((p) => {
+                          const ini = p.full_name.split(' ').slice(0, 2).map((w) => w[0] ?? '').join('').toUpperCase()
+                          return (
+                            <button
+                              key={p.id} type="button"
+                              onClick={() => addStakeholder(p)}
+                              style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '5px 6px', borderRadius: '5px', border: 'none', backgroundColor: 'transparent', cursor: 'pointer', textAlign: 'left', width: '100%' }}
+                              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = isDark ? '#1e1e1c' : '#e8e4da')}
+                              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                            >
+                              <div style={{ width: '22px', height: '22px', borderRadius: '50%', backgroundColor: p.avatar_color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '7px', fontWeight: 700, flexShrink: 0 }}>{ini}</div>
+                              <span style={{ fontSize: '12px', fontWeight: 500, color: text }}>{p.full_name}</span>
+                            </button>
+                          )
+                        })}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Current stakeholders list */}
+              {(deal.stakeholders ?? []).length > 0 ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '7px' }}>
-                  {deal.stakeholders.map((s) => (
-                    <div key={s.initials} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  {deal.stakeholders!.map((s, i) => (
+                    <div key={`${s.name}-${i}`} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <div style={{ width: '24px', height: '24px', borderRadius: '50%', backgroundColor: s.color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '7px', fontWeight: 700, flexShrink: 0 }}>
                         {s.initials}
                       </div>
-                      <span style={{ fontSize: '12px', fontWeight: 500, color: text }}>{s.name}</span>
+                      <span style={{ fontSize: '12px', fontWeight: 500, color: text, flex: 1 }}>{s.name}</span>
+                      <button
+                        type="button" title="Remover"
+                        onClick={() => removeStakeholder(i)}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: muted, padding: '2px', borderRadius: '3px', lineHeight: 1, flexShrink: 0 }}
+                        onMouseEnter={(e) => (e.currentTarget.style.color = '#c53030')}
+                        onMouseLeave={(e) => (e.currentTarget.style.color = muted)}
+                      >
+                        <X style={{ width: '11px', height: '11px' }} />
+                      </button>
                     </div>
                   ))}
                 </div>
-              </div>
-            )}
+              ) : (
+                <p style={{ fontSize: '11px', color: muted, fontStyle: 'italic' }}>Nenhum stakeholder mapeado</p>
+              )}
+            </div>
+
+            {/* Histórico de alterações */}
+            <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '8px', overflow: 'hidden' }}>
+              <button
+                type="button"
+                onClick={() => { setShowHistory((v) => !v); if (!showHistory && dealEvents.length === 0) loadEvents() }}
+                style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', background: 'none', border: 'none', cursor: 'pointer' }}
+              >
+                <p style={{ fontSize: '10px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                  Histórico
+                </p>
+                <ChevronDown style={{ width: '12px', height: '12px', color: muted, transform: showHistory ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} />
+              </button>
+
+              {showHistory && (
+                <div style={{ padding: '0 14px 14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {loadingEvents ? (
+                    <p style={{ fontSize: '11px', color: muted, textAlign: 'center', padding: '8px 0' }}>Carregando...</p>
+                  ) : dealEvents.length === 0 ? (
+                    <p style={{ fontSize: '11px', color: muted, fontStyle: 'italic', textAlign: 'center', padding: '8px 0' }}>Nenhuma alteração registrada</p>
+                  ) : dealEvents.map((ev) => {
+                    const fieldLabel = ev.field_name ? (FIELD_LABELS[ev.field_name] ?? ev.field_name) : 'Campo'
+                    const isStage = ev.event_type === 'stage_change'
+
+                    function fmtVal(v: unknown, field?: string): string {
+                      if (v == null) return '—'
+                      if (field === 'stage_id') return STAGES.find((s) => s.id === String(v))?.label ?? String(v)
+                      if (field === 'value') return formatCurrency(Number(v))
+                      if (field === 'probability') return `${v}%`
+                      if (field === 'expected_close') return formatDate(String(v))
+                      if (field === 'company_size') return SIZE_LABELS[String(v)] ?? String(v)
+                      if (field === 'company_arr_range') return ARR_LABELS[String(v)] ?? String(v)
+                      if (field === 'stakeholders' || field === 'next_activity') {
+                        if (Array.isArray(v)) return `${v.length} item${v.length !== 1 ? 's' : ''}`
+                        if (typeof v === 'object') return 'actualizado'
+                        return String(v)
+                      }
+                      return String(v)
+                    }
+
+                    const oldStr = fmtVal(ev.old_value, ev.field_name)
+                    const newStr = fmtVal(ev.new_value, ev.field_name)
+                    return (
+                      <div key={ev.id} style={{ display: 'flex', flexDirection: 'column', gap: '3px', padding: '8px', backgroundColor: isDark ? '#111110' : '#f5f4f0', borderRadius: '6px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <span style={{ fontSize: '10px', fontWeight: 700, color: isStage ? '#2c5545' : muted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                            {isStage ? '↗ Etapa' : fieldLabel}
+                          </span>
+                          <span style={{ fontSize: '9px', color: muted }}>{relativeDate(ev.created_at.slice(0, 10))}</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: text, flexWrap: 'wrap' }}>
+                          <span style={{ color: isDark ? '#fc8181' : '#c53030', textDecoration: 'line-through', maxWidth: '90px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={oldStr}>{oldStr}</span>
+                          <span style={{ color: muted }}>→</span>
+                          <span style={{ color: '#2d9e6b', fontWeight: 600, maxWidth: '90px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={newStr}>{newStr}</span>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
 
           </div>
         </div>

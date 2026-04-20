@@ -43,6 +43,7 @@ interface DealStore {
   moveDeal: (id: string, stageId: StageId) => Promise<void>
   setLossReason: (id: string, reason: string) => void
   setNextActivity: (id: string, nextActivity: NextActivity | null) => Promise<void>
+  patchDealFields: (id: string, patch: Partial<Deal>) => Promise<void>
 }
 
 export const useDealStore = create<DealStore>((set, get) => ({
@@ -267,6 +268,21 @@ export const useDealStore = create<DealStore>((set, get) => ({
       set({ deals: prev })
       persistDeals(prev)
       useToastStore.getState().addToast('Erro ao salvar atividade — tente novamente', 'error')
+    }
+  },
+
+  patchDealFields: async (id, patch) => {
+    const prev = get().deals
+    const next = prev.map((d) => (d.id === id ? { ...d, ...patch } : d))
+    set({ deals: next })
+    persistDeals(next)
+    try {
+      await patchDeal(id, patch)
+      useToastStore.getState().addToast('Alteração guardada', 'success')
+    } catch {
+      set({ deals: prev })
+      persistDeals(prev)
+      useToastStore.getState().addToast('Erro ao salvar — tente novamente', 'error')
     }
   },
 }))

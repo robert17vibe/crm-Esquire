@@ -22,7 +22,9 @@
       "Bash(taskkill /F /IM node.exe)",
       "WebFetch(domain:localhost)",
       "Bash(npx vite *)",
-      "Bash(powershell *)"
+      "Bash(powershell *)",
+      "mcp__claude_ai_Supabase__execute_sql",
+      "Read(//tmp/**)"
     ]
   }
 }

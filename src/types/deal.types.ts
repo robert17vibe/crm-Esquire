@@ -5,6 +5,7 @@ export interface Owner {
   name: string
   initials: string
   avatar_color: string
+  team_id?: string
 }
 
 export interface Stakeholder {
@@ -22,6 +23,23 @@ export interface NextActivity {
 export type CompanySize = '1-50' | '51-200' | '201-1000' | '1000+'
 export type ArrRange   = '<100k' | '100k-500k' | '500k-1M' | '>1M'
 export type LeadSource = 'Indicação' | 'Inbound' | 'Outbound' | 'Evento'
+
+export interface Team {
+  id: string
+  name: string
+  created_at: string
+}
+
+export interface DealEvent {
+  id: string
+  deal_id: string
+  actor_id?: string
+  event_type: 'field_update' | 'stage_change'
+  field_name?: string
+  old_value?: unknown
+  new_value?: unknown
+  created_at: string
+}
 
 export interface Deal {
   id: string
@@ -42,6 +60,7 @@ export interface Deal {
   owner_id: string
   owner: Owner
   stakeholders?: Stakeholder[]
+  team_id?: string
 
   // ── Activity ──────────────────────────────────────────
   next_activity?: NextActivity | null

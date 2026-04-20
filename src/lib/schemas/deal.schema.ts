@@ -16,7 +16,7 @@ const LEAD_SOURCES  = ['Indicação', 'Inbound', 'Outbound', 'Evento'] as const
 export const newLeadSchema = z.object({
   contact_name:     z.string().min(2, 'Nome obrigatório'),
   company_name:     z.string().min(1, 'Empresa obrigatória'),
-  contact_email:    z.string().email('Email inválido'),
+  contact_email:    z.string().email('Email inválido').optional().or(z.literal('')),
   contact_phone:    z.string().optional(),
   contact_title:    z.string().optional(),
   contact_linkedin: z.string().url('URL inválida').optional().or(z.literal('')),

@@ -129,7 +129,6 @@ export function DealCard({
   const navigate      = useNavigate()
   const isDark        = useThemeStore((s) => s.isDark)
   const notifications = useNotificationStore((s) => s.notifications)
-  const clearByDeal   = useNotificationStore((s) => s.clearByDeal)
 
   const isNew = notifications.some((n) => n.dealId === deal.id && !n.read)
 
@@ -190,7 +189,7 @@ export function DealCard({
       ref={setNodeRef}
       style={cardStyle}
       {...(isOverlay ? {} : { ...attributes, ...listeners })}
-      onClick={isOverlay ? undefined : () => { clearByDeal(deal.id); navigate(`/deal/${deal.id}`) }}
+      onClick={isOverlay ? undefined : () => navigate(`/deal/${deal.id}`)}
       className={cn(
         'deal-card group/card w-full select-none',
         !isOverlay && !isDragging && 'cursor-grab active:cursor-grabbing',

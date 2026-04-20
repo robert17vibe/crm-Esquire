@@ -1,9 +1,12 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, Mic, Activity, CalendarDays } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Mic, Activity, CalendarDays, Plus, X } from 'lucide-react'
 import { useMeetingStore } from '@/store/useMeetingStore'
 import { useDealStore } from '@/store/useDealStore'
 import { useThemeStore } from '@/store/useThemeStore'
+import { useOwnerStore } from '@/store/useOwnerStore'
+import { useAuthStore } from '@/store/useAuthStore'
+import type { Deal } from '@/types/deal.types'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -174,6 +177,161 @@ function EventItem({ event, isDark, onDealClick }: { event: CalEvent; isDark: bo
   )
 }
 
+// ─── New Meeting Modal ────────────────────────────────────────────────────────
+
+function NewMeetingModal({ defaultDate, onClose, isDark }: { defaultDate: string; onClose: () => void; isDark: boolean }) {
+  const deals      = useDealStore((s) => s.deals)
+  const addMeeting = useMeetingStore((s) => s.addMeeting)
+  const owners     = useOwnerStore((s) => s.owners)
+  const authUser   = useAuthStore((s) => s.user)
+  const owner      = owners.find((o) => o.id === authUser?.id) ?? owners[0] ?? { id: '', name: 'Desconhecido', initials: '?', avatar_color: '#6b6560' }
+
+  const border  = isDark ? '#242422' : '#e4e0da'
+  const text    = isDark ? '#e8e4dc' : '#1a1814'
+  const muted   = isDark ? '#6b6560' : '#8a857d'
+  const inputBg = isDark ? '#111110' : '#f8f7f4'
+  const cardBg  = isDark ? '#161614' : '#ffffff'
+
+  const [title, setTitle]       = useState('')
+  const [dealId, setDealId]     = useState('')
+  const [date, setDate]         = useState(defaultDate)
+  const [time, setTime]         = useState('09:00')
+  const [duration, setDuration] = useState('60')
+  const [attendee, setAttendee] = useState('')
+  const [attendees, setAttendees] = useState<string[]>([])
+  const [saving, setSaving]     = useState(false)
+  const attendeeRef = useRef<HTMLInputElement>(null)
+
+  function addAttendee() {
+    const val = attendee.trim()
+    if (val && !attendees.includes(val)) setAttendees((a) => [...a, val])
+    setAttendee('')
+    attendeeRef.current?.focus()
+  }
+
+  async function handleSave() {
+    if (!title.trim() || !dealId || !date) return
+    setSaving(true)
+    try {
+      await addMeeting({
+        deal_id: dealId,
+        title: title.trim(),
+        scheduled_at: `${date}T${time}:00`,
+        duration_minutes: Number(duration) || 60,
+        attendees,
+        owner,
+      })
+      onClose()
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const inputStyle = {
+    height: '34px', padding: '0 10px', fontSize: '13px', fontWeight: 500,
+    backgroundColor: inputBg, border: `1px solid ${border}`, borderRadius: '6px',
+    color: text, outline: 'none', width: '100%',
+  }
+
+  return (
+    <div
+      style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.4)' }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '12px', padding: '24px', width: '100%', maxWidth: '440px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <p style={{ fontSize: '15px', fontWeight: 700, color: text }}>Nova Reunião</p>
+          <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: muted, padding: '4px' }}>
+            <X style={{ width: '16px', height: '16px' }} />
+          </button>
+        </div>
+
+        {/* Título */}
+        <div>
+          <p style={{ fontSize: '10px', fontWeight: 600, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '5px' }}>Título *</p>
+          <input autoFocus type="text" placeholder="Ex: Alinhamento inicial com Petrobras" value={title} onChange={(e) => setTitle(e.target.value)} style={inputStyle} />
+        </div>
+
+        {/* Deal */}
+        <div>
+          <p style={{ fontSize: '10px', fontWeight: 600, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '5px' }}>Lead *</p>
+          <select value={dealId} onChange={(e) => setDealId(e.target.value)} style={{ ...inputStyle, cursor: 'pointer' }}>
+            <option value="">Selecionar lead...</option>
+            {deals.filter((d) => !(d as Deal & { deleted_at?: string }).deleted_at).map((d) => (
+              <option key={d.id} value={d.id}>{d.company_name} — {d.contact_name ?? d.title}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Data e hora */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+          <div>
+            <p style={{ fontSize: '10px', fontWeight: 600, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '5px' }}>Data *</p>
+            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ ...inputStyle, colorScheme: isDark ? 'dark' : 'light' }} />
+          </div>
+          <div>
+            <p style={{ fontSize: '10px', fontWeight: 600, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '5px' }}>Hora</p>
+            <input type="time" value={time} onChange={(e) => setTime(e.target.value)} style={{ ...inputStyle, colorScheme: isDark ? 'dark' : 'light' }} />
+          </div>
+        </div>
+
+        {/* Duração */}
+        <div>
+          <p style={{ fontSize: '10px', fontWeight: 600, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '5px' }}>Duração (min)</p>
+          <select value={duration} onChange={(e) => setDuration(e.target.value)} style={{ ...inputStyle, cursor: 'pointer' }}>
+            {[30, 45, 60, 90, 120].map((v) => <option key={v} value={v}>{v} min</option>)}
+          </select>
+        </div>
+
+        {/* Participantes */}
+        <div>
+          <p style={{ fontSize: '10px', fontWeight: 600, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '5px' }}>Participantes</p>
+          <div style={{ display: 'flex', gap: '6px' }}>
+            <input
+              ref={attendeeRef} type="text" placeholder="Nome do participante" value={attendee}
+              onChange={(e) => setAttendee(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addAttendee() } }}
+              style={{ ...inputStyle, flex: 1 }}
+            />
+            <button type="button" onClick={addAttendee} style={{ height: '34px', padding: '0 12px', fontSize: '12px', fontWeight: 600, backgroundColor: isDark ? '#1e1e1c' : '#f0eeea', border: `1px solid ${border}`, borderRadius: '6px', color: text, cursor: 'pointer', flexShrink: 0 }}>
+              <Plus style={{ width: '13px', height: '13px' }} />
+            </button>
+          </div>
+          {attendees.length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', marginTop: '7px' }}>
+              {attendees.map((a) => (
+                <span key={a} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', fontWeight: 600, color: '#2c5545', backgroundColor: '#2c554514', border: '1px solid #2c554530', borderRadius: '4px', padding: '2px 7px' }}>
+                  {a}
+                  <button type="button" onClick={() => setAttendees((arr) => arr.filter((x) => x !== a))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#2c5545', padding: 0, lineHeight: 1 }}>
+                    <X style={{ width: '10px', height: '10px' }} />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Actions */}
+        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '4px' }}>
+          <button type="button" onClick={onClose} style={{ fontSize: '12px', fontWeight: 600, color: muted, background: 'none', border: 'none', cursor: 'pointer', padding: '6px 12px' }}>Cancelar</button>
+          <button
+            type="button" disabled={saving || !title.trim() || !dealId || !date}
+            onClick={handleSave}
+            style={{
+              fontSize: '12px', fontWeight: 600, padding: '6px 16px', borderRadius: '6px', border: 'none',
+              backgroundColor: title.trim() && dealId && date ? (isDark ? '#f0ede5' : '#1a1814') : (isDark ? '#2a2a28' : '#e4e0da'),
+              color: title.trim() && dealId && date ? (isDark ? '#0f0e0c' : '#f0ede5') : muted,
+              cursor: title.trim() && dealId && date ? 'pointer' : 'not-allowed',
+            }}
+          >{saving ? 'Salvando...' : 'Criar Reunião'}</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export function CalendarPage() {
@@ -186,6 +344,7 @@ export function CalendarPage() {
   const [year,  setYear]  = useState(today.getFullYear())
   const [month, setMonth] = useState(today.getMonth())
   const [selectedDay, setSelectedDay] = useState<string>(toDate(today.toISOString()))
+  const [showNewMeeting, setShowNewMeeting] = useState(false)
 
   const border = isDark ? '#242422' : '#e4e0da'
   const text   = isDark ? '#e8e4dc' : '#1a1814'
@@ -305,14 +464,18 @@ export function CalendarPage() {
             {events.length} evento{events.length !== 1 ? 's' : ''} · {upcoming.length} nos próximos 30 dias
           </p>
         </div>
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', fontWeight: 600,
-          color: '#2c5545', backgroundColor: '#2c554514',
-          border: '1px solid #2c554530', borderRadius: '6px', padding: '5px 10px',
-        }}>
-          <CalendarDays style={{ width: '12px', height: '12px' }} />
-          {meetings.length} reuniões
-        </div>
+        <button
+          type="button"
+          onClick={() => setShowNewMeeting(true)}
+          style={{
+            display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', fontWeight: 600,
+            color: isDark ? '#e8e4dc' : '#1a1814', backgroundColor: isDark ? '#1e1e1c' : '#f0eeea',
+            border: `1px solid ${border}`, borderRadius: '6px', padding: '5px 10px', cursor: 'pointer',
+          }}
+        >
+          <Plus style={{ width: '12px', height: '12px' }} />
+          Nova Reunião
+        </button>
       </div>
 
       {/* Body */}
@@ -465,6 +628,14 @@ export function CalendarPage() {
           </div>
         </div>
       </div>
+
+      {showNewMeeting && (
+        <NewMeetingModal
+          defaultDate={selectedDay}
+          onClose={() => setShowNewMeeting(false)}
+          isDark={isDark}
+        />
+      )}
     </div>
   )
 }

@@ -9,6 +9,7 @@ import { useDealStore } from '@/store/useDealStore'
 import { useMeetingStore } from '@/store/useMeetingStore'
 import { useOwnerStore } from '@/store/useOwnerStore'
 import { useActivityStore } from '@/store/useActivityStore'
+import { useTeamStore } from '@/store/useTeamStore'
 
 export function AppLayout() {
   const location     = useLocation()
@@ -20,11 +21,13 @@ export function AppLayout() {
   const initOwners            = useOwnerStore((s) => s.initialize)
   const subscribeOwners       = useOwnerStore((s) => s.subscribeRealtime)
   const subscribeActivities   = useActivityStore((s) => s.subscribeRealtime)
+  const initTeams             = useTeamStore((s) => s.initialize)
 
   useEffect(() => {
     initOwners()
     initDeals()
     initMeetings()
+    initTeams()
     const unsubDeals       = subscribeDeals()
     const unsubMeetings    = subscribeMeetings()
     const unsubOwners      = subscribeOwners()

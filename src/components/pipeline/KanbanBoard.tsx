@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useRef, useEffect } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import {
   DndContext,
   DragOverlay,
@@ -22,8 +22,6 @@ import type { Deal, GroupedDeals } from '@/types/deal.types'
 
 interface KanbanBoardProps {
   initialDeals: Deal[]
-  visibleOwnerIds?: string[]
-  searchQuery?: string
   pendingNewDeal?: Deal | null
   onNewDealConsumed?: () => void
   pendingUpdatedDeal?: Deal | null
@@ -51,8 +49,6 @@ function findContainerId(grouped: GroupedDeals, id: UniqueIdentifier): StageId |
 
 export function KanbanBoard({
   initialDeals,
-  visibleOwnerIds,
-  searchQuery,
   pendingNewDeal,
   onNewDealConsumed,
   pendingUpdatedDeal,
@@ -71,6 +67,12 @@ export function KanbanBoard({
   groupedRef.current = grouped
   const dragStartStageRef   = useRef<StageId | null>(null)
   const dragCurrentStageRef = useRef<StageId | null>(null)
+
+  // ── Sync initialDeals when store updates (Supabase load, team filter, etc.) ──
+  useEffect(() => {
+    if (activeId) return // don't reset during an active drag
+    setGrouped(groupByStage(initialDeals))
+  }, [initialDeals]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Optimistic insert for new leads ───────────────────────────────────────
   useEffect(() => {
@@ -105,42 +107,6 @@ export function KanbanBoard({
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   )
-
-  // ── Owner filter ──────────────────────────────────────────────────────────
-  const ownerFiltered = useMemo<GroupedDeals>(() => {
-    if (!visibleOwnerIds?.length) return grouped
-    const res = {} as GroupedDeals
-    for (const sid of Object.keys(grouped) as StageId[]) {
-      res[sid] = grouped[sid].filter((d) => visibleOwnerIds.includes(d.owner_id))
-    }
-    return res
-  }, [grouped, visibleOwnerIds])
-
-  // ── Search filter — hide non-matching cards completely ─────────────────────
-  const searchFiltered = useMemo<GroupedDeals>(() => {
-    const q = searchQuery?.trim().toLowerCase()
-    if (!q) return ownerFiltered
-    const res = {} as GroupedDeals
-    for (const sid of Object.keys(ownerFiltered) as StageId[]) {
-      res[sid] = ownerFiltered[sid].filter((d) => {
-        const val = String(d.value ?? '')
-        return (
-          d.title?.toLowerCase().includes(q) ||
-          d.company_name?.toLowerCase().includes(q) ||
-          d.contact_name?.toLowerCase().includes(q) ||
-          d.contact_email?.toLowerCase().includes(q) ||
-          d.contact_phone?.replace(/\D/g, '').includes(q.replace(/\D/g, '')) ||
-          d.owner?.name?.toLowerCase().includes(q) ||
-          d.company_sector?.toLowerCase().includes(q) ||
-          val.includes(q) ||
-          (d.tags as string[] | null)?.some((t) => t.toLowerCase().includes(q))
-        )
-      })
-    }
-    return res
-  }, [ownerFiltered, searchQuery])
-
-  const dimmedIds = undefined
 
   const activeDeal = activeId
     ? Object.values(grouped).flat().find((d) => d.id === activeId)
@@ -319,8 +285,7 @@ export function KanbanBoard({
             <StageColumn
               key={stage.id}
               stage={stage}
-              deals={searchFiltered[stage.id] ?? []}
-              dimmedIds={dimmedIds}
+              deals={grouped[stage.id] ?? []}
               onMoveDeal={onMoveDeal}
               onEditDeal={onEditDeal}
               onDeleteDeal={handleDeleteDeal}

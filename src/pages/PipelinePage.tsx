@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Plus, Search, SlidersHorizontal, Check } from 'lucide-react'
+import { Plus, Search, SlidersHorizontal, Check, Users, UserPlus, UserMinus } from 'lucide-react'
 import * as Popover from '@radix-ui/react-popover'
 import * as Tooltip from '@radix-ui/react-tooltip'
 import { KanbanBoard } from '@/components/pipeline/KanbanBoard'
@@ -8,6 +8,7 @@ import { NewLeadModal } from '@/components/pipeline/NewLeadModal'
 import { EditDealModal } from '@/components/pipeline/EditDealModal'
 import { useDealStore } from '@/store/useDealStore'
 import { useOwnerStore } from '@/store/useOwnerStore'
+import { useTeamStore } from '@/store/useTeamStore'
 import { useThemeStore } from '@/store/useThemeStore'
 import type { Deal } from '@/types/deal.types'
 
@@ -16,8 +17,11 @@ export function PipelinePage() {
   const deleteDeal     = useDealStore((s) => s.deleteDeal)
   const moveDeal       = useDealStore((s) => s.moveDeal)
   const setLossReason  = useDealStore((s) => s.setLossReason)
-  const owners     = useOwnerStore((s) => s.owners)
-  const isDark     = useThemeStore((s) => s.isDark)
+  const owners         = useOwnerStore((s) => s.owners)
+  const setOwnerTeam   = useOwnerStore((s) => s.setOwnerTeam)
+  const teams          = useTeamStore((s) => s.teams)
+  const createTeam     = useTeamStore((s) => s.createTeam)
+  const isDark         = useThemeStore((s) => s.isDark)
 
   const [searchParams, setSearchParams] = useSearchParams()
   const searchQuery     = searchParams.get('search') ?? ''
@@ -25,6 +29,10 @@ export function PipelinePage() {
     const raw = searchParams.get('owners')
     return raw ? raw.split(',').filter(Boolean) : []
   }, [searchParams])
+  const selectedTeam = searchParams.get('team') ?? ''
+
+  const [newTeamName, setNewTeamName] = useState('')
+  const [creatingTeam, setCreatingTeam] = useState(false)
 
   const [showNewModal, setShowNewModal]     = useState(false)
   const [editingDeal, setEditingDeal]       = useState<Deal | null>(null)
@@ -55,6 +63,62 @@ export function PipelinePage() {
       next.delete('owners')
       return next
     }, { replace: true })
+  }
+
+  function selectTeam(id: string) {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      if (id) next.set('team', id); else next.delete('team')
+      return next
+    }, { replace: true })
+  }
+
+  // ── All filters applied in one place ─────────────────────────────────────
+  const displayDeals = useMemo<Deal[]>(() => {
+    let result = deals
+
+    // Team filter
+    if (selectedTeam) {
+      result = result.filter((d) => d.team_id === selectedTeam)
+    }
+
+    // Owner filter
+    if (selectedOwners.length > 0) {
+      result = result.filter((d) => selectedOwners.includes(d.owner_id))
+    }
+
+    // Text search
+    const q = searchQuery.trim().toLowerCase()
+    if (q) {
+      result = result.filter((d) => {
+        const val = String(d.value ?? '')
+        return (
+          d.title?.toLowerCase().includes(q) ||
+          d.company_name?.toLowerCase().includes(q) ||
+          d.contact_name?.toLowerCase().includes(q) ||
+          d.contact_email?.toLowerCase().includes(q) ||
+          d.contact_phone?.replace(/\D/g, '').includes(q.replace(/\D/g, '')) ||
+          d.owner?.name?.toLowerCase().includes(q) ||
+          d.company_sector?.toLowerCase().includes(q) ||
+          val.includes(q) ||
+          (d.tags as string[] | null)?.some((t) => t.toLowerCase().includes(q))
+        )
+      })
+    }
+
+    return result
+  }, [deals, selectedTeam, selectedOwners, searchQuery])
+
+  async function handleCreateTeam() {
+    if (!newTeamName.trim()) return
+    setCreatingTeam(true)
+    try {
+      const team = await createTeam(newTeamName)
+      selectTeam(team.id)
+      setNewTeamName('')
+    } finally {
+      setCreatingTeam(false)
+    }
   }
 
   // ── Theme tokens ──────────────────────────────────────────────────────────
@@ -284,6 +348,125 @@ export function PipelinePage() {
               </Popover.Content>
             </Popover.Portal>
           </Popover.Root>
+
+          {/* Team filter popover */}
+          <Popover.Root>
+            <Popover.Trigger asChild>
+              <button
+                type="button"
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '5px',
+                  height: '32px', padding: '0 10px', fontSize: '12px', fontWeight: 600,
+                  color: selectedTeam ? (isDark ? '#e8e4dc' : '#1a1814') : filterText,
+                  backgroundColor: selectedTeam ? (isDark ? '#1e1e1e' : '#ede9e2') : filterBg,
+                  border: `1px solid ${selectedTeam ? (isDark ? '#3a3a3a' : '#c8c4be') : filterBorder}`,
+                  borderRadius: '6px', cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap',
+                }}
+              >
+                <Users style={{ width: '12px', height: '12px' }} />
+                {selectedTeam ? (teams.find((t) => t.id === selectedTeam)?.name ?? 'Time') : 'Time'}
+              </button>
+            </Popover.Trigger>
+            <Popover.Portal>
+              <Popover.Content
+                sideOffset={6} align="end"
+                style={{
+                  backgroundColor: popoverBg, border: `1px solid ${popoverBorder}`,
+                  borderRadius: '8px', padding: '12px', width: '200px',
+                  boxShadow: isDark ? '0 8px 32px rgba(0,0,0,0.5)' : '0 8px 24px rgba(0,0,0,0.1)',
+                  zIndex: 50, outline: 'none',
+                }}
+              >
+                <p style={{ fontSize: '9px', fontWeight: 700, color: ownerMuted, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '8px' }}>Time</p>
+
+                {/* Todos */}
+                <button type="button" onClick={() => selectTeam('')}
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '6px 8px', borderRadius: '5px', fontSize: '12px', fontWeight: 500, color: ownerText, backgroundColor: !selectedTeam ? ownerActive : 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left', marginBottom: '2px' }}
+                  onMouseEnter={(e) => { if (selectedTeam) e.currentTarget.style.backgroundColor = ownerHover }}
+                  onMouseLeave={(e) => { if (selectedTeam) e.currentTarget.style.backgroundColor = 'transparent' }}
+                >
+                  <span>Todos os times</span>
+                  {!selectedTeam && <Check style={{ width: '11px', height: '11px', color: ownerMuted }} />}
+                </button>
+
+                {teams.length > 0 && <div style={{ height: '1px', backgroundColor: popoverBorder, margin: '6px 0' }} />}
+
+                {teams.map((team) => (
+                  <div key={team.id}>
+                    <button type="button" onClick={() => selectTeam(selectedTeam === team.id ? '' : team.id)}
+                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '6px 8px', borderRadius: '5px', fontSize: '12px', fontWeight: 500, color: ownerText, backgroundColor: selectedTeam === team.id ? ownerActive : 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left' }}
+                      onMouseEnter={(e) => { if (selectedTeam !== team.id) e.currentTarget.style.backgroundColor = ownerHover }}
+                      onMouseLeave={(e) => { if (selectedTeam !== team.id) e.currentTarget.style.backgroundColor = 'transparent' }}
+                    >
+                      <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{team.name}</span>
+                      <span style={{ fontSize: '10px', color: ownerMuted, flexShrink: 0, marginRight: '4px' }}>
+                        {owners.filter((o) => o.team_id === team.id).length}
+                      </span>
+                      {selectedTeam === team.id && <Check style={{ width: '11px', height: '11px', color: ownerMuted, flexShrink: 0 }} />}
+                    </button>
+
+                    {/* Member assignment — shown when team is selected */}
+                    {selectedTeam === team.id && (
+                      <div style={{ marginLeft: '8px', marginBottom: '4px' }}>
+                        {owners.map((owner) => {
+                          const isMember = owner.team_id === team.id
+                          return (
+                            <button
+                              key={owner.id}
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setOwnerTeam(owner.id, isMember ? null : team.id)
+                              }}
+                              style={{
+                                display: 'flex', alignItems: 'center', gap: '7px', width: '100%',
+                                padding: '4px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 500,
+                                color: ownerText, backgroundColor: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left',
+                              }}
+                              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = ownerHover)}
+                              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                            >
+                              <div style={{
+                                width: '18px', height: '18px', borderRadius: '50%',
+                                backgroundColor: owner.avatar_color, display: 'flex', alignItems: 'center',
+                                justifyContent: 'center', color: '#fff', fontSize: '7px', fontWeight: 700, flexShrink: 0,
+                              }}>
+                                {owner.initials}
+                              </div>
+                              <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {owner.name.split(' ')[0]}
+                              </span>
+                              {isMember
+                                ? <UserMinus style={{ width: '10px', height: '10px', color: '#c53030', flexShrink: 0 }} />
+                                : <UserPlus style={{ width: '10px', height: '10px', color: ownerMuted, flexShrink: 0 }} />
+                              }
+                            </button>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+                ))}
+
+                <div style={{ height: '1px', backgroundColor: popoverBorder, margin: '8px 0 6px' }} />
+                <p style={{ fontSize: '9px', fontWeight: 700, color: ownerMuted, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '6px' }}>Novo time</p>
+                <div style={{ display: 'flex', gap: '5px' }}>
+                  <input
+                    type="text" placeholder="Nome do time" value={newTeamName}
+                    onChange={(e) => setNewTeamName(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleCreateTeam() }}
+                    style={{ flex: 1, height: '28px', padding: '0 8px', fontSize: '11px', backgroundColor: filterBg, border: `1px solid ${filterBorder}`, borderRadius: '5px', color: ownerText, outline: 'none' }}
+                  />
+                  <button type="button" onClick={handleCreateTeam} disabled={creatingTeam || !newTeamName.trim()}
+                    style={{ height: '28px', padding: '0 8px', fontSize: '11px', fontWeight: 600, backgroundColor: newTeamName.trim() ? '#2c5545' : filterBg, color: newTeamName.trim() ? '#fff' : ownerMuted, border: 'none', borderRadius: '5px', cursor: newTeamName.trim() ? 'pointer' : 'not-allowed' }}
+                  >
+                    {creatingTeam ? '...' : '+'}
+                  </button>
+                </div>
+              </Popover.Content>
+            </Popover.Portal>
+          </Popover.Root>
+
         </div>
 
         {/* ── Zone right: new lead ── */}
@@ -338,12 +521,31 @@ export function PipelinePage() {
         </div>
       </div>
 
+      {/* ── Empty state when filters match nothing ── */}
+      {displayDeals.length === 0 && (selectedTeam || selectedOwners.length > 0 || searchQuery) && (
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '10px', opacity: 0.6 }}>
+          <Users style={{ width: '28px', height: '28px', color: filterText }} />
+          <p style={{ fontSize: '13px', fontWeight: 600, color: filterText }}>Nenhum deal encontrado</p>
+          <p style={{ fontSize: '12px', color: filterText, textAlign: 'center', maxWidth: '280px', lineHeight: 1.6 }}>
+            {selectedTeam
+              ? `Abra um deal e atribua-o ao time "${teams.find((t) => t.id === selectedTeam)?.name}" ou adicione membros ao time`
+              : 'Ajuste os filtros ou limpe a pesquisa'}
+          </p>
+          <button type="button" onClick={() => {
+            clearOwners()
+            selectTeam('')
+            setSearch('')
+          }} style={{ fontSize: '12px', fontWeight: 600, color: '#2c5545', background: 'none', border: 'none', cursor: 'pointer', marginTop: '4px' }}>
+            Limpar filtros
+          </button>
+        </div>
+      )}
+
       {/* ── Board ── */}
+      {(displayDeals.length > 0 || (!selectedTeam && !selectedOwners.length && !searchQuery)) && (
       <div style={{ flex: 1, minHeight: 0 }}>
         <KanbanBoard
-          initialDeals={deals}
-          visibleOwnerIds={selectedOwners.length > 0 ? selectedOwners : undefined}
-          searchQuery={searchQuery}
+          initialDeals={displayDeals}
           pendingNewDeal={pendingNewDeal}
           onNewDealConsumed={() => setPendingNewDeal(null)}
           pendingUpdatedDeal={updatedDeal}
@@ -354,6 +556,7 @@ export function PipelinePage() {
           onLossReasonConfirmed={(id, reason) => { setLossReason(id, reason) }}
         />
       </div>
+      )}
 
       {/* ── Modals ── */}
       <NewLeadModal
