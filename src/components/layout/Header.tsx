@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef } from 'react'
 import { Bell, Moon, Sun, Settings, LogOut, User } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useThemeStore } from '@/store/useThemeStore'

@@ -68,13 +68,6 @@ export function PipelinePage() {
     [activeDeals],
   )
 
-  const formattedTotal = new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-    notation: 'compact',
-    maximumFractionDigits: 1,
-  }).format(pipelineValue)
-
   // ── Theme tokens ──────────────────────────────────────────────────────────
   const headerBorder   = isDark ? '#242424' : '#e8e6e1'
   const inputBg        = isDark ? '#111111' : '#f5f4f1'
@@ -92,8 +85,6 @@ export function PipelinePage() {
   const ownerActive    = isDark ? '#1c1c1c' : '#f0ede540'
   const ownerText      = isDark ? '#c8d0da' : '#334155'
   const ownerMuted     = isDark ? '#4a5568' : '#94a3b8'
-  const subtitleColor  = isDark ? '#4a4a4a' : '#9a9080'
-
   const filterActive = selectedOwners.length > 0
 
   return (
