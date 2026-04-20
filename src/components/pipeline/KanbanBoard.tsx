@@ -11,22 +11,8 @@ import {
   type DragOverEvent,
   type DragEndEvent,
   type UniqueIdentifier,
-  type Modifier,
 } from '@dnd-kit/core'
-
-const snapCenterToCursor: Modifier = ({ activatorEvent, draggingNodeRect, transform }) => {
-  if (draggingNodeRect && activatorEvent) {
-    const evt = activatorEvent as MouseEvent | TouchEvent
-    const clientX = 'touches' in evt ? evt.touches[0].clientX : (evt as MouseEvent).clientX
-    const clientY = 'touches' in evt ? evt.touches[0].clientY : (evt as MouseEvent).clientY
-    return {
-      ...transform,
-      x: transform.x + draggingNodeRect.width / 2 - (clientX - draggingNodeRect.left),
-      y: transform.y + draggingNodeRect.height / 2 - (clientY - draggingNodeRect.top),
-    }
-  }
-  return transform
-}
+import { snapCenterToCursor } from '@dnd-kit/modifiers'
 import { arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable'
 import { STAGES, type StageId } from '@/constants/pipeline'
 import { StageColumn } from './StageColumn'
@@ -324,7 +310,6 @@ export function KanbanBoard({
       <DndContext
         sensors={sensors}
         collisionDetection={closestCorners}
-        modifiers={[snapCenterToCursor]}
         onDragStart={onDragStart}
         onDragOver={onDragOver}
         onDragEnd={onDragEnd}
@@ -343,7 +328,12 @@ export function KanbanBoard({
           ))}
         </div>
 
-        <DragOverlay dropAnimation={{ duration: 180, easing: 'ease' }}>
+        <DragOverlay
+          modifiers={[snapCenterToCursor]}
+          dropAnimation={null}
+          adjustScale={false}
+          style={{ width: '230px', cursor: 'grabbing' }}
+        >
           {activeDeal ? <DealCard deal={activeDeal} isOverlay /> : null}
         </DragOverlay>
       </DndContext>
