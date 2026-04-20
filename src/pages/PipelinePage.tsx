@@ -58,16 +58,6 @@ export function PipelinePage() {
     }, { replace: true })
   }
 
-  const activeDeals = useMemo(
-    () => deals.filter((d) => !['closed_won', 'closed_lost'].includes(d.stage_id)),
-    [deals],
-  )
-
-  const pipelineValue = useMemo(
-    () => activeDeals.reduce((sum, d) => sum + d.value, 0),
-    [activeDeals],
-  )
-
   // ── Theme tokens ──────────────────────────────────────────────────────────
   const headerBorder   = isDark ? '#242424' : '#e8e6e1'
   const inputBg        = isDark ? '#111111' : '#f5f4f1'
