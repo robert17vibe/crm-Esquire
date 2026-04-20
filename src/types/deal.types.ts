@@ -44,7 +44,7 @@ export interface Deal {
   stakeholders?: Stakeholder[]
 
   // ── Activity ──────────────────────────────────────────
-  next_activity?: NextActivity
+  next_activity?: NextActivity | null
   last_activity_at?: string
 
   // ── Primary contact ───────────────────────────────────

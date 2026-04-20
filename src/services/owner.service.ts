@@ -1,25 +1,24 @@
 import { supabase } from '@/lib/supabase'
 import type { Owner } from '@/types/deal.types'
 
-interface DealOwnerRow {
-  owner_id: string
-  owner: Owner | null
-}
-
-export async function fetchOwnersFromDeals(): Promise<Owner[]> {
+export async function fetchOwners(): Promise<Owner[]> {
   const { data, error } = await supabase
-    .from('deals')
-    .select('owner_id, owner')
-
+    .from('profiles')
+    .select('id, full_name, avatar_color')
+    .order('full_name')
   if (error) throw error
-
-  const byId = new Map<string, Owner>()
-  for (const row of (data ?? []) as DealOwnerRow[]) {
-    if (!row.owner_id) continue
-    if (row.owner && row.owner.id && row.owner.name) {
-      byId.set(row.owner_id, row.owner)
+  return (data ?? []).map((row) => {
+    const name = (row.full_name as string | null)?.trim() || `Usuário ${(row.id as string).slice(0, 6)}`
+    return {
+      id: row.id as string,
+      name,
+      initials: name
+        .split(/\s+/)
+        .slice(0, 2)
+        .map((p: string) => p[0] ?? '')
+        .join('')
+        .toUpperCase() || 'U',
+      avatar_color: (row.avatar_color as string | null) ?? '#2c5545',
     }
-  }
-
-  return Array.from(byId.values()).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
+  })
 }

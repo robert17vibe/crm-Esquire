@@ -3,9 +3,10 @@ import { MOCK_DEALS, MOCK_OWNERS } from '@/lib/mock-data'
 import { DEFAULT_PROBABILITIES, STAGES } from '@/constants/pipeline'
 import { useToastStore } from '@/store/useToastStore'
 import { useNotificationStore } from '@/store/useNotificationStore'
+import { useOwnerStore } from '@/store/useOwnerStore'
 import { fetchDeals, insertDeal, patchDeal, removeDeal } from '@/services/deal.service'
 import { supabase } from '@/lib/supabase'
-import type { Deal } from '@/types/deal.types'
+import type { Deal, NextActivity } from '@/types/deal.types'
 import type { StageId } from '@/constants/pipeline'
 import type { NewLeadFormValues } from '@/lib/schemas/deal.schema'
 
@@ -41,6 +42,7 @@ interface DealStore {
   deleteDeal: (id: string) => Promise<void>
   moveDeal: (id: string, stageId: StageId) => Promise<void>
   setLossReason: (id: string, reason: string) => void
+  setNextActivity: (id: string, nextActivity: NextActivity | null) => Promise<void>
 }
 
 export const useDealStore = create<DealStore>((set, get) => ({
@@ -96,7 +98,7 @@ export const useDealStore = create<DealStore>((set, get) => ({
   },
 
   createDeal: async (values) => {
-    const owner = MOCK_OWNERS.find((o) => o.id === values.owner_id) ?? MOCK_OWNERS[0]
+    const owner = useOwnerStore.getState().getById(values.owner_id) ?? MOCK_OWNERS[0]
     const now = new Date().toISOString()
     const optimistic: Deal = {
       id: `opt-${Date.now()}`,
@@ -149,7 +151,7 @@ export const useDealStore = create<DealStore>((set, get) => ({
   },
 
   updateDeal: async (id, values) => {
-    const owner = MOCK_OWNERS.find((o) => o.id === values.owner_id) ?? MOCK_OWNERS[0]
+    const owner = useOwnerStore.getState().getById(values.owner_id) ?? MOCK_OWNERS[0]
     const now = new Date().toISOString()
     const existing = get().deals.find((d) => d.id === id)
     const updated: Deal = {
@@ -242,5 +244,21 @@ export const useDealStore = create<DealStore>((set, get) => ({
       set({ deals: prev })
       persistDeals(prev)
     })
+  },
+
+  setNextActivity: async (id, nextActivity) => {
+    const prev = get().deals
+    const next = prev.map((d) =>
+      d.id === id ? { ...d, next_activity: nextActivity === null ? undefined : nextActivity } : d,
+    )
+    set({ deals: next })
+    persistDeals(next)
+    try {
+      await patchDeal(id, { next_activity: nextActivity })
+    } catch {
+      set({ deals: prev })
+      persistDeals(prev)
+      useToastStore.getState().addToast('Erro ao salvar atividade — tente novamente', 'error')
+    }
   },
 }))

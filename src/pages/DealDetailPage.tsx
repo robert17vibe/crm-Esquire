@@ -5,7 +5,7 @@ import {
   ArrowLeft, Mail, Phone, Linkedin, Globe,
   Building2, Users, Target, MapPin,
   Zap, Clock, Video, CheckSquare, FileText,
-  Mic, ChevronDown, Plus, X,
+  Mic, ChevronDown, Plus, X, Pencil,
 } from 'lucide-react'
 import { useDealStore } from '@/store/useDealStore'
 import { useThemeStore } from '@/store/useThemeStore'
@@ -13,7 +13,7 @@ import { useActivityStore } from '@/store/useActivityStore'
 import { useMeetingStore } from '@/store/useMeetingStore'
 import { useAppStore } from '@/store/useAppStore'
 import { STAGES, getStageColor } from '@/constants/pipeline'
-import type { Deal, DealActivity, DealMeeting } from '@/types/deal.types'
+import type { Deal, DealActivity, DealMeeting, NextActivity } from '@/types/deal.types'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -58,6 +58,13 @@ const ACT_ICONS: Record<string, LucideIcon> = {
 const ACT_LABELS: Record<string, string> = {
   call: 'Ligação', email: 'Email', meeting: 'Reunião', task: 'Tarefa', note: 'Nota',
 }
+
+const NEXT_ACT_TYPES: { value: NextActivity['type']; label: string }[] = [
+  { value: 'call', label: 'Ligação' },
+  { value: 'meeting', label: 'Reunião' },
+  { value: 'task', label: 'Tarefa' },
+  { value: 'email', label: 'Email' },
+]
 
 // ─── Building blocks ──────────────────────────────────────────────────────────
 
@@ -534,6 +541,12 @@ export function DealDetailPage() {
   const setRightColWidth = useAppStore((s) => s.setRightColWidth)
 
   const [showAddActivity, setShowAddActivity] = useState(false)
+  const setNextActivity = useDealStore((s) => s.setNextActivity)
+  const [editingNextAct, setEditingNextAct]   = useState(false)
+  const [nextActType, setNextActType]         = useState<NextActivity['type']>('call')
+  const [nextActLabel, setNextActLabel]       = useState('')
+  const [nextActDate, setNextActDate]         = useState('')
+  const [savingNextAct, setSavingNextAct]     = useState(false)
 
   useEffect(() => {
     if (id) fetchActivities(id)
@@ -594,6 +607,7 @@ export function DealDetailPage() {
   const border  = isDark ? '#242422' : '#e4e0da'
   const text    = isDark ? '#e8e4dc' : '#1a1814'
   const muted   = isDark ? '#6b6560' : '#8a857d'
+  const inputBg = isDark ? '#111110' : '#f8f7f4'
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: pageBg }}>
@@ -719,9 +733,96 @@ export function DealDetailPage() {
               </div>
             </div>
             {deal.lead_source && <Field label="Origem" icon={MapPin} muted={muted} text={text}>{deal.lead_source}</Field>}
-            {deal.next_activity && (
-              <div style={{ marginBottom: '10px' }}>
-                <p style={{ fontSize: '10px', fontWeight: 600, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '4px' }}>Próx. atividade</p>
+            {/* ── Próxima atividade (editable) ── */}
+            <div style={{ marginBottom: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                <p style={{ fontSize: '10px', fontWeight: 600, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Próx. atividade</p>
+                {!editingNextAct && (
+                  <div style={{ display: 'flex', gap: '2px' }}>
+                    <button
+                      type="button"
+                      title="Editar"
+                      onClick={() => {
+                        setNextActType(deal.next_activity?.type ?? 'call')
+                        setNextActLabel(deal.next_activity?.label ?? '')
+                        setNextActDate(deal.next_activity?.due_date ?? '')
+                        setEditingNextAct(true)
+                      }}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: muted, padding: '2px 4px', borderRadius: '3px', lineHeight: 1 }}
+                    >
+                      <Pencil style={{ width: '10px', height: '10px' }} />
+                    </button>
+                    {deal.next_activity && (
+                      <button
+                        type="button"
+                        title="Remover"
+                        onClick={() => setNextActivity(deal.id, null)}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: muted, padding: '2px 4px', borderRadius: '3px', lineHeight: 1 }}
+                      >
+                        <X style={{ width: '10px', height: '10px' }} />
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {editingNextAct ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                    {NEXT_ACT_TYPES.map((t) => (
+                      <button key={t.value} type="button" onClick={() => setNextActType(t.value)} style={{
+                        fontSize: '10px', fontWeight: 600, padding: '3px 7px', borderRadius: '4px',
+                        border: `1px solid ${nextActType === t.value ? ACT_COLORS[t.value] : border}`,
+                        backgroundColor: nextActType === t.value ? `${ACT_COLORS[t.value]}18` : 'transparent',
+                        color: nextActType === t.value ? ACT_COLORS[t.value] : muted,
+                        cursor: 'pointer',
+                      }}>{t.label}</button>
+                    ))}
+                  </div>
+                  <input
+                    type="text"
+                    value={nextActLabel}
+                    onChange={(e) => setNextActLabel(e.target.value)}
+                    placeholder="Descrição..."
+                    style={{
+                      height: '30px', padding: '0 8px', fontSize: '12px', fontWeight: 500,
+                      backgroundColor: inputBg, border: `1px solid ${border}`, borderRadius: '5px',
+                      color: text, outline: 'none',
+                    }}
+                  />
+                  <input
+                    type="date"
+                    value={nextActDate}
+                    onChange={(e) => setNextActDate(e.target.value)}
+                    style={{
+                      height: '30px', padding: '0 8px', fontSize: '12px', fontWeight: 500,
+                      backgroundColor: inputBg, border: `1px solid ${border}`, borderRadius: '5px',
+                      color: text, outline: 'none', colorScheme: isDark ? 'dark' : 'light',
+                    }}
+                  />
+                  <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
+                    <button type="button" onClick={() => setEditingNextAct(false)} style={{ fontSize: '11px', fontWeight: 600, color: muted, background: 'none', border: 'none', cursor: 'pointer', padding: '4px 6px' }}>Cancelar</button>
+                    <button
+                      type="button"
+                      disabled={savingNextAct || !nextActLabel.trim() || !nextActDate}
+                      onClick={async () => {
+                        if (!nextActLabel.trim() || !nextActDate) return
+                        setSavingNextAct(true)
+                        try {
+                          await setNextActivity(deal.id, { type: nextActType, label: nextActLabel.trim(), due_date: nextActDate })
+                          setEditingNextAct(false)
+                        } finally { setSavingNextAct(false) }
+                      }}
+                      style={{
+                        fontSize: '11px', fontWeight: 600, padding: '4px 10px', borderRadius: '5px',
+                        backgroundColor: nextActLabel.trim() && nextActDate ? (isDark ? '#f0ede5' : '#1a1814') : (isDark ? '#2a2a28' : '#e4e0da'),
+                        color: nextActLabel.trim() && nextActDate ? (isDark ? '#0f0e0c' : '#f0ede5') : muted,
+                        border: 'none', cursor: nextActLabel.trim() && nextActDate ? 'pointer' : 'not-allowed',
+                      }}
+                    >{savingNextAct ? 'Salvando...' : 'Salvar'}</button>
+                  </div>
+                </div>
+              ) : deal.next_activity ? (
                 <div style={{ display: 'flex', gap: '6px' }}>
                   <Zap style={{ width: '13px', height: '13px', color: muted, flexShrink: 0, marginTop: '1px' }} />
                   <div>
@@ -729,8 +830,10 @@ export function DealDetailPage() {
                     <p style={{ fontSize: '11px', color: muted, marginTop: '1px' }}>{formatDate(deal.next_activity.due_date)}</p>
                   </div>
                 </div>
-              </div>
-            )}
+              ) : (
+                <p style={{ fontSize: '12px', color: muted, fontStyle: 'italic' }}>Nenhuma atividade agendada</p>
+              )}
+            </div>
             {deal.last_activity_at && <Field label="Última atividade" icon={Clock} muted={muted} text={text}>{relativeDate(deal.last_activity_at)}</Field>}
           </div>
         </aside>

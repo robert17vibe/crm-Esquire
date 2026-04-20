@@ -7,19 +7,34 @@ import { ToastContainer } from '@/components/ui/Toast'
 import { CommandPalette } from '@/components/ui/CommandPalette'
 import { useDealStore } from '@/store/useDealStore'
 import { useMeetingStore } from '@/store/useMeetingStore'
+import { useOwnerStore } from '@/store/useOwnerStore'
+import { useActivityStore } from '@/store/useActivityStore'
 
 export function AppLayout() {
   const location     = useLocation()
   const [cmdOpen, setCmdOpen] = useState(false)
-  const initDeals         = useDealStore((s) => s.initialize)
-  const subscribeRealtime = useDealStore((s) => s.subscribeRealtime)
-  const initMeetings      = useMeetingStore((s) => s.initialize)
+  const initDeals             = useDealStore((s) => s.initialize)
+  const subscribeDeals        = useDealStore((s) => s.subscribeRealtime)
+  const initMeetings          = useMeetingStore((s) => s.initialize)
+  const subscribeMeetings     = useMeetingStore((s) => s.subscribeRealtime)
+  const initOwners            = useOwnerStore((s) => s.initialize)
+  const subscribeOwners       = useOwnerStore((s) => s.subscribeRealtime)
+  const subscribeActivities   = useActivityStore((s) => s.subscribeRealtime)
 
   useEffect(() => {
+    initOwners()
     initDeals()
     initMeetings()
-    const unsub = subscribeRealtime()
-    return unsub
+    const unsubDeals       = subscribeDeals()
+    const unsubMeetings    = subscribeMeetings()
+    const unsubOwners      = subscribeOwners()
+    const unsubActivities  = subscribeActivities()
+    return () => {
+      unsubDeals()
+      unsubMeetings()
+      unsubOwners()
+      unsubActivities()
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
