@@ -34,6 +34,9 @@ export async function patchDeal(id: string, patch: Partial<Deal>): Promise<Deal>
 }
 
 export async function removeDeal(id: string): Promise<void> {
-  const { error } = await supabase.from('deals').delete().eq('id', id)
+  const { error } = await supabase
+    .from('deals')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('id', id)
   if (error) throw error
 }

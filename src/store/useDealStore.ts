@@ -77,7 +77,15 @@ export const useDealStore = create<DealStore>((set, get) => ({
         })
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'deals' }, (payload) => {
-        const deal = payload.new as Deal
+        const deal = payload.new as Deal & { deleted_at?: string | null }
+        if (deal.deleted_at) {
+          set((s) => {
+            const next = s.deals.filter((d) => d.id !== deal.id)
+            persistDeals(next)
+            return { deals: next }
+          })
+          return
+        }
         set((s) => {
           const next = s.deals.map((d) => (d.id === deal.id ? deal : d))
           persistDeals(next)
