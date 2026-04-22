@@ -1,6 +1,6 @@
 import { useState, useRef, useLayoutEffect, useEffect, useMemo } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
-import { LayoutDashboard, Kanban, Users, Mic, CalendarDays, Settings, LogOut } from 'lucide-react'
+import { LayoutDashboard, Kanban, Users, Mic, CalendarDays, Settings, LogOut, Users2 } from 'lucide-react'
 import { useThemeStore } from '@/store/useThemeStore'
 import { useAuthStore } from '@/store/useAuthStore'
 import { useDealStore } from '@/store/useDealStore'
@@ -16,6 +16,7 @@ const NAV_ITEMS = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/pipeline',  label: 'Jornada',   icon: Kanban          },
   { to: '/clients',   label: 'Clientes',  icon: Users           },
+  { to: '/teams',     label: 'Grupos',    icon: Users2          },
   { to: '/meetings',  label: 'Registro',  icon: Mic             },
   { to: '/calendar',  label: 'Calendário', icon: CalendarDays   },
 ] as const
