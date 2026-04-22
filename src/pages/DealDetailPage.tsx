@@ -517,6 +517,83 @@ function NotesSection({ dealId, owner, isDark, border, text, muted }: {
   )
 }
 
+// ─── Proposal tab ────────────────────────────────────────────────────────────
+
+function ProposalTab({ deal, isDark, border, text, muted, inputBg }: {
+  deal: Deal; isDark: boolean; border: string; text: string; muted: string; inputBg: string
+}) {
+  const storageKey = `esq_proposal_${deal.id}`
+  const [title, setTitle]     = useState(() => { try { return JSON.parse(localStorage.getItem(storageKey) ?? '{}').title ?? deal.title } catch { return deal.title } })
+  const [validity, setValidity] = useState(() => { try { return JSON.parse(localStorage.getItem(storageKey) ?? '{}').validity ?? '' } catch { return '' } })
+  const [scope, setScope]     = useState(() => { try { return JSON.parse(localStorage.getItem(storageKey) ?? '{}').scope ?? '' } catch { return '' } })
+  const [saved, setSaved]     = useState(false)
+
+  function handleSave() {
+    localStorage.setItem(storageKey, JSON.stringify({ title, validity, scope }))
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2000)
+  }
+
+  function handleCopy() {
+    const txt = `PROPOSTA COMERCIAL\n\nTítulo: ${title}\nEmpresa: ${deal.company_name ?? '—'}\nValor: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(deal.value)}\nValidade: ${validity || '—'}\n\nEscopo:\n${scope || '—'}`
+    navigator.clipboard.writeText(txt).catch(() => {})
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2000)
+  }
+
+  return (
+    <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      <div style={{ backgroundColor: isDark ? '#1a1a18' : '#f8f7f4', border: `1px solid ${border}`, borderRadius: '8px', padding: '16px 18px' }}>
+        <p style={{ fontSize: '10px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '14px' }}>Rascunho de Proposta</p>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div>
+            <p style={{ fontSize: '10px', fontWeight: 600, color: muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '4px' }}>Título</p>
+            <input type="text" value={title} onChange={(e) => setTitle(e.target.value)}
+              style={{ width: '100%', height: '34px', padding: '0 10px', fontSize: '13px', fontWeight: 500, backgroundColor: inputBg, border: `1px solid ${border}`, borderRadius: '6px', color: text, outline: 'none', boxSizing: 'border-box' }} />
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div>
+              <p style={{ fontSize: '10px', fontWeight: 600, color: muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '4px' }}>Valor</p>
+              <p style={{ fontSize: '14px', fontWeight: 700, color: '#2d9e6b', fontVariantNumeric: 'tabular-nums' }}>
+                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(deal.value)}
+              </p>
+            </div>
+            <div>
+              <p style={{ fontSize: '10px', fontWeight: 600, color: muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '4px' }}>Validade</p>
+              <input type="date" value={validity} onChange={(e) => setValidity(e.target.value)}
+                style={{ width: '100%', height: '30px', padding: '0 8px', fontSize: '12px', backgroundColor: inputBg, border: `1px solid ${border}`, borderRadius: '5px', color: text, outline: 'none', colorScheme: isDark ? 'dark' : 'light', boxSizing: 'border-box' }} />
+            </div>
+          </div>
+
+          <div>
+            <p style={{ fontSize: '10px', fontWeight: 600, color: muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '4px' }}>Escopo / Observações</p>
+            <textarea value={scope} onChange={(e) => setScope(e.target.value)} rows={6}
+              placeholder="Descreva o escopo, entregáveis, condições especiais..."
+              style={{ width: '100%', padding: '10px 12px', fontSize: '12px', lineHeight: 1.6, backgroundColor: inputBg, border: `1px solid ${border}`, borderRadius: '6px', color: text, outline: 'none', resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '16px' }}>
+          <button type="button" onClick={handleCopy}
+            style={{ fontSize: '12px', fontWeight: 600, padding: '6px 14px', borderRadius: '6px', border: `1px solid ${border}`, backgroundColor: 'transparent', color: muted, cursor: 'pointer' }}>
+            Copiar texto
+          </button>
+          <button type="button" onClick={handleSave}
+            style={{ fontSize: '12px', fontWeight: 600, padding: '6px 14px', borderRadius: '6px', border: 'none', backgroundColor: isDark ? '#f0ede5' : '#1a1814', color: isDark ? '#0f0e0c' : '#f0ede5', cursor: 'pointer' }}>
+            {saved ? '✓ Salvo' : 'Salvar rascunho'}
+          </button>
+        </div>
+      </div>
+
+      <p style={{ fontSize: '11px', color: muted, fontStyle: 'italic', textAlign: 'center' }}>
+        Rascunho salvo localmente neste dispositivo
+      </p>
+    </div>
+  )
+}
+
 // ─── Resize handle ────────────────────────────────────────────────────────────
 
 function ResizeHandle({
@@ -552,6 +629,7 @@ export function DealDetailPage() {
   const isDark   = useThemeStore((s) => s.isDark)
   const deal     = useDealStore((s) => s.deals.find((d) => d.id === id))
 
+  const moveDeal        = useDealStore((s) => s.moveDeal)
   const fetchActivities = useActivityStore((s) => s.fetchForDeal)
   const byDeal          = useActivityStore((s) => s.byDeal)
   const activities      = (id ? byDeal[id] : undefined) ?? []
@@ -565,6 +643,9 @@ export function DealDetailPage() {
   const rightColWidth   = useAppStore((s) => s.rightColWidth)
   const setLeftColWidth  = useAppStore((s) => s.setLeftColWidth)
   const setRightColWidth = useAppStore((s) => s.setRightColWidth)
+
+  const [activeTab, setActiveTab] = useState<'dados' | 'historico' | 'notas' | 'proposta'>('dados')
+  const [showStageMenu, setShowStageMenu] = useState(false)
 
   const [showAddActivity, setShowAddActivity] = useState(false)
   const setNextActivity    = useDealStore((s) => s.setNextActivity)
@@ -746,14 +827,58 @@ export function DealDetailPage() {
             {deal.title}
           </p>
           {stage && (
-            <span style={{
-              flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: '5px',
-              fontSize: '11px', fontWeight: 600, color: stageColor,
-              backgroundColor: `${stageColor}14`, borderRadius: '99px', padding: '3px 10px',
-            }}>
-              <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: stageColor }} />
-              {stage.label}
-            </span>
+            <div style={{ position: 'relative', flexShrink: 0 }}>
+              <button
+                type="button"
+                onClick={() => setShowStageMenu((v) => !v)}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: '5px',
+                  fontSize: '11px', fontWeight: 600, color: stageColor,
+                  backgroundColor: `${stageColor}14`, borderRadius: '99px', padding: '3px 10px',
+                  border: `1px solid ${stageColor}30`, cursor: 'pointer',
+                }}
+              >
+                <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: stageColor }} />
+                {stage.label}
+                <ChevronDown style={{ width: '9px', height: '9px', opacity: 0.7 }} />
+              </button>
+              {showStageMenu && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowStageMenu(false)} />
+                  <div style={{
+                    position: 'absolute', top: '100%', left: 0, marginTop: '4px', zIndex: 50,
+                    backgroundColor: isDark ? '#1a1a18' : '#ffffff',
+                    border: `1px solid ${border}`, borderRadius: '8px',
+                    boxShadow: isDark ? '0 8px 24px rgba(0,0,0,0.5)' : '0 8px 24px rgba(0,0,0,0.12)',
+                    overflow: 'hidden', minWidth: '160px',
+                  }}>
+                    {STAGES.map((s) => (
+                      <button
+                        key={s.id} type="button"
+                        onClick={() => {
+                          if (s.id !== deal.stage_id) moveDeal(deal.id, s.id)
+                          setShowStageMenu(false)
+                        }}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: '8px',
+                          width: '100%', padding: '8px 12px', textAlign: 'left',
+                          fontSize: '12px', fontWeight: s.id === deal.stage_id ? 700 : 500,
+                          color: s.id === deal.stage_id ? s.color : (isDark ? '#c8d0da' : '#334155'),
+                          backgroundColor: s.id === deal.stage_id ? `${s.color}10` : 'transparent',
+                          border: 'none', cursor: 'pointer',
+                        }}
+                        onMouseEnter={(e) => { if (s.id !== deal.stage_id) e.currentTarget.style.backgroundColor = isDark ? '#242422' : '#f5f4f0' }}
+                        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = s.id === deal.stage_id ? `${s.color}10` : 'transparent' }}
+                      >
+                        <span style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: s.color, flexShrink: 0 }} />
+                        {s.label}
+                        {s.id === deal.stage_id && <span style={{ marginLeft: 'auto', fontSize: '10px', color: s.color }}>✓</span>}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
           )}
         </div>
       </div>
@@ -806,152 +931,44 @@ export function DealDetailPage() {
               borderRadius: '8px', padding: '12px 14px', marginTop: '14px',
               display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px',
             }}>
-              {/* Valor */}
               <div>
                 <p style={{ fontSize: '9px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '3px' }}>Valor</p>
                 {editingField === 'value' ? (
-                  <input
-                    type="number" autoFocus value={editDraft}
-                    onChange={(e) => setEditDraft(e.target.value)}
+                  <input type="number" autoFocus value={editDraft} onChange={(e) => setEditDraft(e.target.value)}
                     onBlur={() => saveField({ value: Number(editDraft) || deal.value })}
                     onKeyDown={(e) => { if (e.key === 'Enter') saveField({ value: Number(editDraft) || deal.value }); if (e.key === 'Escape') cancelEdit() }}
-                    style={{ width: '100%', fontSize: '12px', fontWeight: 700, backgroundColor: inputBg, border: `1px solid ${border}`, borderRadius: '4px', padding: '2px 5px', color: text, outline: 'none' }}
-                  />
+                    style={{ width: '100%', fontSize: '12px', fontWeight: 700, backgroundColor: inputBg, border: `1px solid ${border}`, borderRadius: '4px', padding: '2px 5px', color: text, outline: 'none' }} />
                 ) : (
                   <p onClick={() => startEdit('value', String(deal.value))} style={{ fontSize: '13px', fontWeight: 700, color: text, lineHeight: 1.2, fontVariantNumeric: 'tabular-nums', cursor: 'pointer', borderBottom: `1px dashed ${border}` }} title="Clique para editar">{formatCurrency(deal.value)}</p>
                 )}
               </div>
-              {/* Probabilidade */}
               <div>
                 <p style={{ fontSize: '9px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '3px' }}>Probabilidade</p>
                 {editingField === 'probability' ? (
-                  <input
-                    type="number" autoFocus min={0} max={100} value={editDraft}
-                    onChange={(e) => setEditDraft(e.target.value)}
+                  <input type="number" autoFocus min={0} max={100} value={editDraft} onChange={(e) => setEditDraft(e.target.value)}
                     onBlur={() => saveField({ probability: Math.min(100, Math.max(0, Number(editDraft))) })}
                     onKeyDown={(e) => { if (e.key === 'Enter') saveField({ probability: Math.min(100, Math.max(0, Number(editDraft))) }); if (e.key === 'Escape') cancelEdit() }}
-                    style={{ width: '100%', fontSize: '12px', fontWeight: 700, backgroundColor: inputBg, border: `1px solid ${border}`, borderRadius: '4px', padding: '2px 5px', color: text, outline: 'none' }}
-                  />
+                    style={{ width: '100%', fontSize: '12px', fontWeight: 700, backgroundColor: inputBg, border: `1px solid ${border}`, borderRadius: '4px', padding: '2px 5px', color: text, outline: 'none' }} />
                 ) : (
                   <p onClick={() => startEdit('probability', String(deal.probability))} style={{ fontSize: '13px', fontWeight: 700, color: text, lineHeight: 1.2, cursor: 'pointer', borderBottom: `1px dashed ${border}` }} title="Clique para editar">{deal.probability}%</p>
                 )}
               </div>
-              {/* Dias na etapa — read-only */}
               <div>
                 <p style={{ fontSize: '9px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '3px' }}>Dias na etapa</p>
-                <p style={{ fontSize: '13px', fontWeight: 700, color: deal.days_in_stage > 90 ? '#c53030' : text, lineHeight: 1.2, cursor: 'default' }} title="Calculado automaticamente">{deal.days_in_stage}d</p>
+                <p style={{ fontSize: '13px', fontWeight: 700, color: deal.days_in_stage > 90 ? '#c53030' : text, lineHeight: 1.2 }}>{deal.days_in_stage}d</p>
               </div>
-              {/* Previsão */}
               <div>
                 <p style={{ fontSize: '9px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '3px' }}>Previsão</p>
                 {editingField === 'expected_close' ? (
-                  <input
-                    type="date" autoFocus value={editDraft}
-                    onChange={(e) => setEditDraft(e.target.value)}
+                  <input type="date" autoFocus value={editDraft} onChange={(e) => setEditDraft(e.target.value)}
                     onBlur={() => saveField({ expected_close: editDraft || undefined })}
                     onKeyDown={(e) => { if (e.key === 'Enter') saveField({ expected_close: editDraft || undefined }); if (e.key === 'Escape') cancelEdit() }}
-                    style={{ width: '100%', fontSize: '11px', fontWeight: 700, backgroundColor: inputBg, border: `1px solid ${border}`, borderRadius: '4px', padding: '2px 5px', color: text, outline: 'none', colorScheme: isDark ? 'dark' : 'light' }}
-                  />
+                    style={{ width: '100%', fontSize: '11px', fontWeight: 700, backgroundColor: inputBg, border: `1px solid ${border}`, borderRadius: '4px', padding: '2px 5px', color: text, outline: 'none', colorScheme: isDark ? 'dark' : 'light' }} />
                 ) : (
                   <p onClick={() => startEdit('expected_close', deal.expected_close ?? '')} style={{ fontSize: '13px', fontWeight: 700, color: text, lineHeight: 1.2, cursor: 'pointer', borderBottom: `1px dashed ${border}` }} title="Clique para editar">{formatDate(deal.expected_close)}</p>
                 )}
               </div>
             </div>
-
-            {/* Contato */}
-            <SectionHead title="Contato" border={border} muted={muted} />
-            {deal.contact_email && <LinkField label="Email" icon={Mail} href={`mailto:${deal.contact_email}`} muted={muted}>{deal.contact_email}</LinkField>}
-            {deal.contact_phone && <LinkField label="Telefone" icon={Phone} href={`tel:${deal.contact_phone}`} muted={muted}>{deal.contact_phone}</LinkField>}
-            {deal.contact_linkedin && <LinkField label="LinkedIn" icon={Linkedin} href={deal.contact_linkedin} external muted={muted}>Ver perfil ↗</LinkField>}
-            {deal.company_website && <LinkField label="Site" icon={Globe} href={deal.company_website} external muted={muted}>{deal.company_website.replace(/^https?:\/\//, '')} ↗</LinkField>}
-
-            {/* Empresa */}
-            <SectionHead title="Empresa" border={border} muted={muted} />
-
-            {/* Setor — text edit */}
-            <div style={{ marginBottom: '10px' }}>
-              <p style={{ fontSize: '10px', fontWeight: 600, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '3px' }}>Setor</p>
-              {editingField === 'company_sector' ? (
-                <input
-                  autoFocus type="text" value={editDraft}
-                  onChange={(e) => setEditDraft(e.target.value)}
-                  onBlur={() => saveField({ company_sector: editDraft.trim() || undefined })}
-                  onKeyDown={(e) => { if (e.key === 'Enter') saveField({ company_sector: editDraft.trim() || undefined }); if (e.key === 'Escape') cancelEdit() }}
-                  placeholder="Ex: Energia, Finanças..."
-                  style={{ width: '100%', height: '28px', padding: '0 8px', fontSize: '12px', fontWeight: 500, backgroundColor: inputBg, border: `1px solid ${border}`, borderRadius: '5px', color: text, outline: 'none' }}
-                />
-              ) : (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }} onClick={() => startEdit('company_sector', deal.company_sector ?? '')} title="Clique para editar">
-                  <Building2 style={{ width: '13px', height: '13px', color: muted, flexShrink: 0 }} />
-                  <span style={{ fontSize: '13px', fontWeight: 500, color: deal.company_sector ? text : muted, fontStyle: deal.company_sector ? 'normal' : 'italic', borderBottom: `1px dashed ${border}` }}>
-                    {deal.company_sector ?? 'Adicionar setor...'}
-                  </span>
-                </div>
-              )}
-            </div>
-
-            {/* Tamanho — select */}
-            <div style={{ marginBottom: '10px' }}>
-              <p style={{ fontSize: '10px', fontWeight: 600, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '3px' }}>Tamanho</p>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <Users style={{ width: '13px', height: '13px', color: muted, flexShrink: 0 }} />
-                <select
-                  value={deal.company_size ?? ''}
-                  onChange={(e) => saveField({ company_size: (e.target.value as CompanySize) || undefined })}
-                  style={{ fontSize: '12px', fontWeight: 500, color: deal.company_size ? text : muted, backgroundColor: inputBg, border: `1px solid ${border}`, borderRadius: '5px', padding: '2px 6px', cursor: 'pointer', outline: 'none', flex: 1 }}
-                >
-                  <option value="">Selecionar...</option>
-                  {SIZE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                </select>
-              </div>
-            </div>
-
-            {/* ARR Estimado — select */}
-            <div style={{ marginBottom: '10px' }}>
-              <p style={{ fontSize: '10px', fontWeight: 600, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '3px' }}>ARR Estimado</p>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <Target style={{ width: '13px', height: '13px', color: muted, flexShrink: 0 }} />
-                <select
-                  value={deal.company_arr_range ?? ''}
-                  onChange={(e) => saveField({ company_arr_range: (e.target.value as ArrRange) || undefined })}
-                  style={{ fontSize: '12px', fontWeight: 500, color: deal.company_arr_range ? text : muted, backgroundColor: inputBg, border: `1px solid ${border}`, borderRadius: '5px', padding: '2px 6px', cursor: 'pointer', outline: 'none', flex: 1 }}
-                >
-                  <option value="">Selecionar...</option>
-                  {ARR_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                </select>
-              </div>
-            </div>
-
-            {/* Lead */}
-            <SectionHead title="Lead" border={border} muted={muted} />
-            <div style={{ marginBottom: '10px' }}>
-              <p style={{ fontSize: '10px', fontWeight: 600, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '4px' }}>Responsável</p>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <div style={{ width: '20px', height: '20px', borderRadius: '50%', backgroundColor: owner.avatar_color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '7px', fontWeight: 700, flexShrink: 0 }}>
-                  {owner.initials}
-                </div>
-                <span style={{ fontSize: '13px', fontWeight: 500, color: text }}>{owner.name}</span>
-              </div>
-            </div>
-            {deal.lead_source && <Field label="Origem" icon={MapPin} muted={muted} text={text}>{deal.lead_source}</Field>}
-
-            {/* Time */}
-            {teams.length > 0 && (
-              <div style={{ marginBottom: '10px' }}>
-                <p style={{ fontSize: '10px', fontWeight: 600, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '3px' }}>Time</p>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Users style={{ width: '13px', height: '13px', color: muted, flexShrink: 0 }} />
-                  <select
-                    value={(deal as Deal & { team_id?: string }).team_id ?? ''}
-                    onChange={(e) => saveField({ team_id: e.target.value || undefined } as Partial<Deal>)}
-                    style={{ fontSize: '12px', fontWeight: 500, color: (deal as Deal & { team_id?: string }).team_id ? text : muted, backgroundColor: inputBg, border: `1px solid ${border}`, borderRadius: '5px', padding: '2px 6px', cursor: 'pointer', outline: 'none', flex: 1 }}
-                  >
-                    <option value="">Sem time</option>
-                    {teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-                  </select>
-                </div>
-              </div>
-            )}
 
             {/* ── Próxima atividade (editable) ── */}
             <div style={{ marginBottom: '10px' }}>
@@ -1054,89 +1071,196 @@ export function DealDetailPage() {
                 <p style={{ fontSize: '12px', color: muted, fontStyle: 'italic' }}>Nenhuma atividade agendada</p>
               )}
             </div>
-            {deal.last_activity_at && <Field label="Última atividade" icon={Clock} muted={muted} text={text}>{relativeDate(deal.last_activity_at)}</Field>}
           </div>
         </aside>
 
         {/* ── Resize handle left ── */}
         <ResizeHandle onMouseDown={startResizeLeft} isDark={isDark} />
 
-        {/* ── Center: activity timeline + notes ── */}
-        <div style={{ flex: 1, minWidth: 0, backgroundColor: cardBg, display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
+        {/* ── Center: tabbed ── */}
+        <div style={{ flex: 1, minWidth: 0, backgroundColor: cardBg, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
-          {/* Center header */}
-          <div style={{ padding: '18px 24px 12px', borderBottom: `1px solid ${border}`, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div>
-              <p style={{ fontSize: '14px', fontWeight: 700, color: text }}>Timeline</p>
-              <p style={{ fontSize: '11px', color: muted, marginTop: '2px' }}>
-                {activities.length} atividade{activities.length !== 1 ? 's' : ''} · {meetings.length} reunião{meetings.length !== 1 ? 'ões' : ''} {meetings.filter((m) => m.plaud_note_id).length > 0 ? `· ${meetings.filter((m) => m.plaud_note_id).length} Plaud` : ''}
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setShowAddActivity((v) => !v)}
-              style={{
-                display: 'flex', alignItems: 'center', gap: '5px',
-                fontSize: '12px', fontWeight: 600,
-                color: showAddActivity ? muted : (isDark ? '#e8e4dc' : '#1a1814'),
-                backgroundColor: showAddActivity ? 'transparent' : (isDark ? '#1e1e1c' : '#f0eeea'),
-                border: `1px solid ${border}`, borderRadius: '6px',
-                padding: '5px 10px', cursor: 'pointer',
-              }}
-            >
-              {showAddActivity
-                ? <><X style={{ width: '11px', height: '11px' }} />Cancelar</>
-                : <><Plus style={{ width: '11px', height: '11px' }} />Registrar</>}
-            </button>
-          </div>
-
-          {/* Unified timeline */}
-          <div style={{ padding: '20px 24px' }}>
-            {showAddActivity && (
-              <AddActivityForm dealId={deal.id} owner={owner} onClose={() => setShowAddActivity(false)} isDark={isDark} />
+          {/* Tab bar */}
+          <div style={{ padding: '0 24px', borderBottom: `1px solid ${border}`, flexShrink: 0, display: 'flex', alignItems: 'center', gap: '2px', height: '48px' }}>
+            {([
+              { id: 'dados',     label: 'Dados' },
+              { id: 'historico', label: 'Histórico' },
+              { id: 'notas',     label: 'Notas' },
+              { id: 'proposta',  label: 'Proposta' },
+            ] as const).map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
+                style={{
+                  height: '100%', padding: '0 14px', fontSize: '13px', fontWeight: activeTab === tab.id ? 600 : 500,
+                  color: activeTab === tab.id ? text : muted,
+                  backgroundColor: 'transparent', border: 'none', cursor: 'pointer',
+                  borderBottom: activeTab === tab.id ? `2px solid ${text}` : '2px solid transparent',
+                  transition: 'color 0.15s, border-color 0.15s',
+                  marginBottom: '-1px',
+                }}
+                onMouseEnter={(e) => { if (activeTab !== tab.id) e.currentTarget.style.color = text }}
+                onMouseLeave={(e) => { if (activeTab !== tab.id) e.currentTarget.style.color = muted }}
+              >
+                {tab.label}
+              </button>
+            ))}
+            {activeTab === 'historico' && (
+              <button
+                type="button"
+                onClick={() => setShowAddActivity((v) => !v)}
+                style={{
+                  marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '5px',
+                  fontSize: '11px', fontWeight: 600,
+                  color: showAddActivity ? muted : (isDark ? '#e8e4dc' : '#1a1814'),
+                  backgroundColor: showAddActivity ? 'transparent' : (isDark ? '#1e1e1c' : '#f0eeea'),
+                  border: `1px solid ${border}`, borderRadius: '6px',
+                  padding: '4px 10px', cursor: 'pointer', flexShrink: 0,
+                }}
+              >
+                {showAddActivity ? <><X style={{ width: '10px', height: '10px' }} />Cancelar</> : <><Plus style={{ width: '10px', height: '10px' }} />Registrar</>}
+              </button>
             )}
-            {(() => {
-              const timeline = buildTimeline(activities, meetings)
-              if (timeline.length === 0 && !showAddActivity) return (
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '120px', textAlign: 'center', gap: '8px' }}>
-                  <Zap style={{ width: '24px', height: '24px', color: border }} />
-                  <p style={{ fontSize: '13px', fontWeight: 600, color: muted }}>Nenhuma atividade registrada</p>
-                  <p style={{ fontSize: '12px', color: isDark ? '#3a3834' : '#c4bfb8', maxWidth: '220px', lineHeight: 1.6 }}>
-                    Clique em "Registrar" para adicionar ligações, emails e reuniões
-                  </p>
-                </div>
-              )
-              let lastGroup = ''
-              return (
-                <div>
-                  {timeline.map((entry, i) => {
-                    const group = getGroupLabel(entry.date)
-                    const showGroup = group !== lastGroup
-                    lastGroup = group
-                    return (
-                      <div key={entry.kind === 'activity' ? entry.activity.id : entry.meeting.id}>
-                        {showGroup && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', marginTop: i > 0 ? '4px' : 0 }}>
-                            <span style={{ fontSize: '9px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.1em', whiteSpace: 'nowrap' }}>
-                              {group}
-                            </span>
-                            <div style={{ flex: 1, height: '1px', backgroundColor: border }} />
-                          </div>
-                        )}
-                        {entry.kind === 'activity'
-                          ? <ActivityEntry activity={entry.activity} meeting={entry.meeting} isDark={isDark} />
-                          : <StandaloneMeetingEntry meeting={entry.meeting} isDark={isDark} />
-                        }
-                      </div>
-                    )
-                  })}
-                </div>
-              )
-            })()}
           </div>
 
-          {/* Notes section */}
-          <NotesSection dealId={deal.id} owner={owner} isDark={isDark} border={border} text={text} muted={muted} />
+          {/* Tab content */}
+          <div style={{ flex: 1, overflowY: 'auto' }}>
+
+            {/* ── Dados tab ── */}
+            {activeTab === 'dados' && (
+              <div style={{ padding: '20px 24px' }}>
+
+                {/* Contato */}
+                <SectionHead title="Contato" border={border} muted={muted} />
+                {deal.contact_email && <LinkField label="Email" icon={Mail} href={`mailto:${deal.contact_email}`} muted={muted}>{deal.contact_email}</LinkField>}
+                {deal.contact_phone && <LinkField label="Telefone" icon={Phone} href={`tel:${deal.contact_phone}`} muted={muted}>{deal.contact_phone}</LinkField>}
+                {deal.contact_linkedin && <LinkField label="LinkedIn" icon={Linkedin} href={deal.contact_linkedin} external muted={muted}>Ver perfil ↗</LinkField>}
+                {deal.company_website && <LinkField label="Site" icon={Globe} href={deal.company_website} external muted={muted}>{deal.company_website.replace(/^https?:\/\//, '')} ↗</LinkField>}
+
+                {/* Empresa */}
+                <SectionHead title="Empresa" border={border} muted={muted} />
+                <div style={{ marginBottom: '10px' }}>
+                  <p style={{ fontSize: '10px', fontWeight: 600, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '3px' }}>Setor</p>
+                  {editingField === 'company_sector' ? (
+                    <input autoFocus type="text" value={editDraft} onChange={(e) => setEditDraft(e.target.value)}
+                      onBlur={() => saveField({ company_sector: editDraft.trim() || undefined })}
+                      onKeyDown={(e) => { if (e.key === 'Enter') saveField({ company_sector: editDraft.trim() || undefined }); if (e.key === 'Escape') cancelEdit() }}
+                      placeholder="Ex: Energia, Finanças..."
+                      style={{ width: '100%', height: '28px', padding: '0 8px', fontSize: '12px', fontWeight: 500, backgroundColor: inputBg, border: `1px solid ${border}`, borderRadius: '5px', color: text, outline: 'none' }} />
+                  ) : (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }} onClick={() => startEdit('company_sector', deal.company_sector ?? '')} title="Clique para editar">
+                      <Building2 style={{ width: '13px', height: '13px', color: muted, flexShrink: 0 }} />
+                      <span style={{ fontSize: '13px', fontWeight: 500, color: deal.company_sector ? text : muted, fontStyle: deal.company_sector ? 'normal' : 'italic', borderBottom: `1px dashed ${border}` }}>
+                        {deal.company_sector ?? 'Adicionar setor...'}
+                      </span>
+                    </div>
+                  )}
+                </div>
+                <div style={{ marginBottom: '10px' }}>
+                  <p style={{ fontSize: '10px', fontWeight: 600, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '3px' }}>Tamanho</p>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Users style={{ width: '13px', height: '13px', color: muted, flexShrink: 0 }} />
+                    <select value={deal.company_size ?? ''} onChange={(e) => saveField({ company_size: (e.target.value as CompanySize) || undefined })}
+                      style={{ fontSize: '12px', fontWeight: 500, color: deal.company_size ? text : muted, backgroundColor: inputBg, border: `1px solid ${border}`, borderRadius: '5px', padding: '2px 6px', cursor: 'pointer', outline: 'none', flex: 1 }}>
+                      <option value="">Selecionar...</option>
+                      {SIZE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <div style={{ marginBottom: '10px' }}>
+                  <p style={{ fontSize: '10px', fontWeight: 600, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '3px' }}>ARR Estimado</p>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Target style={{ width: '13px', height: '13px', color: muted, flexShrink: 0 }} />
+                    <select value={deal.company_arr_range ?? ''} onChange={(e) => saveField({ company_arr_range: (e.target.value as ArrRange) || undefined })}
+                      style={{ fontSize: '12px', fontWeight: 500, color: deal.company_arr_range ? text : muted, backgroundColor: inputBg, border: `1px solid ${border}`, borderRadius: '5px', padding: '2px 6px', cursor: 'pointer', outline: 'none', flex: 1 }}>
+                      <option value="">Selecionar...</option>
+                      {ARR_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Lead */}
+                <SectionHead title="Lead" border={border} muted={muted} />
+                <div style={{ marginBottom: '10px' }}>
+                  <p style={{ fontSize: '10px', fontWeight: 600, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '4px' }}>Responsável</p>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <div style={{ width: '22px', height: '22px', borderRadius: '50%', backgroundColor: owner.avatar_color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '8px', fontWeight: 700, flexShrink: 0 }}>{owner.initials}</div>
+                    <span style={{ fontSize: '13px', fontWeight: 500, color: text }}>{owner.name}</span>
+                  </div>
+                </div>
+                {deal.lead_source && <Field label="Origem" icon={MapPin} muted={muted} text={text}>{deal.lead_source}</Field>}
+                {teams.length > 0 && (
+                  <div style={{ marginBottom: '10px' }}>
+                    <p style={{ fontSize: '10px', fontWeight: 600, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '3px' }}>Time</p>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Users style={{ width: '13px', height: '13px', color: muted, flexShrink: 0 }} />
+                      <select value={(deal as Deal & { team_id?: string }).team_id ?? ''} onChange={(e) => saveField({ team_id: e.target.value || undefined } as Partial<Deal>)}
+                        style={{ fontSize: '12px', fontWeight: 500, color: (deal as Deal & { team_id?: string }).team_id ? text : muted, backgroundColor: inputBg, border: `1px solid ${border}`, borderRadius: '5px', padding: '2px 6px', cursor: 'pointer', outline: 'none', flex: 1 }}>
+                        <option value="">Sem time</option>
+                        {teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                )}
+                {deal.last_activity_at && <Field label="Última atividade" icon={Clock} muted={muted} text={text}>{relativeDate(deal.last_activity_at)}</Field>}
+              </div>
+            )}
+
+            {/* ── Histórico tab ── */}
+            {activeTab === 'historico' && (
+              <div style={{ padding: '20px 24px' }}>
+                {showAddActivity && (
+                  <AddActivityForm dealId={deal.id} owner={owner} onClose={() => setShowAddActivity(false)} isDark={isDark} />
+                )}
+                {(() => {
+                  const timeline = buildTimeline(activities, meetings)
+                  if (timeline.length === 0 && !showAddActivity) return (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '120px', textAlign: 'center', gap: '8px' }}>
+                      <Zap style={{ width: '24px', height: '24px', color: border }} />
+                      <p style={{ fontSize: '13px', fontWeight: 600, color: muted }}>Nenhuma atividade registrada</p>
+                      <p style={{ fontSize: '12px', color: isDark ? '#3a3834' : '#c4bfb8', maxWidth: '220px', lineHeight: 1.6 }}>Clique em "Registrar" para adicionar ligações, emails e reuniões</p>
+                    </div>
+                  )
+                  let lastGroup = ''
+                  return (
+                    <div>
+                      {timeline.map((entry, i) => {
+                        const group = getGroupLabel(entry.date)
+                        const showGroup = group !== lastGroup
+                        lastGroup = group
+                        return (
+                          <div key={entry.kind === 'activity' ? entry.activity.id : entry.meeting.id}>
+                            {showGroup && (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', marginTop: i > 0 ? '4px' : 0 }}>
+                                <span style={{ fontSize: '9px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.1em', whiteSpace: 'nowrap' }}>{group}</span>
+                                <div style={{ flex: 1, height: '1px', backgroundColor: border }} />
+                              </div>
+                            )}
+                            {entry.kind === 'activity'
+                              ? <ActivityEntry activity={entry.activity} meeting={entry.meeting} isDark={isDark} />
+                              : <StandaloneMeetingEntry meeting={entry.meeting} isDark={isDark} />
+                            }
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )
+                })()}
+              </div>
+            )}
+
+            {/* ── Notas tab ── */}
+            {activeTab === 'notas' && (
+              <NotesSection dealId={deal.id} owner={owner} isDark={isDark} border={border} text={text} muted={muted} />
+            )}
+
+            {/* ── Proposta tab ── */}
+            {activeTab === 'proposta' && (
+              <ProposalTab deal={deal} isDark={isDark} border={border} text={text} muted={muted} inputBg={inputBg} />
+            )}
+
+          </div>
         </div>
 
         {/* ── Resize handle right ── */}

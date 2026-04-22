@@ -181,23 +181,49 @@ export function KanbanBoard({
 
   const onDragEnd = useCallback(({ active, over }: DragEndEvent) => {
     setActiveId(null)
-    const aId = String(active.id)
-
-    const startStage   = dragStartStageRef.current
+    const aId        = String(active.id)
+    const startStage = dragStartStageRef.current
     const currentStage = dragCurrentStageRef.current
 
+    if (!over) return
+
+    const oId = String(over.id)
+
+    // Dropped directly onto an empty column (over.id is a stage id, not a card id)
+    const overIsStage        = STAGES.some((s) => s.id === oId)
+    const activeCurrentStage = findContainerId(groupedRef.current, aId)
+
+    if (overIsStage && activeCurrentStage !== oId) {
+      const targetStage = oId as StageId
+      setGrouped((prev) => {
+        const from = activeCurrentStage
+        if (!from) return prev
+        const card = prev[from].find((d) => d.id === aId)
+        if (!card) return prev
+        return {
+          ...prev,
+          [from]: prev[from].filter((d) => d.id !== aId),
+          [targetStage]: [{ ...card, stage_id: targetStage }, ...prev[targetStage]],
+        }
+      })
+      if (targetStage === 'closed_lost') {
+        setPendingLossMove({ dealId: aId, fromStage: startStage! })
+      } else {
+        onStageChange?.(aId, targetStage)
+      }
+      return
+    }
+
+    // Normal card-to-card drag — onDragOver already moved it visually
     if (startStage && currentStage && startStage !== currentStage) {
       if (currentStage === 'closed_lost') {
-        // Defer: show modal before committing
         setPendingLossMove({ dealId: aId, fromStage: startStage })
       } else {
         onStageChange?.(aId, currentStage)
       }
     }
 
-    if (!over) return
     const g    = groupedRef.current
-    const oId  = String(over.id)
     const from = findContainerId(g, aId)
     const to   = findContainerId(g, oId)
     if (!from || !to || from !== to) return
@@ -287,8 +313,6 @@ export function KanbanBoard({
               stage={stage}
               deals={grouped[stage.id] ?? []}
               onMoveDeal={onMoveDeal}
-              onEditDeal={onEditDeal}
-              onDeleteDeal={handleDeleteDeal}
             />
           ))}
         </div>

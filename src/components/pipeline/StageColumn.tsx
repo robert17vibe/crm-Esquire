@@ -10,11 +10,9 @@ interface StageColumnProps {
   deals: Deal[]
   dimmedIds?: Set<string>
   onMoveDeal: (dealId: string, targetStage: StageId) => void
-  onEditDeal?: (deal: Deal) => void
-  onDeleteDeal?: (dealId: string) => void
 }
 
-export function StageColumn({ stage, deals, dimmedIds, onMoveDeal, onEditDeal, onDeleteDeal }: StageColumnProps) {
+export function StageColumn({ stage, deals, dimmedIds, onMoveDeal }: StageColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: stage.id })
   const isDark = useThemeStore((s) => s.isDark)
 
@@ -85,9 +83,6 @@ export function StageColumn({ stage, deals, dimmedIds, onMoveDeal, onEditDeal, o
             <DealCard
               key={deal.id}
               deal={deal}
-              onMoveDeal={onMoveDeal}
-              onEditDeal={onEditDeal}
-              onDeleteDeal={onDeleteDeal}
               dimmed={dimmedIds?.size ? !dimmedIds.has(deal.id) : false}
             />
           ))}

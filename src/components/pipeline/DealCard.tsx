@@ -1,12 +1,10 @@
-import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useThemeStore } from '@/store/useThemeStore'
 import { useNotificationStore } from '@/store/useNotificationStore'
-import { getStageColor, getTagStyle, STAGES, type StageId } from '@/constants/pipeline'
+import { getStageColor, getTagStyle, type StageId } from '@/constants/pipeline'
 import type { Deal } from '@/types/deal.types'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -17,94 +15,16 @@ function fmtCompact(v: number) {
   }).format(v)
 }
 
-// ─── Card context menu ────────────────────────────────────────────────────────
-
-function CardMenu({
-  deal, onMove, onEdit, onDelete, onClose, isDark,
-}: {
-  deal: Deal; onMove: (s: StageId) => void; onEdit: () => void
-  onDelete: () => void; onClose: () => void; isDark: boolean
-}) {
-  const menuBg     = isDark ? '#1a1a1a' : '#ffffff'
-  const menuBorder = isDark ? '#2a2a2a' : '#e2e8f0'
-  const hoverBg    = isDark ? '#222222' : '#f8fafc'
-  const textMain   = isDark ? '#c8d0da' : '#334155'
-  const textMuted  = isDark ? '#4a5568' : '#94a3b8'
-
-  return (
-    <>
-      <div className="fixed inset-0 z-40" onPointerDown={(e) => { e.stopPropagation(); onClose() }} />
-      <div
-        className="absolute right-0 top-full mt-1 z-50 py-1"
-        style={{
-          backgroundColor: menuBg, border: `1px solid ${menuBorder}`,
-          borderRadius: '8px',
-          boxShadow: isDark ? '0 8px 32px rgba(0,0,0,0.5)' : '0 8px 24px rgba(0,0,0,0.1)',
-          width: '172px',
-        }}
-      >
-        <button type="button" onPointerDown={(e) => e.stopPropagation()}
-          onClick={(e) => { e.stopPropagation(); onEdit() }}
-          className="w-full flex items-center gap-2 px-3 py-1.5 text-left transition-colors"
-          style={{ fontSize: '12px', fontWeight: 500, color: textMain, backgroundColor: 'transparent' }}
-          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = hoverBg)}
-          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-        >
-          <Pencil style={{ width: '11px', height: '11px', flexShrink: 0, color: textMuted }} />
-          Editar lead
-        </button>
-
-        <div style={{ height: '1px', backgroundColor: menuBorder, margin: '4px 8px' }} />
-
-        <p style={{ fontSize: '9px', fontWeight: 700, color: textMuted, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '4px 12px 2px' }}>
-          Mover para
-        </p>
-        {STAGES.filter((s) => s.id !== deal.stage_id).map((stage) => (
-          <button key={stage.id} type="button"
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={(e) => { e.stopPropagation(); onMove(stage.id) }}
-            className="w-full flex items-center gap-2 px-3 py-1.5 text-left transition-colors"
-            style={{ fontSize: '12px', fontWeight: 500, color: textMain, backgroundColor: 'transparent' }}
-            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = hoverBg)}
-            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-          >
-            <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: stage.color, flexShrink: 0 }} />
-            {stage.label}
-          </button>
-        ))}
-
-        <div style={{ height: '1px', backgroundColor: menuBorder, margin: '4px 8px' }} />
-
-        <button type="button" onPointerDown={(e) => e.stopPropagation()}
-          onClick={(e) => { e.stopPropagation(); onDelete() }}
-          className="w-full flex items-center gap-2 px-3 py-1.5 text-left transition-colors"
-          style={{ fontSize: '12px', fontWeight: 500, color: '#c53030', backgroundColor: 'transparent' }}
-          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = hoverBg)}
-          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-        >
-          <Trash2 style={{ width: '11px', height: '11px', flexShrink: 0 }} />
-          Excluir lead
-        </button>
-      </div>
-    </>
-  )
-}
-
 // ─── Main card ────────────────────────────────────────────────────────────────
 
 interface DealCardProps {
   deal: Deal
   isOverlay?: boolean
   onMoveDeal?: (dealId: string, targetStage: StageId) => void
-  onEditDeal?: (deal: Deal) => void
-  onDeleteDeal?: (dealId: string) => void
   dimmed?: boolean
 }
 
-export function DealCard({
-  deal, isOverlay = false, onMoveDeal, onEditDeal, onDeleteDeal, dimmed = false,
-}: DealCardProps) {
-  const [showMenu, setShowMenu] = useState(false)
+export function DealCard({ deal, isOverlay = false, dimmed = false }: DealCardProps) {
   const navigate      = useNavigate()
   const isDark        = useThemeStore((s) => s.isDark)
   const notifications = useNotificationStore((s) => s.notifications)
@@ -137,7 +57,6 @@ export function DealCard({
   const baseOpacity = isLost ? 0.75 : 1
   const cardOpacity = isDragging ? 0.3 : dimmed ? 0.2 : baseOpacity
 
-  // ── Fixed-height card: 120px total, same for every card ──
   const cardStyle: React.CSSProperties = {
     height: '120px',
     borderRadius: '6px',
@@ -161,7 +80,6 @@ export function DealCard({
         }),
   }
 
-  // Avatars (max 3)
   const stakeholders = deal.stakeholders?.slice(0, 3) ?? []
   const extraCount   = (deal.stakeholders?.length ?? 0) - 3
 
@@ -176,19 +94,18 @@ export function DealCard({
         !isOverlay && !isDragging && 'cursor-grab active:cursor-grabbing',
       )}
     >
-      {/* Top color bar — only for non-special stages */}
+      {/* Top color bar */}
       {!isSpecial && (
         <div style={{ height: '3px', backgroundColor: stageColor, flexShrink: 0 }} />
       )}
 
-      {/* Content — flex column fills remaining height */}
       <div style={{
         flex: 1, padding: '7px 10px 8px',
         display: 'flex', flexDirection: 'column',
         overflow: 'hidden',
       }}>
 
-        {/* ── Row 1: tag + meta + menu ── */}
+        {/* Row 1: tag + meta */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '4px', flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '5px', minWidth: 0, flex: 1, overflow: 'hidden' }}>
             {isNew && (
@@ -220,38 +137,10 @@ export function DealCard({
             }}>
               {deal.days_in_stage}d
             </span>
-
-            {!isOverlay && (
-              <div className="relative opacity-0 group-hover/card:opacity-100 transition-opacity duration-100">
-                <button
-                  type="button"
-                  aria-label="Opções"
-                  onClick={(e) => { e.stopPropagation(); setShowMenu((v) => !v) }}
-                  onPointerDown={(e) => e.stopPropagation()}
-                  style={{
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    width: '18px', height: '18px', borderRadius: '4px',
-                    border: `1px solid ${cardBorder}`, backgroundColor: 'transparent',
-                    color: textMuted, cursor: 'pointer',
-                  }}
-                >
-                  <MoreHorizontal style={{ width: '10px', height: '10px' }} />
-                </button>
-                {showMenu && (
-                  <CardMenu
-                    deal={deal} isDark={isDark}
-                    onMove={(s) => { onMoveDeal?.(deal.id, s); setShowMenu(false) }}
-                    onEdit={() => { onEditDeal?.(deal); setShowMenu(false) }}
-                    onDelete={() => { onDeleteDeal?.(deal.id); setShowMenu(false) }}
-                    onClose={() => setShowMenu(false)}
-                  />
-                )}
-              </div>
-            )}
           </div>
         </div>
 
-        {/* ── Row 2: company name ── */}
+        {/* Row 2: company name */}
         <p className="truncate" style={{
           fontSize: '11px', fontWeight: 400, color: textMuted,
           marginTop: '5px', flexShrink: 0,
@@ -259,7 +148,7 @@ export function DealCard({
           {deal.company_name}
         </p>
 
-        {/* ── Row 3: title — expands to fill space ── */}
+        {/* Row 3: title */}
         <p className="line-clamp-2" style={{
           fontSize: '13px', fontWeight: 600, color: textPrimary,
           lineHeight: 1.35, marginTop: '3px',
@@ -268,12 +157,11 @@ export function DealCard({
           {deal.title}
         </p>
 
-        {/* ── Row 4: bottom — always present, same height ── */}
+        {/* Row 4: bottom */}
         <div style={{
           marginTop: '6px', flexShrink: 0,
           height: '18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         }}>
-          {/* Left: WON value OR loss reason chip OR empty */}
           <div style={{ minWidth: 0, flex: 1 }}>
             {isWon && Number(deal.value) > 0 && (
               <span style={{
@@ -293,7 +181,6 @@ export function DealCard({
             )}
           </div>
 
-          {/* Right: avatars */}
           {stakeholders.length > 0 && (
             <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
               {stakeholders.map((s, i) => (
