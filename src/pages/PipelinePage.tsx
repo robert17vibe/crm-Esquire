@@ -10,6 +10,7 @@ import { useDealStore } from '@/store/useDealStore'
 import { useOwnerStore } from '@/store/useOwnerStore'
 import { useThemeStore } from '@/store/useThemeStore'
 import type { Deal } from '@/types/deal.types'
+import { UserAvatarRow } from '@/components/ui/UserAvatar'
 
 export function PipelinePage() {
   const deals         = useDealStore((s) => s.deals)
@@ -232,24 +233,19 @@ export function PipelinePage() {
                       style={{
                         display: 'flex', alignItems: 'center', gap: '8px',
                         width: '100%', padding: '6px 8px', borderRadius: '5px',
-                        fontSize: '12px', fontWeight: 500, color: ownerText,
                         backgroundColor: isActive ? ownerActive : 'transparent',
-                        border: 'none', cursor: 'pointer', textAlign: 'left',
+                        border: 'none', cursor: 'pointer', textAlign: 'left', overflow: 'hidden',
                       }}
                       onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.backgroundColor = ownerHover }}
                       onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.backgroundColor = 'transparent' }}
                     >
-                      <div style={{
-                        width: '22px', height: '22px', borderRadius: '50%',
-                        backgroundColor: owner.avatar_color,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        color: '#fff', fontSize: '8px', fontWeight: 700, flexShrink: 0,
-                      }}>
-                        {owner.initials}
-                      </div>
-                      <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {owner.name.split(' ')[0]}
-                      </span>
+                      <UserAvatarRow
+                        name={owner.name}
+                        initials={owner.initials}
+                        color={owner.avatar_color}
+                        size="xs"
+                        textColor={ownerText}
+                      />
                       {isActive && <Check style={{ width: '11px', height: '11px', color: ownerMuted, flexShrink: 0 }} />}
                     </button>
                   )

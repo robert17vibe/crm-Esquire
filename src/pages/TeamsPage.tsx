@@ -5,6 +5,7 @@ import { useOwnerStore } from '@/store/useOwnerStore'
 import { useDealStore } from '@/store/useDealStore'
 import { useThemeStore } from '@/store/useThemeStore'
 import type { Team, Owner } from '@/types/deal.types'
+import { UserAvatarRow } from '@/components/ui/UserAvatar'
 
 // ─── Team Card ────────────────────────────────────────────────────────────────
 
@@ -146,19 +147,13 @@ function TeamCard({
             display: 'flex', alignItems: 'center', gap: '10px',
             padding: '7px 10px', borderRadius: '8px', backgroundColor: memberBg,
           }}>
-            <div style={{
-              width: '28px', height: '28px', borderRadius: '50%',
-              backgroundColor: owner.avatar_color,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: '#fff', fontSize: '10px', fontWeight: 700, flexShrink: 0,
-            }}>
-              {owner.initials}
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{ fontSize: '13px', fontWeight: 500, color: text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {owner.name}
-              </p>
-            </div>
+            <UserAvatarRow
+              name={owner.name}
+              initials={owner.initials}
+              color={owner.avatar_color}
+              size="sm"
+              textColor={text}
+            />
             <button
               type="button"
               onClick={() => onToggleMember(owner.id, team.id, true)}
@@ -217,19 +212,18 @@ function TeamCard({
                     display: 'flex', alignItems: 'center', gap: '10px',
                     width: '100%', padding: '8px 12px',
                     backgroundColor: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left',
+                    overflow: 'hidden',
                   }}
                   onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = hoverBg)}
                   onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
                 >
-                  <div style={{
-                    width: '24px', height: '24px', borderRadius: '50%',
-                    backgroundColor: owner.avatar_color, flexShrink: 0,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    color: '#fff', fontSize: '8px', fontWeight: 700,
-                  }}>
-                    {owner.initials}
-                  </div>
-                  <p style={{ fontSize: '13px', fontWeight: 500, color: text }}>{owner.name}</p>
+                  <UserAvatarRow
+                    name={owner.name}
+                    initials={owner.initials}
+                    color={owner.avatar_color}
+                    size="xs"
+                    textColor={text}
+                  />
                 </button>
               ))}
             </div>

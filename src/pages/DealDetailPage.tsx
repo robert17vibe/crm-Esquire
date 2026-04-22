@@ -18,6 +18,7 @@ import { fetchDealEvents } from '@/services/deal-events.service'
 import { useTeamStore } from '@/store/useTeamStore'
 import { useNotificationStore } from '@/store/useNotificationStore'
 import type { Deal, DealActivity, DealMeeting, NextActivity, Stakeholder, CompanySize, ArrRange, DealEvent } from '@/types/deal.types'
+import { UserAvatarRow, getInitials, getAvatarColor } from '@/components/ui/UserAvatar'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -581,7 +582,7 @@ export function DealDetailPage() {
 
   // ── Stakeholders ─────────────────────────────────────────────────────────────
   const [showAddStakeholder, setShowAddStakeholder] = useState(false)
-  const [profiles, setProfiles] = useState<{ id: string; full_name: string; avatar_color: string }[]>([])
+  const [profiles, setProfiles] = useState<{ id: string; full_name: string | null; email: string; avatar_color: string }[]>([])
   const [loadingProfiles, setLoadingProfiles] = useState(false)
 
   // ── Teams ────────────────────────────────────────────────────────────────────
@@ -629,18 +630,20 @@ export function DealDetailPage() {
     if (!force && profiles.length > 0) return
     setLoadingProfiles(true)
     try {
-      const { data } = await supabase.from('profiles').select('id, full_name, avatar_color')
+      const { data } = await supabase.from('profiles').select('id, full_name, email, avatar_color')
       setProfiles((data ?? []) as typeof profiles)
     } finally {
       setLoadingProfiles(false)
     }
   }
 
-  async function addStakeholder(profile: { id: string; full_name: string; avatar_color: string }) {
+  async function addStakeholder(profile: { id: string; full_name: string | null; email: string; avatar_color: string }) {
     if (!deal) return
     const existing = deal.stakeholders ?? []
-    const initials = profile.full_name.split(' ').slice(0, 2).map((w) => w[0] ?? '').join('').toUpperCase()
-    const newS: Stakeholder = { initials, color: profile.avatar_color, name: profile.full_name }
+    const displayName = profile.full_name || profile.email.split('@')[0]
+    const initials = getInitials(displayName)
+    const color = profile.avatar_color || getAvatarColor(profile.id)
+    const newS: Stakeholder = { initials, color, name: displayName }
     await patchDealFields(deal.id, { stakeholders: [...existing, newS] })
     setShowAddStakeholder(false)
   }
@@ -1238,22 +1241,25 @@ export function DealDetailPage() {
                   ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '160px', overflowY: 'auto' }}>
                       {profiles
-                        .filter((p) => !(deal.stakeholders ?? []).some((s) => s.name === p.full_name))
-                        .map((p) => {
-                          const ini = p.full_name.split(' ').slice(0, 2).map((w) => w[0] ?? '').join('').toUpperCase()
-                          return (
-                            <button
-                              key={p.id} type="button"
-                              onClick={() => addStakeholder(p)}
-                              style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '5px 6px', borderRadius: '5px', border: 'none', backgroundColor: 'transparent', cursor: 'pointer', textAlign: 'left', width: '100%' }}
-                              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = isDark ? '#1e1e1c' : '#e8e4da')}
-                              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-                            >
-                              <div style={{ width: '22px', height: '22px', borderRadius: '50%', backgroundColor: p.avatar_color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '7px', fontWeight: 700, flexShrink: 0 }}>{ini}</div>
-                              <span style={{ fontSize: '12px', fontWeight: 500, color: text }}>{p.full_name}</span>
-                            </button>
-                          )
-                        })}
+                        .map((p) => ({ ...p, displayName: p.full_name || p.email.split('@')[0] }))
+                        .filter((p) => !(deal.stakeholders ?? []).some((s) => s.name === p.displayName))
+                        .map((p) => (
+                          <button
+                            key={p.id} type="button"
+                            onClick={() => addStakeholder(p)}
+                            style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '5px 6px', borderRadius: '5px', border: 'none', backgroundColor: 'transparent', cursor: 'pointer', textAlign: 'left', width: '100%', overflow: 'hidden' }}
+                            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = isDark ? '#1e1e1c' : '#e8e4da')}
+                            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                          >
+                            <UserAvatarRow
+                              name={p.displayName}
+                              initials={getInitials(p.displayName)}
+                              color={p.avatar_color || getAvatarColor(p.id)}
+                              size="xs"
+                              textColor={text}
+                            />
+                          </button>
+                        ))}
                     </div>
                   )}
                 </div>
