@@ -268,7 +268,7 @@ export function ClientsPage() {
 
                   {/* Expanded deals list */}
                   {isExpanded && (
-                    <div style={{ backgroundColor: expandBg, borderBottom: `1px solid ${border}`, padding: '0 20px 10px 62px' }}>
+                    <div style={{ backgroundColor: expandBg, borderBottom: `1px solid ${border}`, padding: '4px 20px 12px 62px' }}>
                       {company.deals.map((deal) => {
                         const dealStage = STAGES.find((s) => s.id === deal.stage_id)
                         return (
@@ -277,33 +277,50 @@ export function ClientsPage() {
                             type="button"
                             onClick={(e) => { e.stopPropagation(); navigate(`/deal/${deal.id}`) }}
                             style={{
-                              display: 'flex', alignItems: 'center', gap: '12px',
-                              width: '100%', padding: '8px 10px', borderRadius: '6px',
+                              display: 'flex', alignItems: 'center', gap: '10px',
+                              width: '100%', padding: '7px 10px', borderRadius: '6px',
                               backgroundColor: 'transparent', border: 'none', cursor: 'pointer',
                               textAlign: 'left', marginBottom: '2px',
                             }}
                             onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = hoverBg)}
                             onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
                           >
+                            {/* Stage pill */}
                             {dealStage && (
                               <span style={{
                                 fontSize: '9px', fontWeight: 700, color: dealStage.color,
-                                backgroundColor: `${dealStage.color}18`, borderRadius: '3px',
-                                padding: '2px 6px', flexShrink: 0, whiteSpace: 'nowrap',
+                                backgroundColor: `${dealStage.color}18`, borderRadius: '4px',
+                                padding: '2px 7px', flexShrink: 0, whiteSpace: 'nowrap',
                               }}>
                                 {dealStage.label}
                               </span>
                             )}
+
+                            {/* Title */}
                             <p style={{ fontSize: '12px', fontWeight: 500, color: text, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                               {deal.title}
                             </p>
-                            {deal.contact_name && (
-                              <p style={{ fontSize: '11px', color: muted, flexShrink: 0 }}>{deal.contact_name}</p>
+
+                            {/* Owner avatar */}
+                            {deal.owner && (
+                              <div
+                                title={deal.owner.name}
+                                style={{
+                                  width: '20px', height: '20px', borderRadius: '50%', flexShrink: 0,
+                                  backgroundColor: deal.owner.avatar_color,
+                                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                  fontSize: '8px', fontWeight: 700, color: '#fff',
+                                }}
+                              >
+                                {deal.owner.initials}
+                              </div>
                             )}
+
+                            {/* Value */}
                             <p style={{ fontSize: '12px', fontWeight: 600, color: deal.stage_id === 'closed_won' ? '#2d9e6b' : text, fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
                               {Number(deal.value) > 0 ? fmtFull(Number(deal.value)) : '—'}
                             </p>
-                            <ArrowRight style={{ width: '12px', height: '12px', color: muted, flexShrink: 0 }} />
+                            <ArrowRight style={{ width: '11px', height: '11px', color: muted, flexShrink: 0 }} />
                           </button>
                         )
                       })}

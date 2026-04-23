@@ -389,52 +389,61 @@ function TemperatureSlider({
   border: string
   cardBg: string
 }) {
-  const muted = isDark ? '#5a5652' : '#8a857d'
+  const muted    = isDark ? '#5a5652' : '#8a857d'
   const trackRef = React.useRef<HTMLDivElement>(null)
-  const dragging  = React.useRef(false)
+  const dragging = React.useRef(false)
+
+  // localPct drives the thumb during drag; syncs from value otherwise
+  const valueToPct = (v: typeof value) => v === 'cold' ? 8 : v === 'hot' ? 92 : 50
+  const [localPct, setLocalPct] = React.useState(() => valueToPct(value))
+
+  // Keep in sync when value changes externally
+  React.useEffect(() => {
+    if (!dragging.current) setLocalPct(valueToPct(value))
+  }, [value])
 
   const cfg = {
-    hot:  { emoji: '🔥', label: 'Quente', color: '#dc2626' },
-    warm: { emoji: '🌡',  label: 'Morno',  color: '#b45309' },
-    cold: { emoji: '🧊', label: 'Frio',   color: '#3b82f6' },
+    hot:  { emoji: '🔥', label: 'Quente', color: '#ef4444' },
+    warm: { emoji: '🌡',  label: 'Morno',  color: '#f59e0b' },
+    cold: { emoji: '🧊', label: 'Frio',   color: '#60a5fa' },
   } as const
 
-  // percent position of thumb: cold=0%, warm=50%, hot=100%, null=50%
-  const thumbPct = value === 'cold' ? 0 : value === 'hot' ? 100 : 50
-  const current  = value ? cfg[value] : null
-  const thumbColor = current?.color ?? (isDark ? '#5a5652' : '#c4bfb8')
+  const pctToValue = (pct: number): 'cold' | 'warm' | 'hot' =>
+    pct <= 33 ? 'cold' : pct <= 66 ? 'warm' : 'hot'
 
-  function pctFromEvent(e: { clientX: number }) {
+  function pctFromPointer(e: React.PointerEvent) {
     const rect = trackRef.current?.getBoundingClientRect()
-    if (!rect) return 50
+    if (!rect || rect.width === 0) return localPct
     return Math.min(100, Math.max(0, ((e.clientX - rect.left) / rect.width) * 100))
   }
 
-  function commitPct(pct: number) {
-    if (pct <= 33) onChange('cold')
-    else if (pct <= 66) onChange('warm')
-    else onChange('hot')
-  }
-
-  function onPointerDown(e: React.PointerEvent) {
-    e.currentTarget.setPointerCapture(e.pointerId)
+  function onPointerDown(e: React.PointerEvent<HTMLDivElement>) {
     dragging.current = true
-    commitPct(pctFromEvent(e))
+    ;(e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId)
+    const pct = pctFromPointer(e)
+    setLocalPct(pct)
   }
 
-  function onPointerMove(e: React.PointerEvent) {
+  function onPointerMove(e: React.PointerEvent<HTMLDivElement>) {
     if (!dragging.current) return
-    commitPct(pctFromEvent(e))
+    setLocalPct(pctFromPointer(e))
   }
 
-  function onPointerUp() {
+  function onPointerUp(e: React.PointerEvent<HTMLDivElement>) {
+    if (!dragging.current) return
     dragging.current = false
+    const pct = pctFromPointer(e)
+    setLocalPct(pct)
+    onChange(pctToValue(pct))
   }
+
+  const current = value ? cfg[value] : null
+  const thumbColor   = cfg[pctToValue(localPct)]?.color ?? muted
 
   return (
     <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '8px', padding: '14px' }}>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
         <p style={{ fontSize: '10px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
           Temperatura
         </p>
@@ -444,76 +453,53 @@ function TemperatureSlider({
         }
       </div>
 
-      {/* Labels */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-        <span style={{ fontSize: '10px', color: '#3b82f6' }}>🧊 Frio</span>
-        <span style={{ fontSize: '10px', color: '#b45309' }}>🌡 Morno</span>
-        <span style={{ fontSize: '10px', color: '#dc2626' }}>🔥 Quente</span>
-      </div>
-
-      {/* Custom slider track */}
+      {/* Slider track */}
       <div
         ref={trackRef}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         style={{
-          position: 'relative',
-          height: '28px',
-          display: 'flex',
-          alignItems: 'center',
-          cursor: 'pointer',
-          userSelect: 'none',
-          touchAction: 'none',
+          position: 'relative', height: '32px',
+          display: 'flex', alignItems: 'center',
+          cursor: 'ew-resize', userSelect: 'none', touchAction: 'none',
         }}
       >
-        {/* Track bar */}
+        {/* Gradient bar */}
         <div style={{
-          position: 'absolute', left: 0, right: 0, height: '6px',
-          borderRadius: '3px',
-          background: 'linear-gradient(to right, #3b82f6 0%, #93c5fd 25%, #fbbf24 50%, #f97316 75%, #ef4444 100%)',
+          position: 'absolute', left: 0, right: 0, height: '6px', borderRadius: '3px',
+          background: 'linear-gradient(to right, #60a5fa 0%, #93c5fd 30%, #fde68a 50%, #fb923c 70%, #ef4444 100%)',
         }} />
-
         {/* Zone dividers */}
-        <div style={{ position: 'absolute', left: '33%', top: '50%', transform: 'translate(-50%,-50%)', width: '1px', height: '10px', backgroundColor: 'rgba(255,255,255,0.4)' }} />
-        <div style={{ position: 'absolute', left: '66%', top: '50%', transform: 'translate(-50%,-50%)', width: '1px', height: '10px', backgroundColor: 'rgba(255,255,255,0.4)' }} />
-
+        <div style={{ position: 'absolute', left: '33%', top: '50%', transform: 'translate(-50%,-50%)', width: '1px', height: '12px', backgroundColor: 'rgba(255,255,255,0.5)', pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', left: '66%', top: '50%', transform: 'translate(-50%,-50%)', width: '1px', height: '12px', backgroundColor: 'rgba(255,255,255,0.5)', pointerEvents: 'none' }} />
         {/* Thumb */}
-        {value && (
-          <div style={{
-            position: 'absolute',
-            left: `${thumbPct}%`,
-            top: '50%',
-            transform: 'translate(-50%, -50%)',
-            width: '18px',
-            height: '18px',
-            borderRadius: '50%',
-            backgroundColor: isDark ? '#e8e4dc' : '#ffffff',
-            border: `2.5px solid ${thumbColor}`,
-            boxShadow: `0 1px 6px rgba(0,0,0,0.25), 0 0 0 3px ${thumbColor}22`,
-            transition: 'left 0.15s ease',
-            pointerEvents: 'none',
-          }} />
-        )}
+        <div style={{
+          position: 'absolute',
+          left: `${localPct}%`,
+          top: '50%',
+          transform: 'translate(-50%, -50%)',
+          width: '20px', height: '20px', borderRadius: '50%',
+          backgroundColor: isDark ? '#e4e4e7' : '#ffffff',
+          border: `2.5px solid ${thumbColor}`,
+          boxShadow: `0 2px 8px rgba(0,0,0,0.2), 0 0 0 3px ${thumbColor}28`,
+          pointerEvents: 'none',
+          transition: dragging.current ? 'none' : 'left 0.2s ease',
+        }} />
+      </div>
 
-        {/* No-value hint */}
-        {!value && (
-          <div style={{
-            position: 'absolute', left: '50%', top: '50%',
-            transform: 'translate(-50%,-50%)',
-            width: '14px', height: '14px', borderRadius: '50%',
-            backgroundColor: isDark ? '#2a2a28' : '#e4e0da',
-            border: `2px dashed ${muted}`,
-            pointerEvents: 'none',
-          }} />
-        )}
+      {/* Labels + clear */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
+        <span style={{ fontSize: '9px', color: '#60a5fa', fontWeight: 600 }}>Frio</span>
+        <span style={{ fontSize: '9px', color: '#f59e0b', fontWeight: 600 }}>Morno</span>
+        <span style={{ fontSize: '9px', color: '#ef4444', fontWeight: 600 }}>Quente</span>
       </div>
 
       {value && (
         <button
           type="button"
-          onClick={() => onChange(null)}
-          style={{ marginTop: '6px', fontSize: '10px', color: muted, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+          onClick={() => { setLocalPct(50); onChange(null) }}
+          style={{ marginTop: '8px', fontSize: '10px', color: muted, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
         >
           Limpar
         </button>
