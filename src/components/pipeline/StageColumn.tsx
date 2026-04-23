@@ -24,9 +24,8 @@ export function StageColumn({ stage, deals, dimmedIds, onMoveDeal }: StageColumn
       ref={setNodeRef}
       className="deal-column"
       style={{
-        width: '234px',
-        minWidth: '234px',
-        maxWidth: '234px',
+        flex: '1 1 220px',
+        minWidth: '220px',
         flexShrink: 0,
         borderRadius: '8px',
         backgroundColor: colBg,

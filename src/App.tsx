@@ -21,7 +21,6 @@ const SettingsPage     = lazy(() => import('@/pages/SettingsPage').then((m) => (
 const DealDetailPage   = lazy(() => import('@/pages/DealDetailPage').then((m) => ({ default: m.DealDetailPage })))
 const TeamsPage        = lazy(() => import('@/pages/TeamsPage').then((m) => ({ default: m.TeamsPage })))
 const AdminUsersPage      = lazy(() => import('@/pages/AdminUsersPage').then((m) => ({ default: m.AdminUsersPage })))
-const IntegrationsPage    = lazy(() => import('@/pages/IntegrationsPage').then((m) => ({ default: m.IntegrationsPage })))
 const LandingPage         = lazy(() => import('@/pages/LandingPage').then((m) => ({ default: m.LandingPage })))
 const LoginPage        = lazy(() => import('@/pages/LoginPage').then((m) => ({ default: m.LoginPage })))
 const ForgotPasswordPage = lazy(() => import('@/pages/ForgotPasswordPage').then((m) => ({ default: m.ForgotPasswordPage })))
@@ -90,7 +89,6 @@ export default function App() {
         <Route element={<AdminGuard />}>
           <Route path="/teams"            element={<TeamsPage />} />
           <Route path="/admin/users"  element={<AdminUsersPage />} />
-          <Route path="/integrations" element={<IntegrationsPage />} />
         </Route>
       </Route>
       <Route path="*" element={<Navigate to={session ? '/dashboard' : '/login'} replace />} />

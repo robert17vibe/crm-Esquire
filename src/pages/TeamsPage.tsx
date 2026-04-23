@@ -291,34 +291,37 @@ export function TeamsPage() {
 
       {/* Header */}
       <div style={{
-        height: '56px', minHeight: '56px', display: 'flex', alignItems: 'center',
-        justifyContent: 'space-between', padding: '0 20px',
-        borderBottom: `1px solid ${border}`, flexShrink: 0,
+        minHeight: '64px', display: 'flex', alignItems: 'center',
+        justifyContent: 'space-between', padding: '0 4px 16px',
+        flexShrink: 0,
       }}>
         <div>
-          <p style={{ fontSize: '13px', fontWeight: 700, color: text, letterSpacing: '-0.01em' }}>
+          <p style={{ fontSize: '20px', fontWeight: 700, color: text, letterSpacing: '-0.02em' }}>
             Grupos & Squads
           </p>
-          <p style={{ fontSize: '10px', color: muted, marginTop: '2px' }}>
-            {teams.length} {teams.length === 1 ? 'grupo' : 'grupos'} · {totalMembers} {totalMembers === 1 ? 'membro' : 'membros'}
+          <p style={{ fontSize: '12px', color: muted, marginTop: '3px' }}>
+            {teams.length} {teams.length === 1 ? 'grupo' : 'grupos'} · {totalMembers} {totalMembers === 1 ? 'membro' : 'membros'} na organização
           </p>
         </div>
         <button
           type="button"
           onClick={() => setShowForm((v) => !v)}
           style={{
-            display: 'flex', alignItems: 'center', gap: '6px',
-            height: '32px', padding: '0 14px',
-            fontSize: '12px', fontWeight: 600,
-            backgroundColor: isDark ? '#f0ede5' : '#0f0e0c',
-            color: isDark ? '#0f0e0c' : '#f0ede5',
-            border: 'none', borderRadius: '8px', cursor: 'pointer',
-            transition: 'opacity 0.15s ease',
+            display: 'flex', alignItems: 'center', gap: '7px',
+            height: '38px', padding: '0 18px',
+            fontSize: '13px', fontWeight: 700,
+            background: showForm
+              ? (isDark ? '#1a1a18' : '#e8e4dc')
+              : 'linear-gradient(135deg, #2c5545 0%, #3d7a62 100%)',
+            color: showForm ? muted : '#ffffff',
+            border: 'none', borderRadius: '10px', cursor: 'pointer',
+            boxShadow: showForm ? 'none' : '0 2px 8px rgba(44,85,69,0.35)',
+            transition: 'all 0.2s ease',
           }}
-          onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.85')}
-          onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
+          onMouseEnter={(e) => { if (!showForm) e.currentTarget.style.boxShadow = '0 4px 14px rgba(44,85,69,0.5)' }}
+          onMouseLeave={(e) => { if (!showForm) e.currentTarget.style.boxShadow = '0 2px 8px rgba(44,85,69,0.35)' }}
         >
-          <Plus style={{ width: '14px', height: '14px' }} />
+          <Plus style={{ width: '15px', height: '15px' }} />
           Novo grupo
         </button>
       </div>
@@ -326,24 +329,26 @@ export function TeamsPage() {
       {/* New group form */}
       {showForm && (
         <div style={{
-          padding: '14px 20px',
-          borderBottom: `1px solid ${border}`,
-          backgroundColor: isDark ? '#0d0d0b' : '#f9f8f5',
+          marginBottom: '20px',
+          padding: '18px 20px',
+          backgroundColor: isDark ? '#0f0f0d' : '#f9f8f5',
+          border: `1px solid ${border}`,
+          borderRadius: '12px',
           flexShrink: 0,
         }}>
-          <p style={{ fontSize: '11px', fontWeight: 700, color: muted, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '8px' }}>
-            Nome do grupo
+          <p style={{ fontSize: '13px', fontWeight: 700, color: text, marginBottom: '12px' }}>
+            Novo grupo
           </p>
-          <div style={{ display: 'flex', gap: '8px', maxWidth: '400px' }}>
+          <div style={{ display: 'flex', gap: '8px', maxWidth: '440px' }}>
             <input
               autoFocus
               type="text"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') handleCreate(); if (e.key === 'Escape') setShowForm(false) }}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleCreate(); if (e.key === 'Escape') { setShowForm(false); setNewName('') } }}
               placeholder="Ex: Comercial, Enterprise, Growth..."
               style={{
-                flex: 1, height: '36px', padding: '0 12px', fontSize: '13px',
+                flex: 1, height: '38px', padding: '0 12px', fontSize: '13px',
                 backgroundColor: isDark ? '#111110' : '#ffffff',
                 border: `1px solid ${isDark ? '#3a3834' : '#c4bfb8'}`,
                 borderRadius: '8px', color: text, outline: 'none',
@@ -354,20 +359,22 @@ export function TeamsPage() {
               onClick={handleCreate}
               disabled={creating || !newName.trim()}
               style={{
-                height: '36px', padding: '0 16px', fontSize: '13px', fontWeight: 600,
-                backgroundColor: newName.trim() ? '#2c5545' : (isDark ? '#1a1a18' : '#e8e4dc'),
+                height: '38px', padding: '0 18px', fontSize: '13px', fontWeight: 700,
+                background: newName.trim() ? 'linear-gradient(135deg, #2c5545 0%, #3d7a62 100%)' : (isDark ? '#1a1a18' : '#e8e4dc'),
                 color: newName.trim() ? '#fff' : muted,
                 border: 'none', borderRadius: '8px',
                 cursor: newName.trim() ? 'pointer' : 'not-allowed',
+                boxShadow: newName.trim() ? '0 2px 6px rgba(44,85,69,0.3)' : 'none',
+                transition: 'all 0.15s ease',
               }}
             >
-              {creating ? '...' : 'Criar'}
+              {creating ? 'A criar...' : 'Criar grupo'}
             </button>
             <button
               type="button"
               onClick={() => { setShowForm(false); setNewName('') }}
               style={{
-                height: '36px', padding: '0 12px', fontSize: '13px',
+                height: '38px', padding: '0 14px', fontSize: '13px',
                 backgroundColor: 'transparent', color: muted,
                 border: `1px solid ${border}`, borderRadius: '8px', cursor: 'pointer',
               }}
@@ -379,36 +386,45 @@ export function TeamsPage() {
       )}
 
       {/* Content */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '20px' }}>
+      <div style={{ flex: 1, overflowY: 'auto' }}>
         {teams.length === 0 ? (
           <div style={{
             display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-            height: '100%', gap: '12px', opacity: 0.5,
+            height: '100%', gap: '16px',
           }}>
-            <Users2 style={{ width: '36px', height: '36px', color: muted }} />
-            <p style={{ fontSize: '14px', fontWeight: 600, color: muted }}>Nenhum grupo criado</p>
-            <p style={{ fontSize: '12px', color: muted, textAlign: 'center', maxWidth: '280px', lineHeight: 1.6 }}>
-              Crie grupos para organizar sua equipe de vendas e filtrar deals por time
-            </p>
+            <div style={{
+              width: '64px', height: '64px', borderRadius: '16px',
+              background: isDark ? '#1a1a18' : '#f0ede8',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <Users2 style={{ width: '28px', height: '28px', color: muted }} />
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <p style={{ fontSize: '16px', fontWeight: 700, color: text, marginBottom: '6px' }}>Nenhum grupo criado</p>
+              <p style={{ fontSize: '13px', color: muted, lineHeight: 1.6, maxWidth: '300px' }}>
+                Crie grupos para organizar a equipa de vendas e filtrar deals por time
+              </p>
+            </div>
             <button
               type="button"
               onClick={() => setShowForm(true)}
               style={{
-                display: 'flex', alignItems: 'center', gap: '6px',
-                height: '36px', padding: '0 16px',
-                fontSize: '13px', fontWeight: 600,
-                color: '#2c5545', backgroundColor: '#2c554514',
-                border: '1px solid #2c554530', borderRadius: '8px', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', gap: '7px',
+                height: '40px', padding: '0 20px',
+                fontSize: '13px', fontWeight: 700,
+                background: 'linear-gradient(135deg, #2c5545 0%, #3d7a62 100%)',
+                color: '#ffffff', border: 'none', borderRadius: '10px', cursor: 'pointer',
+                boxShadow: '0 2px 10px rgba(44,85,69,0.35)',
               }}
             >
-              <Plus style={{ width: '14px', height: '14px' }} />
+              <Plus style={{ width: '15px', height: '15px' }} />
               Criar primeiro grupo
             </button>
           </div>
         ) : (
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
             gap: '16px',
             alignItems: 'start',
           }}>
