@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import {
-  Moon, Sun, Target, Bell, BellOff, LayoutGrid, Eye, RefreshCw,
-  DollarSign, Check, User, Palette, Mail, Shield, Keyboard,
-  Zap, GitBranch, Clock, AlertCircle, Users, Plus, Trash2,
+  Moon, Sun, Target, Bell, BellOff, Eye, RefreshCw,
+  DollarSign, Check, User, Palette, Mail, Keyboard,
+  Zap, Clock, AlertCircle, Plus, Trash2,
 } from 'lucide-react'
 import { useThemeStore } from '@/store/useThemeStore'
 import { useSettingsStore } from '@/store/useSettingsStore'
@@ -274,11 +274,8 @@ export function SettingsPage() {
 
         {/* ── Aparência ── */}
         <Section title="Aparência" isDark={isDark}>
-          <Row icon={isDark ? Moon : Sun} label="Tema" description={isDark ? 'Modo escuro ativo' : 'Modo claro ativo'} isDark={isDark}>
+          <Row icon={isDark ? Moon : Sun} label="Tema" description={isDark ? 'Modo escuro ativo' : 'Modo claro ativo'} isDark={isDark} last>
             <Toggle checked={isDark} onChange={toggleTheme} isDark={isDark} />
-          </Row>
-          <Row icon={LayoutGrid} label="Modo compacto" description="Reduz espaçamento dos cards no pipeline" isDark={isDark} last>
-            <Toggle checked={settings.compactMode} onChange={(v) => setSetting('compactMode', v)} isDark={isDark} />
           </Row>
         </Section>
 
@@ -300,7 +297,7 @@ export function SettingsPage() {
           <Row icon={Eye} label="Exibir deals fechados" description="Mostra colunas Ganho e Perdido no pipeline" isDark={isDark}>
             <Toggle checked={settings.showClosedDeals} onChange={(v) => setSetting('showClosedDeals', v)} isDark={isDark} />
           </Row>
-          <Row icon={DollarSign} label="Moeda padrão" description="Utilizada em novos deals" isDark={isDark}>
+          <Row icon={DollarSign} label="Moeda padrão" description="Utilizada em novos deals" isDark={isDark} last>
             <select
               value={settings.defaultCurrency}
               onChange={(e) => setSetting('defaultCurrency', e.target.value as 'BRL' | 'USD' | 'EUR')}
@@ -310,9 +307,6 @@ export function SettingsPage() {
               <option value="USD">USD — Dólar</option>
               <option value="EUR">EUR — Euro</option>
             </select>
-          </Row>
-          <Row icon={GitBranch} label="Estágios visíveis" description="Controla colunas exibidas no pipeline" isDark={isDark} last>
-            <span style={{ fontSize: '11px', color: muted }}>Todos os estágios</span>
           </Row>
         </Section>
 
@@ -326,26 +320,6 @@ export function SettingsPage() {
           </Row>
           <Row icon={Clock} label="Lembrete de follow-up" description="Leads sem atividade há mais de 7 dias" isDark={isDark} last>
             <Toggle checked={settings.followUpReminders} onChange={(v) => setSetting('followUpReminders', v)} isDark={isDark} />
-          </Row>
-        </Section>
-
-        {/* ── Equipe ── */}
-        <Section title="Equipe" isDark={isDark}>
-          <Row icon={Users} label="Membros" description="Gerenciamento de usuários e permissões" isDark={isDark}>
-            <span style={{
-              fontSize: '9px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase',
-              color: muted, backgroundColor: isDark ? '#1e1e1c' : '#f0eeea',
-              border: `1px solid ${isDark ? '#2a2a28' : '#d4d0ca'}`,
-              borderRadius: '4px', padding: '2px 8px',
-            }}>Em breve</span>
-          </Row>
-          <Row icon={Shield} label="Permissões" description="Controle de acesso por perfil" isDark={isDark} last>
-            <span style={{
-              fontSize: '9px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase',
-              color: muted, backgroundColor: isDark ? '#1e1e1c' : '#f0eeea',
-              border: `1px solid ${isDark ? '#2a2a28' : '#d4d0ca'}`,
-              borderRadius: '4px', padding: '2px 8px',
-            }}>Em breve</span>
           </Row>
         </Section>
 
