@@ -1,5 +1,5 @@
 import * as Dialog from '@radix-ui/react-dialog'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { X, ChevronDown, Loader2 } from 'lucide-react'
@@ -198,8 +198,19 @@ interface Props {
 }
 
 export function NewLeadModal({ open, onClose, onCreated }: Props) {
-  const createDeal = useDealStore((s) => s.createDeal)
-  const owners     = useOwnerStore((s) => s.owners)
+  const createDeal          = useDealStore((s) => s.createDeal)
+  const deals               = useDealStore((s) => s.deals)
+  const owners              = useOwnerStore((s) => s.owners)
+  const getRoundRobinOwner  = useOwnerStore((s) => s.getRoundRobinOwner)
+  const [autoAssign, setAutoAssign] = useState(true)
+
+  const activeDealsByOwner = useMemo(() => {
+    const m: Record<string, number> = {}
+    deals.forEach((d) => {
+      if (!['closed_won', 'closed_lost'].includes(d.stage_id)) m[d.owner_id] = (m[d.owner_id] ?? 0) + 1
+    })
+    return m
+  }, [deals])
 
   const {
     register,
@@ -214,8 +225,15 @@ export function NewLeadModal({ open, onClose, onCreated }: Props) {
   })
 
   useEffect(() => {
-    if (owners.length > 0) setValue('owner_id', owners[0].id, { shouldValidate: true })
-  }, [owners, setValue])
+    if (!owners.length) return
+    if (autoAssign) {
+      const next = getRoundRobinOwner(activeDealsByOwner)
+      setValue('owner_id', next?.id ?? owners[0].id, { shouldValidate: true })
+    } else {
+      setValue('owner_id', owners[0].id, { shouldValidate: true })
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [owners, autoAssign])
 
   function handleClose() { reset(); onClose() }
 
@@ -381,11 +399,20 @@ export function NewLeadModal({ open, onClose, onCreated }: Props) {
 
             <Row>
               <div>
-                <FLabel htmlFor="owner_id" required>Responsável</FLabel>
-                <Select id="owner_id" hasError={!!errors.owner_id} {...register('owner_id')}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                  <FLabel htmlFor="owner_id" required style={{ margin: 0 }}>Responsável</FLabel>
+                  <button type="button" onClick={() => setAutoAssign((v) => !v)}
+                    style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', fontWeight: 600, color: autoAssign ? '#2c5545' : T.muted, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                    <span style={{ width: '24px', height: '13px', borderRadius: '99px', backgroundColor: autoAssign ? '#2c5545' : T.line, position: 'relative', transition: 'background-color 0.2s', display: 'inline-block', flexShrink: 0 }}>
+                      <span style={{ position: 'absolute', top: '2px', left: autoAssign ? '13px' : '2px', width: '9px', height: '9px', borderRadius: '50%', backgroundColor: '#fff', transition: 'left 0.2s' }} />
+                    </span>
+                    Auto
+                  </button>
+                </div>
+                <Select id="owner_id" hasError={!!errors.owner_id} {...register('owner_id')} disabled={autoAssign}>
                   <option value="">Selecione</option>
                   {owners.map((o) => (
-                    <option key={o.id} value={o.id}>{o.name}</option>
+                    <option key={o.id} value={o.id}>{o.name} {autoAssign ? '' : `(${activeDealsByOwner[o.id] ?? 0} ativos)`}</option>
                   ))}
                 </Select>
                 <FError msg={errors.owner_id?.message} />

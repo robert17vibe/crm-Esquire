@@ -42,8 +42,10 @@ export function DealCard({ deal, isOverlay = false, dimmed = false }: DealCardPr
   const isLost    = deal.stage_id === 'closed_lost'
   const isSpecial = isWon || isLost
 
-  const today     = new Date().toISOString().slice(0, 10)
-  const isOverdue = !isSpecial && !!deal.next_activity?.due_date && deal.next_activity.due_date < today
+  const today       = new Date().toISOString().slice(0, 10)
+  const isOverdue   = !isSpecial && !!deal.next_activity?.due_date && deal.next_activity.due_date < today
+  const isSlaBreached = !isSpecial && !deal.last_activity_at &&
+    (Date.now() - new Date(deal.created_at).getTime()) > 48 * 3_600_000
 
   const cardBg     = isWon
     ? (isDark ? '#0d1a14' : '#f0f7f3')
@@ -124,6 +126,12 @@ export function DealCard({ deal, isOverlay = false, dimmed = false }: DealCardPr
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexShrink: 0 }}>
+            {isSlaBreached && !isOverdue && (
+              <span
+                title="SLA: sem atividade há +48h"
+                style={{ fontSize: '7px', fontWeight: 800, color: '#b45309', backgroundColor: '#fef3c7', borderRadius: '3px', padding: '1px 3px', letterSpacing: '0.04em' }}
+              >SLA</span>
+            )}
             {isOverdue && (
               <span
                 title={`Vencido: ${deal.next_activity!.label}`}

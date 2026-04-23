@@ -1,6 +1,6 @@
 import { useState, useRef, useLayoutEffect, useEffect, useMemo } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
-import { LayoutDashboard, Kanban, Users, Mic, CalendarDays, Settings, LogOut, Users2 } from 'lucide-react'
+import { LayoutDashboard, Kanban, Users, Mic, CalendarDays, Settings, LogOut, Users2, Shield } from 'lucide-react'
 import { useThemeStore } from '@/store/useThemeStore'
 import { useAuthStore } from '@/store/useAuthStore'
 import { useDealStore } from '@/store/useDealStore'
@@ -13,15 +13,14 @@ function hashColor(name: string): string {
 }
 
 const NAV_ITEMS = [
-  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/pipeline',  label: 'Jornada',   icon: Kanban          },
-  { to: '/clients',   label: 'Clientes',  icon: Users           },
-  { to: '/teams',     label: 'Grupos',    icon: Users2          },
-  { to: '/meetings',  label: 'Registro',  icon: Mic             },
-  { to: '/calendar',  label: 'Calendário', icon: CalendarDays   },
+  { to: '/dashboard', label: 'Dashboard',  icon: LayoutDashboard },
+  { to: '/pipeline',  label: 'Jornada',    icon: Kanban          },
+  { to: '/clients',   label: 'Clientes',   icon: Users           },
+  { to: '/meetings',  label: 'Registro',   icon: Mic             },
+  { to: '/calendar',  label: 'Calendário', icon: CalendarDays    },
 ] as const
 
-type NavTo = (typeof NAV_ITEMS)[number]['to']
+type NavTo = (typeof NAV_ITEMS)[number]['to'] | '/teams'
 
 // ─── Nav item ─────────────────────────────────────────────────────────────────
 
@@ -292,6 +291,43 @@ export function Sidebar() {
             />
           </div>
         ))}
+
+        {(profile?.is_admin || profile?.role === 'admin') && (
+          <>
+            <div style={{ height: '1px', backgroundColor: '#242424', margin: '8px 0 6px' }} />
+            {!collapsed && (
+              <span style={{ fontSize: '9px', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#3a3a3a', paddingLeft: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <Shield style={{ width: '9px', height: '9px' }} />
+                Admin
+              </span>
+            )}
+            <div ref={(el) => { if (el) wrapperRefs.current['/teams' as NavTo] = el }}>
+              <NavLink
+                to="/teams"
+                title={collapsed ? 'Grupos' : undefined}
+                className="sidebar-nav-item"
+                style={({ isActive }) => ({
+                  display: 'flex', alignItems: 'center', height: '36px',
+                  padding: collapsed ? '0' : '0 12px',
+                  justifyContent: collapsed ? 'center' : 'flex-start',
+                  borderRadius: '6px', gap: collapsed ? 0 : '10px',
+                  fontSize: '13px', fontWeight: 500, textDecoration: 'none',
+                  userSelect: 'none', cursor: 'pointer',
+                  transition: 'background-color 0.2s ease, color 0.2s ease',
+                  backgroundColor: isActive ? activeItemBg : 'transparent',
+                  color: isActive ? '#f0ede5' : '#9a9a9a',
+                })}
+              >
+                {({ isActive }) => (
+                  <>
+                    <Users2 style={{ width: '16px', height: '16px', color: isActive ? '#f0ede5' : '#9a9a9a', transition: 'color 0.2s ease', flexShrink: 0 }} />
+                    {!collapsed && <span className="sidebar-label" style={{ flex: 1 }}>Grupos</span>}
+                  </>
+                )}
+              </NavLink>
+            </div>
+          </>
+        )}
       </nav>
 
       <div style={{ height: '1px', backgroundColor: '#242424', flexShrink: 0 }} />

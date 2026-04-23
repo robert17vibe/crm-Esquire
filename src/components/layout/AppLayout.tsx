@@ -10,8 +10,10 @@ import { useMeetingStore } from '@/store/useMeetingStore'
 import { useOwnerStore } from '@/store/useOwnerStore'
 import { useActivityStore } from '@/store/useActivityStore'
 import { useTeamStore } from '@/store/useTeamStore'
+import { useOperationalAlerts } from '@/hooks/useOperationalAlerts'
 
 export function AppLayout() {
+  useOperationalAlerts()
   const location     = useLocation()
   const [cmdOpen, setCmdOpen] = useState(false)
   const initDeals             = useDealStore((s) => s.initialize)

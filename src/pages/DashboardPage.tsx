@@ -298,6 +298,51 @@ export function DashboardPage() {
     })
   }, [deals, activeDeals])
 
+  // ── Avg days per stage (P5.2) ──────────────────────────────────────────────
+
+  const avgDaysPerStage = useMemo(() => STAGES.filter((s) => !s.is_closed).map((stage) => {
+    const sd = activeDeals.filter((d) => d.stage_id === stage.id)
+    const avg = sd.length > 0 ? Math.round(sd.reduce((s, d) => s + d.days_in_stage, 0) / sd.length) : null
+    return { stage, avg, count: sd.length }
+  }), [activeDeals])
+
+  // ── Inactive leads — no activity for 21+ days (P5.4) ──────────────────────
+
+  const inactiveDeals = useMemo(() => {
+    const cutoff = new Date(Date.now() - 21 * 86_400_000).toISOString()
+    return activeDeals
+      .filter((d) => !d.last_activity_at || d.last_activity_at < cutoff)
+      .sort((a, b) => {
+        if (!a.last_activity_at) return -1
+        if (!b.last_activity_at) return 1
+        return a.last_activity_at.localeCompare(b.last_activity_at)
+      })
+      .slice(0, 6)
+  }, [activeDeals])
+
+  // ── Active leads per owner + conversion rate (P5.3) ───────────────────────
+
+  const ownerStats = useMemo(() => {
+    const map = new Map<string, {
+      name: string; color: string; initials: string
+      active: number; wonCount: number; lostCount: number; wonValue: number
+    }>()
+    deals.forEach((d) => {
+      const key = d.owner_id
+      if (!map.has(key)) map.set(key, { name: d.owner?.name ?? '—', color: d.owner?.avatar_color ?? '#888', initials: d.owner?.initials ?? '?', active: 0, wonCount: 0, lostCount: 0, wonValue: 0 })
+      const e = map.get(key)!
+      if (d.stage_id === 'closed_won')       { e.wonCount++; e.wonValue += Number(d.value) }
+      else if (d.stage_id === 'closed_lost') { e.lostCount++ }
+      else                                   { e.active++ }
+    })
+    return [...map.entries()]
+      .map(([id, v]) => ({
+        id, ...v,
+        convRate: v.wonCount + v.lostCount > 0 ? Math.round((v.wonCount / (v.wonCount + v.lostCount)) * 100) : null,
+      }))
+      .sort((a, b) => b.active - a.active)
+  }, [deals])
+
   // ── Theme ──────────────────────────────────────────────────────────────────
 
   const cardBg  = isDark ? '#161614' : '#ffffff'
@@ -617,6 +662,52 @@ export function DashboardPage() {
                 })}
               </div>
             </div>
+
+            {/* Leads sem atividade recente */}
+            {inactiveDeals.length > 0 && (
+              <div style={{ backgroundColor: cardBg, border: `1px solid ${isDark ? '#4a2a1a' : '#fed7aa'}`, borderRadius: '8px', overflow: 'hidden' }}>
+                <div style={{ padding: '12px 18px', borderBottom: `1px solid ${border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <AlertTriangle style={{ width: '12px', height: '12px', color: '#b45309' }} />
+                    <p style={{ fontSize: '11px', fontWeight: 700, color: text }}>Leads Sem Atividade</p>
+                    <span style={{ fontSize: '9px', fontWeight: 700, color: '#b45309', backgroundColor: isDark ? '#2a1a0a' : '#fef3c7', borderRadius: '4px', padding: '1px 5px' }}>
+                      +21 dias
+                    </span>
+                  </div>
+                  <span style={{ fontSize: '10px', color: muted }}>{inactiveDeals.length} leads</span>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)' }}>
+                  {inactiveDeals.map((deal, i) => {
+                    const daysSince = deal.last_activity_at
+                      ? Math.round((Date.now() - new Date(deal.last_activity_at).getTime()) / 86_400_000)
+                      : null
+                    const stage = STAGES.find((s) => s.id === deal.stage_id)
+                    const isLast = i >= inactiveDeals.length - 2
+                    return (
+                      <button key={deal.id} type="button" onClick={() => navigate(`/deal/${deal.id}`)}
+                        style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 18px', backgroundColor: 'transparent', cursor: 'pointer', textAlign: 'left', border: 'none', borderBottom: isLast ? 'none' : `1px solid ${border}`, borderRight: i % 2 === 0 ? `1px solid ${border}` : 'none', transition: 'background-color 0.1s ease' }}
+                        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = trackBg)}
+                        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                      >
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <p style={{ fontSize: '12px', fontWeight: 600, color: text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{deal.company_name}</p>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginTop: '2px' }}>
+                            {stage && <span style={{ fontSize: '9px', fontWeight: 600, color: stage.color }}>{stage.label}</span>}
+                            <span style={{ fontSize: '9px', color: muted }}>·</span>
+                            <span style={{ fontSize: '10px', color: '#b45309', fontWeight: 600 }}>
+                              {daysSince === null ? 'nunca' : `${daysSince}d sem atividade`}
+                            </span>
+                          </div>
+                        </div>
+                        <div style={{ width: '22px', height: '22px', borderRadius: '50%', backgroundColor: deal.owner.avatar_color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '7px', fontWeight: 700, flexShrink: 0 }} title={deal.owner.name}>
+                          {deal.owner.initials}
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
           </>
         )}
 
@@ -673,38 +764,38 @@ export function DashboardPage() {
             {/* Ranking + Histórico de Won */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
 
-              {/* Ranking de Responsáveis */}
+              {/* Performance por Operador */}
               <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '8px', padding: '18px 20px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
                   <Trophy style={{ width: '13px', height: '13px', color: '#b45309' }} />
-                  <p style={{ fontSize: '11px', fontWeight: 700, color: text }}>Ranking — Valor Fechado</p>
+                  <p style={{ fontSize: '11px', fontWeight: 700, color: text }}>Performance por Operador</p>
                 </div>
-                {ownerRanking.length === 0 ? (
-                  <p style={{ fontSize: '12px', color: muted, textAlign: 'center', padding: '20px 0' }}>Sem deals fechados ainda</p>
+                {ownerStats.length === 0 ? (
+                  <p style={{ fontSize: '12px', color: muted, textAlign: 'center', padding: '20px 0' }}>Sem dados ainda</p>
                 ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    {ownerRanking.map((owner, i) => {
-                      const barW = maxRankValue > 0 ? Math.round((owner.wonValue / maxRankValue) * 100) : 0
-                      const medalColors = ['#b45309', '#6b6560', '#8b6914']
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {ownerStats.map((o) => {
+                      const maxActive = Math.max(...ownerStats.map((x) => x.active), 1)
+                      const barW = Math.round((o.active / maxActive) * 100)
                       return (
-                        <div key={owner.id}>
+                        <div key={o.id}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '5px' }}>
-                            <span style={{ fontSize: '10px', fontWeight: 700, color: i < 3 ? medalColors[i] : muted, width: '16px', textAlign: 'center', flexShrink: 0 }}>
-                              #{i + 1}
-                            </span>
-                            <div style={{ width: '22px', height: '22px', borderRadius: '50%', backgroundColor: owner.color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '7px', fontWeight: 700, flexShrink: 0 }}>
-                              {owner.initials}
+                            <div style={{ width: '22px', height: '22px', borderRadius: '50%', backgroundColor: o.color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '7px', fontWeight: 700, flexShrink: 0 }}>
+                              {o.initials}
                             </div>
                             <span style={{ fontSize: '12px', fontWeight: 500, color: text, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                              {owner.name.split(' ')[0]}
+                              {o.name.split(' ')[0]}
                             </span>
-                            <span style={{ fontSize: '9px', color: muted, flexShrink: 0 }}>{owner.wonCount} deal{owner.wonCount !== 1 ? 's' : ''}</span>
-                            <span style={{ fontSize: '12px', fontWeight: 700, color: '#2d9e6b', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
-                              {fmt(owner.wonValue)}
-                            </span>
+                            <span style={{ fontSize: '10px', color: muted, flexShrink: 0 }} title="Leads ativos">{o.active} ativos</span>
+                            {o.convRate !== null && (
+                              <span style={{ fontSize: '10px', fontWeight: 700, color: o.convRate >= 50 ? '#2d9e6b' : '#b45309', flexShrink: 0 }} title="Taxa de conversão">
+                                {o.convRate}% conv.
+                              </span>
+                            )}
+                            <span style={{ fontSize: '10px', fontWeight: 700, color: '#2d9e6b', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>{fmt(o.wonValue)}</span>
                           </div>
-                          <div style={{ height: '3px', borderRadius: '99px', backgroundColor: trackBg, overflow: 'hidden', marginLeft: '24px' }}>
-                            <div style={{ height: '100%', borderRadius: '99px', width: `${barW}%`, backgroundColor: i === 0 ? '#2d9e6b' : '#4a9080', transition: 'width 0.5s ease' }} />
+                          <div style={{ height: '3px', borderRadius: '99px', backgroundColor: trackBg, overflow: 'hidden' }}>
+                            <div style={{ height: '100%', borderRadius: '99px', width: `${barW}%`, backgroundColor: '#4a7c8a', transition: 'width 0.5s ease' }} />
                           </div>
                         </div>
                       )
@@ -775,24 +866,39 @@ export function DashboardPage() {
                 </div>
               </div>
 
-              {/* Métricas de ciclo */}
+              {/* Tempo médio por etapa */}
               <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '8px', padding: '18px 20px' }}>
-                <p style={{ fontSize: '11px', fontWeight: 700, color: text, marginBottom: '14px' }}>Métricas de Ciclo & Eficiência</p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  {[
-                    { label: 'Ciclo médio pipeline ativo', value: `${avgCycle}d`, sub: 'dias no estágio atual', color: text },
-                    { label: 'Win Rate (taxa de fechamento)', value: `${winRate}%`, sub: `${closedWon.length} de ${closedWon.length + closedLost.length} finalizados`, color: winRate >= 50 ? '#2d9e6b' : isDark ? '#fc8181' : '#c53030' },
-                    { label: 'Deals perdidos', value: closedLost.length.toString(), sub: `${fmt(lostTotal)} em valor`, color: isDark ? '#fc8181' : '#c53030' },
-                    { label: 'Deals em pipeline ativo', value: activeDeals.length.toString(), sub: `${fmt(pipelineTotal)} total`, color: '#4a7c8a' },
-                  ].map(({ label, value, sub, color }) => (
-                    <div key={label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', backgroundColor: isDark ? '#111110' : '#f8f7f4', borderRadius: '6px' }}>
-                      <div>
-                        <p style={{ fontSize: '11px', fontWeight: 500, color: text }}>{label}</p>
-                        <p style={{ fontSize: '10px', color: muted, marginTop: '2px' }}>{sub}</p>
+                <p style={{ fontSize: '11px', fontWeight: 700, color: text, marginBottom: '4px' }}>Tempo Médio por Etapa</p>
+                <p style={{ fontSize: '10px', color: muted, marginBottom: '14px' }}>Gargalos do pipeline — dias médios na etapa</p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {avgDaysPerStage.map(({ stage, avg, count }) => {
+                    const maxAvg = Math.max(...avgDaysPerStage.map((x) => x.avg ?? 0), 1)
+                    const barW   = avg !== null ? Math.round((avg / maxAvg) * 100) : 0
+                    const isHot  = avg !== null && avg > 60
+                    return (
+                      <div key={stage.id}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: stage.color, flexShrink: 0 }} />
+                            <span style={{ fontSize: '11px', color: text }}>{stage.label}</span>
+                          </div>
+                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                            <span style={{ fontSize: '10px', color: muted }}>{count} lead{count !== 1 ? 's' : ''}</span>
+                            <span style={{ fontSize: '11px', fontWeight: 700, color: isHot ? (isDark ? '#fc8181' : '#c53030') : text, fontVariantNumeric: 'tabular-nums' }}>
+                              {avg !== null ? `${avg}d` : '—'}
+                            </span>
+                          </div>
+                        </div>
+                        <div style={{ height: '3px', borderRadius: '99px', backgroundColor: trackBg, overflow: 'hidden' }}>
+                          <div style={{ height: '100%', borderRadius: '99px', width: `${barW}%`, backgroundColor: isHot ? (isDark ? '#c53030' : '#ef4444') : stage.color, opacity: 0.8, transition: 'width 0.5s ease' }} />
+                        </div>
                       </div>
-                      <p style={{ fontSize: '18px', fontWeight: 700, color, fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>{value}</p>
-                    </div>
-                  ))}
+                    )
+                  })}
+                </div>
+                <div style={{ marginTop: '14px', paddingTop: '10px', borderTop: `1px solid ${border}`, display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: '10px', color: muted }}>Ciclo médio geral</span>
+                  <span style={{ fontSize: '11px', fontWeight: 700, color: text }}>{avgCycle}d</span>
                 </div>
               </div>
             </div>

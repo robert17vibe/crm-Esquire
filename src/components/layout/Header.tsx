@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react'
-import { Bell, Moon, Sun, Settings, LogOut, User } from 'lucide-react'
+import { Bell, Moon, Sun, Settings, LogOut, User, AlertTriangle, Clock } from 'lucide-react'
+import type { NotificationType } from '@/store/useNotificationStore'
 import { useNavigate } from 'react-router-dom'
 import { useThemeStore } from '@/store/useThemeStore'
 import { useAuthStore } from '@/store/useAuthStore'
@@ -105,21 +106,26 @@ function NotificationPanel({
                 onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = hover)}
                 onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = n.read ? 'transparent' : (isDark ? '#1a1a18' : '#f8f7f4'))}
               >
-                <div style={{
-                  width: '28px', height: '28px', borderRadius: '50%', flexShrink: 0,
-                  backgroundColor: isDark ? '#1e2e24' : '#e6f2ee',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}>
-                  <User style={{ width: '12px', height: '12px', color: '#2c5545' }} />
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ fontSize: '12px', fontWeight: n.read ? 500 : 700, color: text, lineHeight: 1.3 }}>
-                    Novo lead criado
-                  </p>
-                  <p style={{ fontSize: '11px', color: muted, marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {n.dealName}
-                  </p>
-                </div>
+                {(() => {
+                  const cfg: Record<NotificationType, { icon: typeof User; color: string; bg: string; label: string }> = {
+                    new_deal:         { icon: User,          color: '#2c5545', bg: isDark ? '#1e2e24' : '#e6f2ee', label: 'Novo lead criado' },
+                    overdue_activity: { icon: AlertTriangle, color: '#c53030', bg: isDark ? '#2d1515' : '#fee2e2', label: 'Atividade vencida' },
+                    sla_breach:       { icon: Clock,         color: '#b45309', bg: isDark ? '#2a1a0a' : '#fef3c7', label: 'SLA em risco' },
+                  }
+                  const { icon: Icon, color, bg, label } = cfg[n.type] ?? cfg.new_deal
+                  return (
+                    <>
+                      <div style={{ width: '28px', height: '28px', borderRadius: '50%', flexShrink: 0, backgroundColor: bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Icon style={{ width: '12px', height: '12px', color }} />
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ fontSize: '12px', fontWeight: n.read ? 500 : 700, color: text, lineHeight: 1.3 }}>{label}</p>
+                        <p style={{ fontSize: '11px', color: muted, marginTop: '1px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n.dealName}</p>
+                        {n.meta && <p style={{ fontSize: '10px', color, marginTop: '1px' }}>{n.meta}</p>}
+                      </div>
+                    </>
+                  )
+                })()}
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px', flexShrink: 0 }}>
                   <span style={{ fontSize: '10px', color: muted }}>{fmtTime(n.createdAt)}</span>
                   {!n.read && (

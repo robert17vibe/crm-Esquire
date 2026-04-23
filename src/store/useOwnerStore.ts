@@ -11,6 +11,7 @@ interface OwnerStore {
   subscribeRealtime: () => () => void
   getById: (ownerId: string, fallbackName?: string) => Owner
   setOwnerTeam: (ownerId: string, teamId: string | null) => Promise<void>
+  getRoundRobinOwner: (activeDealsByOwner: Record<string, number>, teamId?: string) => Owner | null
 }
 
 export const useOwnerStore = create<OwnerStore>((set, get) => ({
@@ -41,6 +42,14 @@ export const useOwnerStore = create<OwnerStore>((set, get) => ({
   getById: (ownerId, fallbackName) => {
     const owner = get().owners.find((item) => item.id === ownerId)
     return owner ?? buildOwnerFallback(ownerId, fallbackName)
+  },
+
+  getRoundRobinOwner: (activeDealsByOwner, teamId) => {
+    const pool = get().owners.filter((o) => !teamId || o.team_id === teamId)
+    if (pool.length === 0) return get().owners[0] ?? null
+    return pool.reduce((least, o) =>
+      (activeDealsByOwner[o.id] ?? 0) < (activeDealsByOwner[least.id] ?? 0) ? o : least
+    )
   },
 
   setOwnerTeam: async (ownerId, teamId) => {

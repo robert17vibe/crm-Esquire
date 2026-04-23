@@ -646,6 +646,8 @@ export function DealDetailPage() {
 
   const [activeTab, setActiveTab] = useState<'dados' | 'historico' | 'notas' | 'proposta'>('dados')
   const [showStageMenu, setShowStageMenu] = useState(false)
+  const [pendingLossStage, setPendingLossStage] = useState(false)
+  const [lossReasonDraft, setLossReasonDraft]   = useState('')
 
   const [showAddActivity, setShowAddActivity] = useState(false)
   const setNextActivity    = useDealStore((s) => s.setNextActivity)
@@ -810,77 +812,112 @@ export function DealDetailPage() {
 
       {/* ── Page header ── */}
       <div style={{
-        height: '52px', minHeight: '52px', display: 'flex', alignItems: 'center',
-        justifyContent: 'space-between', padding: '0 20px',
-        borderBottom: `1px solid ${border}`, flexShrink: 0, gap: '12px',
+        height: '48px', minHeight: '48px', display: 'flex', alignItems: 'center',
+        padding: '0 20px', borderBottom: `1px solid ${border}`, flexShrink: 0, gap: '8px',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
-          <button type="button" onClick={() => navigate('/pipeline')} style={{
-            display: 'flex', alignItems: 'center', gap: '4px',
-            fontSize: '13px', color: muted, background: 'none', border: 'none', cursor: 'pointer', flexShrink: 0,
-          }}>
-            <ArrowLeft style={{ width: '14px', height: '14px' }} />
-            Pipeline
-          </button>
-          <span style={{ fontSize: '13px', color: border, flexShrink: 0 }}>/</span>
-          <p style={{ fontSize: '14px', fontWeight: 600, color: text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {deal.title}
-          </p>
-          {stage && (
-            <div style={{ position: 'relative', flexShrink: 0 }}>
+        <button type="button" onClick={() => navigate('/pipeline')} style={{
+          display: 'flex', alignItems: 'center', gap: '4px',
+          fontSize: '13px', color: muted, background: 'none', border: 'none', cursor: 'pointer', flexShrink: 0,
+        }}>
+          <ArrowLeft style={{ width: '14px', height: '14px' }} />
+          Pipeline
+        </button>
+        <span style={{ fontSize: '13px', color: border, flexShrink: 0 }}>/</span>
+        <p style={{ fontSize: '14px', fontWeight: 600, color: text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>
+          {deal.title}
+        </p>
+      </div>
+
+      {/* ── Stage selector strip ── */}
+      <div style={{
+        flexShrink: 0, padding: '10px 20px 0',
+        display: 'flex', flexDirection: 'column', gap: '0',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', overflowX: 'auto', paddingBottom: '10px' }}>
+          {STAGES.map((s, idx) => {
+            const isActive = deal.stage_id === s.id
+            const isPrev   = STAGES.findIndex((st) => st.id === deal.stage_id) > idx
+            return (
               <button
-                type="button"
-                onClick={() => setShowStageMenu((v) => !v)}
-                style={{
-                  display: 'inline-flex', alignItems: 'center', gap: '5px',
-                  fontSize: '11px', fontWeight: 600, color: stageColor,
-                  backgroundColor: `${stageColor}14`, borderRadius: '99px', padding: '3px 10px',
-                  border: `1px solid ${stageColor}30`, cursor: 'pointer',
+                key={s.id} type="button"
+                onClick={() => {
+                  if (s.id === deal.stage_id) return
+                  if (s.id === 'closed_lost') {
+                    setPendingLossStage(true)
+                    setLossReasonDraft('')
+                  } else {
+                    moveDeal(deal.id, s.id)
+                  }
                 }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '5px',
+                  height: '30px', padding: '0 12px', borderRadius: '6px', whiteSpace: 'nowrap',
+                  fontSize: '11px', fontWeight: isActive ? 700 : 500,
+                  color: isActive ? s.color : isPrev ? (isDark ? '#5a5855' : '#aaa9a6') : (isDark ? '#8a8785' : '#6b6560'),
+                  backgroundColor: isActive ? `${s.color}18` : 'transparent',
+                  border: isActive ? `1.5px solid ${s.color}50` : `1.5px solid transparent`,
+                  cursor: s.id === deal.stage_id ? 'default' : 'pointer',
+                  transition: 'all 0.15s ease',
+                  flexShrink: 0,
+                }}
+                onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.backgroundColor = isDark ? '#1e1e1c' : '#f0eeea' }}
+                onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.backgroundColor = 'transparent' }}
               >
-                <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: stageColor }} />
-                {stage.label}
-                <ChevronDown style={{ width: '9px', height: '9px', opacity: 0.7 }} />
+                {isActive && <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: s.color, flexShrink: 0 }} />}
+                {s.label}
               </button>
-              {showStageMenu && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setShowStageMenu(false)} />
-                  <div style={{
-                    position: 'absolute', top: '100%', left: 0, marginTop: '4px', zIndex: 50,
-                    backgroundColor: isDark ? '#1a1a18' : '#ffffff',
-                    border: `1px solid ${border}`, borderRadius: '8px',
-                    boxShadow: isDark ? '0 8px 24px rgba(0,0,0,0.5)' : '0 8px 24px rgba(0,0,0,0.12)',
-                    overflow: 'hidden', minWidth: '160px',
-                  }}>
-                    {STAGES.map((s) => (
-                      <button
-                        key={s.id} type="button"
-                        onClick={() => {
-                          if (s.id !== deal.stage_id) moveDeal(deal.id, s.id)
-                          setShowStageMenu(false)
-                        }}
-                        style={{
-                          display: 'flex', alignItems: 'center', gap: '8px',
-                          width: '100%', padding: '8px 12px', textAlign: 'left',
-                          fontSize: '12px', fontWeight: s.id === deal.stage_id ? 700 : 500,
-                          color: s.id === deal.stage_id ? s.color : (isDark ? '#c8d0da' : '#334155'),
-                          backgroundColor: s.id === deal.stage_id ? `${s.color}10` : 'transparent',
-                          border: 'none', cursor: 'pointer',
-                        }}
-                        onMouseEnter={(e) => { if (s.id !== deal.stage_id) e.currentTarget.style.backgroundColor = isDark ? '#242422' : '#f5f4f0' }}
-                        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = s.id === deal.stage_id ? `${s.color}10` : 'transparent' }}
-                      >
-                        <span style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: s.color, flexShrink: 0 }} />
-                        {s.label}
-                        {s.id === deal.stage_id && <span style={{ marginLeft: 'auto', fontSize: '10px', color: s.color }}>✓</span>}
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
-          )}
+            )
+          })}
         </div>
+
+        {/* Inline loss reason picker */}
+        {pendingLossStage && (
+          <div style={{
+            backgroundColor: isDark ? '#1a1210' : '#fff5f5',
+            border: `1px solid ${isDark ? '#4a2020' : '#fecaca'}`,
+            borderRadius: '8px', padding: '12px 14px', marginBottom: '10px',
+            display: 'flex', flexDirection: 'column', gap: '8px',
+          }}>
+            <p style={{ fontSize: '11px', fontWeight: 700, color: '#c53030', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+              Motivo da perda
+            </p>
+            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+              {['Preço', 'Concorrência', 'Timing', 'Sem budget', 'Sem fit', 'Sem resposta', 'Outro'].map((r) => (
+                <button key={r} type="button" onClick={() => setLossReasonDraft(r)}
+                  style={{
+                    fontSize: '11px', fontWeight: 600, padding: '4px 10px', borderRadius: '5px', cursor: 'pointer',
+                    border: `1px solid ${lossReasonDraft === r ? '#c53030' : (isDark ? '#3a2a2a' : '#fecaca')}`,
+                    backgroundColor: lossReasonDraft === r ? '#c5303018' : 'transparent',
+                    color: lossReasonDraft === r ? '#c53030' : (isDark ? '#9a7070' : '#b45309'),
+                  }}>{r}</button>
+              ))}
+            </div>
+            <input type="text" value={lossReasonDraft} onChange={(e) => setLossReasonDraft(e.target.value)}
+              placeholder="Ou descreva o motivo..."
+              style={{ height: '32px', padding: '0 10px', fontSize: '12px', backgroundColor: isDark ? '#110e0e' : '#fef2f2', border: `1px solid ${isDark ? '#4a2020' : '#fecaca'}`, borderRadius: '5px', color: text, outline: 'none' }} />
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+              <button type="button" onClick={() => setPendingLossStage(false)}
+                style={{ fontSize: '12px', fontWeight: 600, color: muted, background: 'none', border: 'none', cursor: 'pointer', padding: '5px 10px' }}>
+                Cancelar
+              </button>
+              <button type="button"
+                disabled={!lossReasonDraft.trim()}
+                onClick={() => {
+                  moveDeal(deal.id, 'closed_lost')
+                  setPendingLossStage(false)
+                  setLossReasonDraft('')
+                }}
+                style={{
+                  fontSize: '12px', fontWeight: 600, padding: '5px 14px', borderRadius: '6px', border: 'none', cursor: lossReasonDraft.trim() ? 'pointer' : 'not-allowed',
+                  backgroundColor: lossReasonDraft.trim() ? '#c53030' : (isDark ? '#2a2a28' : '#e4e0da'),
+                  color: lossReasonDraft.trim() ? '#fff' : muted,
+                }}>
+                Confirmar perda
+              </button>
+            </div>
+          </div>
+        )}
+        <div style={{ height: '1px', backgroundColor: border }} />
       </div>
 
       {/* ── 3-column body ── */}
@@ -895,80 +932,27 @@ export function DealDetailPage() {
           width: `${leftColWidth}px`, minWidth: `${leftColWidth}px`, flexShrink: 0,
           backgroundColor: sideBg, overflowY: 'auto',
         }}>
-          <div style={{ padding: '20px 18px' }}>
+          <div style={{ padding: '16px 14px' }}>
 
-            <div style={{
-              width: '44px', height: '44px', borderRadius: '50%', backgroundColor: avatarColor,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: '#fff', fontSize: '16px', fontWeight: 700,
-            }}>
-              {initials}
-            </div>
-
-            <p style={{ fontSize: '16px', fontWeight: 700, color: text, marginTop: '10px', lineHeight: 1.25 }}>
-              {contactName}
-            </p>
-            {deal.contact_title && (
-              <p style={{ fontSize: '12px', color: muted, marginTop: '2px' }}>{deal.contact_title}</p>
-            )}
-            <p style={{ fontSize: '13px', fontWeight: 600, color: '#2c5545', marginTop: '2px' }}>
-              {deal.company_name}
-            </p>
-            {tag && (
-              <span style={{
-                display: 'inline-block', fontSize: '10px', fontWeight: 700,
-                color: stageColor, backgroundColor: `${stageColor}12`,
-                border: `1px solid ${stageColor}30`, borderRadius: '4px',
-                padding: '2px 8px', marginTop: '8px',
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
+              <div style={{
+                width: '36px', height: '36px', borderRadius: '50%', backgroundColor: avatarColor, flexShrink: 0,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: '#fff', fontSize: '13px', fontWeight: 700,
               }}>
-                {tag}
-              </span>
-            )}
-
-            {/* Summary grid — editável */}
-            <div style={{
-              backgroundColor: isDark ? '#1a1a18' : '#f0eeea',
-              borderRadius: '8px', padding: '12px 14px', marginTop: '14px',
-              display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px',
-            }}>
-              <div>
-                <p style={{ fontSize: '9px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '3px' }}>Valor</p>
-                {editingField === 'value' ? (
-                  <input type="number" autoFocus value={editDraft} onChange={(e) => setEditDraft(e.target.value)}
-                    onBlur={() => saveField({ value: Number(editDraft) || deal.value })}
-                    onKeyDown={(e) => { if (e.key === 'Enter') saveField({ value: Number(editDraft) || deal.value }); if (e.key === 'Escape') cancelEdit() }}
-                    style={{ width: '100%', fontSize: '12px', fontWeight: 700, backgroundColor: inputBg, border: `1px solid ${border}`, borderRadius: '4px', padding: '2px 5px', color: text, outline: 'none' }} />
-                ) : (
-                  <p onClick={() => startEdit('value', String(deal.value))} style={{ fontSize: '13px', fontWeight: 700, color: text, lineHeight: 1.2, fontVariantNumeric: 'tabular-nums', cursor: 'pointer', borderBottom: `1px dashed ${border}` }} title="Clique para editar">{formatCurrency(deal.value)}</p>
-                )}
+                {initials}
               </div>
-              <div>
-                <p style={{ fontSize: '9px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '3px' }}>Probabilidade</p>
-                {editingField === 'probability' ? (
-                  <input type="number" autoFocus min={0} max={100} value={editDraft} onChange={(e) => setEditDraft(e.target.value)}
-                    onBlur={() => saveField({ probability: Math.min(100, Math.max(0, Number(editDraft))) })}
-                    onKeyDown={(e) => { if (e.key === 'Enter') saveField({ probability: Math.min(100, Math.max(0, Number(editDraft))) }); if (e.key === 'Escape') cancelEdit() }}
-                    style={{ width: '100%', fontSize: '12px', fontWeight: 700, backgroundColor: inputBg, border: `1px solid ${border}`, borderRadius: '4px', padding: '2px 5px', color: text, outline: 'none' }} />
-                ) : (
-                  <p onClick={() => startEdit('probability', String(deal.probability))} style={{ fontSize: '13px', fontWeight: 700, color: text, lineHeight: 1.2, cursor: 'pointer', borderBottom: `1px dashed ${border}` }} title="Clique para editar">{deal.probability}%</p>
-                )}
-              </div>
-              <div>
-                <p style={{ fontSize: '9px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '3px' }}>Dias na etapa</p>
-                <p style={{ fontSize: '13px', fontWeight: 700, color: deal.days_in_stage > 90 ? '#c53030' : text, lineHeight: 1.2 }}>{deal.days_in_stage}d</p>
-              </div>
-              <div>
-                <p style={{ fontSize: '9px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '3px' }}>Previsão</p>
-                {editingField === 'expected_close' ? (
-                  <input type="date" autoFocus value={editDraft} onChange={(e) => setEditDraft(e.target.value)}
-                    onBlur={() => saveField({ expected_close: editDraft || undefined })}
-                    onKeyDown={(e) => { if (e.key === 'Enter') saveField({ expected_close: editDraft || undefined }); if (e.key === 'Escape') cancelEdit() }}
-                    style={{ width: '100%', fontSize: '11px', fontWeight: 700, backgroundColor: inputBg, border: `1px solid ${border}`, borderRadius: '4px', padding: '2px 5px', color: text, outline: 'none', colorScheme: isDark ? 'dark' : 'light' }} />
-                ) : (
-                  <p onClick={() => startEdit('expected_close', deal.expected_close ?? '')} style={{ fontSize: '13px', fontWeight: 700, color: text, lineHeight: 1.2, cursor: 'pointer', borderBottom: `1px dashed ${border}` }} title="Clique para editar">{formatDate(deal.expected_close)}</p>
-                )}
+              <div style={{ minWidth: 0 }}>
+                <p style={{ fontSize: '13px', fontWeight: 700, color: text, lineHeight: 1.25, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {contactName}
+                </p>
+                <p style={{ fontSize: '11px', fontWeight: 500, color: '#2c5545', marginTop: '1px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {deal.company_name}
+                </p>
               </div>
             </div>
+
+            <div style={{ height: '1px', backgroundColor: border, marginBottom: '12px' }} />
 
             {/* ── Próxima atividade (editable) ── */}
             <div style={{ marginBottom: '10px' }}>
@@ -1183,7 +1167,7 @@ export function DealDetailPage() {
                 {/* Lead */}
                 <SectionHead title="Lead" border={border} muted={muted} />
                 <div style={{ marginBottom: '10px' }}>
-                  <p style={{ fontSize: '10px', fontWeight: 600, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '4px' }}>Responsável</p>
+                  <p style={{ fontSize: '10px', fontWeight: 600, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '4px' }}>Proprietário</p>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <div style={{ width: '22px', height: '22px', borderRadius: '50%', backgroundColor: owner.avatar_color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '8px', fontWeight: 700, flexShrink: 0 }}>{owner.initials}</div>
                     <span style={{ fontSize: '13px', fontWeight: 500, color: text }}>{owner.name}</span>
