@@ -400,10 +400,10 @@ export function NewLeadModal({ open, onClose, onCreated }: Props) {
             <Row>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
-                  <FLabel htmlFor="owner_id" required style={{ margin: 0 }}>Responsável</FLabel>
+                  <FLabel htmlFor="owner_id" required>Responsável</FLabel>
                   <button type="button" onClick={() => setAutoAssign((v) => !v)}
-                    style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', fontWeight: 600, color: autoAssign ? '#2c5545' : T.muted, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-                    <span style={{ width: '24px', height: '13px', borderRadius: '99px', backgroundColor: autoAssign ? '#2c5545' : T.line, position: 'relative', transition: 'background-color 0.2s', display: 'inline-block', flexShrink: 0 }}>
+                    style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', fontWeight: 600, color: autoAssign ? '#2c5545' : '#8a857d', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                    <span style={{ width: '24px', height: '13px', borderRadius: '99px', backgroundColor: autoAssign ? '#2c5545' : '#c4bfb8', position: 'relative', transition: 'background-color 0.2s', display: 'inline-block', flexShrink: 0 }}>
                       <span style={{ position: 'absolute', top: '2px', left: autoAssign ? '13px' : '2px', width: '9px', height: '9px', borderRadius: '50%', backgroundColor: '#fff', transition: 'left 0.2s' }} />
                     </span>
                     Auto

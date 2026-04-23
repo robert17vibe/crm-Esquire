@@ -61,7 +61,7 @@ function AvatarCircle({
 export function UserAvatar({
   name, initials, color, email,
   size = 'sm',
-  showEmail = false,
+  showEmail: _showEmail = false,
   showTooltip = true,
   style,
 }: UserAvatarProps) {

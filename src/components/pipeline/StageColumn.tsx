@@ -12,7 +12,7 @@ interface StageColumnProps {
   onMoveDeal: (dealId: string, targetStage: StageId) => void
 }
 
-export function StageColumn({ stage, deals, dimmedIds, onMoveDeal }: StageColumnProps) {
+export function StageColumn({ stage, deals, dimmedIds, onMoveDeal: _onMoveDeal }: StageColumnProps) {
   // Attach droppable to the outer column so even empty columns are a large drop target
   const { setNodeRef, isOver } = useDroppable({ id: stage.id })
   const isDark = useThemeStore((s) => s.isDark)

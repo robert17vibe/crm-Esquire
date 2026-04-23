@@ -53,7 +53,7 @@ export function KanbanBoard({
   onNewDealConsumed,
   pendingUpdatedDeal,
   onUpdatedDealConsumed,
-  onEditDeal,
+  onEditDeal: _onEditDeal,
   onDeleteDeal,
   onStageChange,
   onLossReasonConfirmed,
@@ -280,7 +280,7 @@ export function KanbanBoard({
 
   // ── Delete from board ─────────────────────────────────────────────────────
 
-  const handleDeleteDeal = useCallback((dealId: string) => {
+  const _handleDeleteDeal = useCallback((dealId: string) => {
     setGrouped((prev) => {
       const next = { ...prev }
       for (const sid of Object.keys(next) as StageId[]) {

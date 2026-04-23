@@ -285,7 +285,7 @@ export function DashboardPage() {
       .sort((a, b) => b.wonValue - a.wonValue)
   }, [closedWon])
 
-  const maxRankValue = ownerRanking.length > 0 ? ownerRanking[0].wonValue : 1
+  const _maxRankValue = ownerRanking.length > 0 ? ownerRanking[0].wonValue : 1
 
   // ── Stage conversion rates ─────────────────────────────────────────────────
 

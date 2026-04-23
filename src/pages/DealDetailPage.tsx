@@ -379,6 +379,125 @@ function healthScore(deal: Deal): number {
   return Math.min(Math.max(score, 0), 100)
 }
 
+function TemperatureSlider({
+  value, onChange, isDark, border, cardBg,
+}: {
+  value: 'hot' | 'warm' | 'cold' | null
+  onChange: (v: 'hot' | 'warm' | 'cold' | null) => void
+  isDark: boolean
+  border: string
+  cardBg: string
+}) {
+  const muted = isDark ? '#5a5652' : '#8a857d'
+  const text  = isDark ? '#e8e4dc' : '#1a1814'
+
+  // slider: 0=cold, 50=warm, 100=hot
+  const valueToSlider = { cold: 0, warm: 50, hot: 100, null: 50 } as const
+  const sliderVal = value ? valueToSlider[value] : valueToSlider.null
+
+  function sliderToValue(n: number): 'cold' | 'warm' | 'hot' {
+    if (n <= 25) return 'cold'
+    if (n <= 75) return 'warm'
+    return 'hot'
+  }
+
+  const cfg = {
+    hot:  { emoji: '🔥', label: 'Quente', color: '#dc2626', track: 'linear-gradient(to right, #60a5fa, #fbbf24, #ef4444)' },
+    warm: { emoji: '🌡',  label: 'Morno',  color: '#b45309', track: 'linear-gradient(to right, #60a5fa, #fbbf24, #ef4444)' },
+    cold: { emoji: '🧊', label: 'Frio',   color: '#3b82f6', track: 'linear-gradient(to right, #60a5fa, #fbbf24, #ef4444)' },
+  }
+
+  const current = value ? cfg[value] : null
+
+  return (
+    <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '8px', padding: '14px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+        <p style={{ fontSize: '10px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+          Temperatura
+        </p>
+        {current && (
+          <span style={{ fontSize: '12px', fontWeight: 700, color: current.color, display: 'flex', alignItems: 'center', gap: '4px' }}>
+            {current.emoji} {current.label}
+          </span>
+        )}
+        {!current && (
+          <span style={{ fontSize: '11px', color: muted }}>Não definida</span>
+        )}
+      </div>
+
+      {/* Track labels */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+        <span style={{ fontSize: '10px', color: '#3b82f6' }}>🧊 Frio</span>
+        <span style={{ fontSize: '10px', color: '#b45309' }}>🌡 Morno</span>
+        <span style={{ fontSize: '10px', color: '#dc2626' }}>🔥 Quente</span>
+      </div>
+
+      {/* Slider */}
+      <div style={{ position: 'relative', paddingBottom: '4px' }}>
+        <div style={{
+          position: 'absolute', top: '50%', left: 0, right: 0, height: '6px',
+          transform: 'translateY(-50%)',
+          borderRadius: '3px',
+          background: 'linear-gradient(to right, #3b82f6 0%, #60a5fa 25%, #fbbf24 50%, #f97316 75%, #ef4444 100%)',
+          pointerEvents: 'none',
+        }} />
+        <input
+          type="range"
+          min={0}
+          max={100}
+          step={1}
+          value={sliderVal}
+          onChange={(e) => onChange(sliderToValue(Number(e.target.value)))}
+          style={{
+            width: '100%',
+            appearance: 'none',
+            WebkitAppearance: 'none',
+            height: '6px',
+            borderRadius: '3px',
+            background: 'transparent',
+            cursor: 'pointer',
+            position: 'relative',
+            zIndex: 1,
+          }}
+        />
+      </div>
+
+      {/* Clear button */}
+      {value && (
+        <button
+          type="button"
+          onClick={() => onChange(null)}
+          style={{ marginTop: '8px', fontSize: '10px', color: muted, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+        >
+          Limpar
+        </button>
+      )}
+
+      <style>{`
+        input[type=range]::-webkit-slider-thumb {
+          -webkit-appearance: none;
+          width: 16px;
+          height: 16px;
+          border-radius: 50%;
+          background: ${isDark ? '#e8e4dc' : '#ffffff'};
+          border: 2px solid ${current ? current.color : (isDark ? '#5a5652' : '#c4bfb8')};
+          box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+          cursor: pointer;
+        }
+        input[type=range]::-moz-range-thumb {
+          width: 16px;
+          height: 16px;
+          border-radius: 50%;
+          background: ${isDark ? '#e8e4dc' : '#ffffff'};
+          border: 2px solid ${current ? current.color : (isDark ? '#5a5652' : '#c4bfb8')};
+          box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+          cursor: pointer;
+        }
+      `}</style>
+    </div>
+  )
+}
+
 function HealthBar({ score, isDark }: { score: number; isDark: boolean }) {
   const color = score >= 70 ? '#2d9e6b' : score >= 40 ? '#b45309' : '#c53030'
   const label = score >= 70 ? 'Saudável' : score >= 40 ? 'Atenção' : 'Risco'
@@ -645,7 +764,7 @@ export function DealDetailPage() {
   const setRightColWidth = useAppStore((s) => s.setRightColWidth)
 
   const [activeTab, setActiveTab] = useState<'dados' | 'historico' | 'notas' | 'proposta'>('dados')
-  const [showStageMenu, setShowStageMenu] = useState(false)
+  const [_showStageMenu, _setShowStageMenu] = useState(false)
   const [pendingLossStage, setPendingLossStage] = useState(false)
   const [lossReasonDraft, setLossReasonDraft]   = useState('')
 
@@ -783,9 +902,9 @@ export function DealDetailPage() {
     )
   }
 
-  const stageColor  = getStageColor(deal.stage_id)
-  const stage       = STAGES.find((s) => s.id === deal.stage_id)
-  const tag         = (deal.tags as string[] | null)?.[0]
+  const _stageColor = getStageColor(deal.stage_id)
+  const _stage      = STAGES.find((s) => s.id === deal.stage_id)
+  const _tag        = (deal.tags as string[] | null)?.[0]
 
   const contactName = deal.contact_name ?? deal.company_name ?? ''
   const initials    = contactName
@@ -1173,31 +1292,6 @@ export function DealDetailPage() {
                     <span style={{ fontSize: '13px', fontWeight: 500, color: text }}>{owner.name}</span>
                   </div>
                 </div>
-                {/* Temperatura do lead */}
-                <div style={{ marginBottom: '10px' }}>
-                  <p style={{ fontSize: '10px', fontWeight: 600, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '4px' }}>Temperatura</p>
-                  <div style={{ display: 'flex', gap: '6px' }}>
-                    {([
-                      { value: 'hot',  emoji: '🔥', label: 'Quente', color: '#dc2626', bg: '#fee2e2' },
-                      { value: 'warm', emoji: '🌡',  label: 'Morno',  color: '#b45309', bg: '#fef3c7' },
-                      { value: 'cold', emoji: '🧊', label: 'Frio',   color: '#4a7c8a', bg: '#e0f2fe' },
-                    ] as const).map((t) => {
-                      const active = deal.lead_temperature === t.value
-                      return (
-                        <button key={t.value} type="button"
-                          onClick={() => saveField({ lead_temperature: active ? null : t.value } as Parameters<typeof saveField>[0])}
-                          style={{
-                            display: 'flex', alignItems: 'center', gap: '4px',
-                            fontSize: '11px', fontWeight: 600, padding: '4px 8px', borderRadius: '5px', cursor: 'pointer',
-                            border: `1px solid ${active ? t.color : border}`,
-                            backgroundColor: active ? t.bg : 'transparent',
-                            color: active ? t.color : muted,
-                          }}
-                        >{t.emoji} {t.label}</button>
-                      )
-                    })}
-                  </div>
-                </div>
                 {deal.lead_source && <Field label="Origem" icon={MapPin} muted={muted} text={text}>{deal.lead_source}</Field>}
                 {teams.length > 0 && (
                   <div style={{ marginBottom: '10px' }}>
@@ -1282,6 +1376,15 @@ export function DealDetailPage() {
           </div>
 
           <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+
+            {/* Temperatura slider */}
+            <TemperatureSlider
+              value={deal.lead_temperature ?? null}
+              onChange={(v) => saveField({ lead_temperature: v } as Parameters<typeof saveField>[0])}
+              isDark={isDark}
+              border={border}
+              cardBg={cardBg}
+            />
 
             {/* Lead health */}
             <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '8px', padding: '14px' }}>

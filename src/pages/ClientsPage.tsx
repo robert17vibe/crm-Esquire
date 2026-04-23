@@ -166,7 +166,7 @@ export function ClientsPage() {
             </div>
 
             {filtered.map((company) => {
-              const latestDeal  = company.deals.find((d) => !['closed_won', 'closed_lost'].includes(d.stage_id))
+              const _latestDeal = company.deals.find((d) => !['closed_won', 'closed_lost'].includes(d.stage_id))
               const stage       = STAGES.find((s) => s.id === company.latestStage)
               const ownerColors = [...new Set(
                 company.deals

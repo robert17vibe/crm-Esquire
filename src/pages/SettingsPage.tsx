@@ -2,7 +2,7 @@ import { useState } from 'react'
 import {
   Moon, Sun, Target, Bell, BellOff, LayoutGrid, Eye, RefreshCw,
   DollarSign, Check, User, Palette, Mail, Shield, Keyboard,
-  Zap, GitBranch, Clock, AlertCircle, Users, Info, Plus, Trash2,
+  Zap, GitBranch, Clock, AlertCircle, Users, Plus, Trash2,
 } from 'lucide-react'
 import { useThemeStore } from '@/store/useThemeStore'
 import { useSettingsStore } from '@/store/useSettingsStore'
