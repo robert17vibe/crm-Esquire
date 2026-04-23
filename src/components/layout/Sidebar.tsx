@@ -1,9 +1,10 @@
 import { useState, useRef, useLayoutEffect, useEffect, useMemo } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
-import { LayoutDashboard, Kanban, Users, Mic, CalendarDays, Settings, LogOut, Users2, Shield } from 'lucide-react'
+import { LayoutDashboard, Kanban, Users, Mic, CalendarDays, CheckSquare, Settings, LogOut, Users2, Shield } from 'lucide-react'
 import { useThemeStore } from '@/store/useThemeStore'
 import { useAuthStore } from '@/store/useAuthStore'
 import { useDealStore } from '@/store/useDealStore'
+import { useTaskStore } from '@/store/useTaskStore'
 
 function hashColor(name: string): string {
   let h = 0
@@ -16,6 +17,7 @@ const NAV_ITEMS = [
   { to: '/dashboard', label: 'Dashboard',  icon: LayoutDashboard },
   { to: '/pipeline',  label: 'Jornada',    icon: Kanban          },
   { to: '/clients',   label: 'Clientes',   icon: Users           },
+  { to: '/tarefas',   label: 'Tarefas',    icon: CheckSquare     },
   { to: '/meetings',  label: 'Registro',   icon: Mic             },
   { to: '/calendar',  label: 'Calendário', icon: CalendarDays    },
 ] as const
@@ -148,6 +150,7 @@ export function Sidebar() {
   const signOut  = useAuthStore((s) => s.signOut)
   const profile  = useAuthStore((s) => s.profile)
   const deals    = useDealStore((s) => s.deals)
+  const tasks    = useTaskStore((s) => s.tasks)
 
   const today = new Date().toISOString().slice(0, 10)
   const overdueCount = useMemo(() =>
@@ -157,6 +160,11 @@ export function Sidebar() {
       d.next_activity.due_date < today
     ).length,
     [deals, today],
+  )
+
+  const overdueTaskCount = useMemo(() =>
+    tasks.filter((t) => !t.completed_at && !!t.due_date && t.due_date < today).length,
+    [tasks, today],
   )
 
   const displayName     = profile?.full_name || 'Robert Ferreira'
@@ -287,7 +295,7 @@ export function Sidebar() {
               icon={icon}
               activeItemBg={activeItemBg}
               collapsed={collapsed}
-              badge={to === '/pipeline' ? overdueCount : undefined}
+              badge={to === '/pipeline' ? overdueCount : to === '/tarefas' ? overdueTaskCount : undefined}
             />
           </div>
         ))}

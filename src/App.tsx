@@ -20,6 +20,7 @@ const CalendarPage     = lazy(() => import('@/pages/CalendarPage').then((m) => (
 const SettingsPage     = lazy(() => import('@/pages/SettingsPage').then((m) => ({ default: m.SettingsPage })))
 const DealDetailPage   = lazy(() => import('@/pages/DealDetailPage').then((m) => ({ default: m.DealDetailPage })))
 const TeamsPage        = lazy(() => import('@/pages/TeamsPage').then((m) => ({ default: m.TeamsPage })))
+const TasksPage        = lazy(() => import('@/pages/TasksPage').then((m) => ({ default: m.TasksPage })))
 const AdminUsersPage      = lazy(() => import('@/pages/AdminUsersPage').then((m) => ({ default: m.AdminUsersPage })))
 const LandingPage         = lazy(() => import('@/pages/LandingPage').then((m) => ({ default: m.LandingPage })))
 const LoginPage        = lazy(() => import('@/pages/LoginPage').then((m) => ({ default: m.LoginPage })))
@@ -84,6 +85,7 @@ export default function App() {
         <Route path="/clients"   element={<ClientsPage />} />
         <Route path="/meetings"  element={<MeetingsPage />} />
         <Route path="/calendar"  element={<CalendarPage />} />
+        <Route path="/tarefas"   element={<TasksPage />} />
         <Route path="/settings"  element={<SettingsPage />} />
         <Route path="/deal/:id"  element={<DealDetailPage />} />
         <Route element={<AdminGuard />}>

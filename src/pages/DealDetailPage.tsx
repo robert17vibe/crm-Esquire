@@ -12,6 +12,7 @@ import { useThemeStore } from '@/store/useThemeStore'
 import { useActivityStore } from '@/store/useActivityStore'
 import { useMeetingStore } from '@/store/useMeetingStore'
 import { useAppStore } from '@/store/useAppStore'
+import { useTaskStore } from '@/store/useTaskStore'
 import { STAGES } from '@/constants/pipeline'
 import { supabase } from '@/lib/supabase'
 import { fetchDealEvents } from '@/services/deal-events.service'
@@ -791,7 +792,12 @@ export function DealDetailPage() {
   const [pendingLossStage, setPendingLossStage] = useState(false)
   const [lossReasonDraft, setLossReasonDraft]   = useState('')
 
+  const createTask = useTaskStore((s) => s.create)
   const [showAddActivity, setShowAddActivity] = useState(false)
+  const [showQuickTask, setShowQuickTask] = useState(false)
+  const [quickTaskTitle, setQuickTaskTitle] = useState('')
+  const [quickTaskDate, setQuickTaskDate]   = useState('')
+  const [savingQuickTask, setSavingQuickTask] = useState(false)
   const setNextActivity    = useDealStore((s) => s.setNextActivity)
   const patchDealFields    = useDealStore((s) => s.patchDealFields)
   const [editingNextAct, setEditingNextAct]   = useState(false)
@@ -1229,20 +1235,36 @@ export function DealDetailPage() {
               </button>
             ))}
             {activeTab === 'historico' && (
-              <button
-                type="button"
-                onClick={() => setShowAddActivity((v) => !v)}
-                style={{
-                  marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '5px',
-                  fontSize: '11px', fontWeight: 600,
-                  color: showAddActivity ? muted : (isDark ? '#e8e4dc' : '#1a1814'),
-                  backgroundColor: showAddActivity ? 'transparent' : (isDark ? '#1e1e1c' : '#f0eeea'),
-                  border: `1px solid ${border}`, borderRadius: '6px',
-                  padding: '4px 10px', cursor: 'pointer', flexShrink: 0,
-                }}
-              >
-                {showAddActivity ? <><X style={{ width: '10px', height: '10px' }} />Cancelar</> : <><Plus style={{ width: '10px', height: '10px' }} />Registrar</>}
-              </button>
+              <div style={{ marginLeft: 'auto', display: 'flex', gap: '6px', flexShrink: 0 }}>
+                <button
+                  type="button"
+                  onClick={() => { setShowQuickTask((v) => !v); setShowAddActivity(false) }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '5px',
+                    fontSize: '11px', fontWeight: 600,
+                    color: showQuickTask ? muted : '#2c5545',
+                    backgroundColor: showQuickTask ? 'transparent' : (isDark ? '#1a2e22' : '#e6f2ee'),
+                    border: `1px solid ${showQuickTask ? border : '#2c554530'}`, borderRadius: '6px',
+                    padding: '4px 10px', cursor: 'pointer',
+                  }}
+                >
+                  {showQuickTask ? <><X style={{ width: '10px', height: '10px' }} />Cancelar</> : <><Plus style={{ width: '10px', height: '10px' }} />Tarefa</>}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setShowAddActivity((v) => !v); setShowQuickTask(false) }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '5px',
+                    fontSize: '11px', fontWeight: 600,
+                    color: showAddActivity ? muted : (isDark ? '#e8e4dc' : '#1a1814'),
+                    backgroundColor: showAddActivity ? 'transparent' : (isDark ? '#1e1e1c' : '#f0eeea'),
+                    border: `1px solid ${border}`, borderRadius: '6px',
+                    padding: '4px 10px', cursor: 'pointer',
+                  }}
+                >
+                  {showAddActivity ? <><X style={{ width: '10px', height: '10px' }} />Cancelar</> : <><Plus style={{ width: '10px', height: '10px' }} />Registrar</>}
+                </button>
+              </div>
             )}
           </div>
 
@@ -1332,6 +1354,54 @@ export function DealDetailPage() {
             {/* ── Histórico tab ── */}
             {activeTab === 'historico' && (
               <div style={{ padding: '20px 24px' }}>
+                {showQuickTask && (
+                  <div style={{
+                    marginBottom: '16px', padding: '12px', borderRadius: '8px',
+                    border: `1px solid ${border}`, backgroundColor: isDark ? '#111110' : '#fafaf8',
+                  }}>
+                    <p style={{ fontSize: '11px', fontWeight: 600, color: muted, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Nova Tarefa</p>
+                    <input
+                      autoFocus
+                      type="text"
+                      value={quickTaskTitle}
+                      onChange={(e) => setQuickTaskTitle(e.target.value)}
+                      onKeyDown={async (e) => {
+                        if (e.key === 'Enter' && quickTaskTitle.trim()) {
+                          setSavingQuickTask(true)
+                          await createTask({ title: quickTaskTitle.trim(), deal_id: deal.id, due_date: quickTaskDate || undefined, priority: 'medium', task_type: 'other' })
+                          setSavingQuickTask(false)
+                          setQuickTaskTitle(''); setQuickTaskDate(''); setShowQuickTask(false)
+                        }
+                        if (e.key === 'Escape') setShowQuickTask(false)
+                      }}
+                      placeholder="O que precisa ser feito?"
+                      style={{ width: '100%', height: '32px', padding: '0 10px', fontSize: '12px', backgroundColor: inputBg, border: `1px solid ${border}`, borderRadius: '6px', color: text, outline: 'none', marginBottom: '8px' }}
+                    />
+                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
+                      {[
+                        { label: 'Hoje',    value: new Date().toISOString().slice(0, 10) },
+                        { label: 'Amanhã',  value: (() => { const d = new Date(); d.setDate(d.getDate() + 1); return d.toISOString().slice(0, 10) })() },
+                        { label: 'Próx. semana', value: (() => { const d = new Date(); d.setDate(d.getDate() + 7); return d.toISOString().slice(0, 10) })() },
+                      ].map(({ label, value }) => (
+                        <button key={value} type="button"
+                          onClick={() => setQuickTaskDate(quickTaskDate === value ? '' : value)}
+                          style={{ height: '24px', padding: '0 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 500, cursor: 'pointer', backgroundColor: quickTaskDate === value ? '#2c5545' : 'transparent', color: quickTaskDate === value ? '#fff' : muted, border: `1px solid ${quickTaskDate === value ? '#2c5545' : border}` }}
+                        >{label}</button>
+                      ))}
+                      <button type="button"
+                        disabled={!quickTaskTitle.trim() || savingQuickTask}
+                        onClick={async () => {
+                          if (!quickTaskTitle.trim()) return
+                          setSavingQuickTask(true)
+                          await createTask({ title: quickTaskTitle.trim(), deal_id: deal.id, due_date: quickTaskDate || undefined, priority: 'medium', task_type: 'other' })
+                          setSavingQuickTask(false)
+                          setQuickTaskTitle(''); setQuickTaskDate(''); setShowQuickTask(false)
+                        }}
+                        style={{ height: '24px', padding: '0 10px', borderRadius: '4px', fontSize: '10px', fontWeight: 600, cursor: 'pointer', backgroundColor: '#2c5545', color: '#fff', border: 'none', marginLeft: 'auto', opacity: quickTaskTitle.trim() ? 1 : 0.5 }}
+                      >{savingQuickTask ? '...' : 'Criar tarefa'}</button>
+                    </div>
+                  </div>
+                )}
                 {showAddActivity && (
                   <AddActivityForm dealId={deal.id} owner={owner} onClose={() => setShowAddActivity(false)} isDark={isDark} />
                 )}

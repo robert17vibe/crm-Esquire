@@ -3,11 +3,12 @@ import { useNavigate } from 'react-router-dom'
 import {
   TrendingUp, Briefcase, Target, DollarSign, Clock, Award,
   ArrowRight, AlertTriangle, Video, Phone, CheckSquare, Mail,
-  GripVertical, Trophy, BarChart2, Percent,
+  GripVertical, Trophy, BarChart2, Percent, Check,
 } from 'lucide-react'
 import { useDealStore } from '@/store/useDealStore'
 import { useThemeStore } from '@/store/useThemeStore'
 import { useSettingsStore } from '@/store/useSettingsStore'
+import { useTaskStore } from '@/store/useTaskStore'
 import { STAGES } from '@/constants/pipeline'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -889,6 +890,108 @@ export function DashboardPage() {
           </>
         )}
 
+        {/* ── Próximas Tarefas ── */}
+        <TasksWidget isDark={isDark} border={border} text={text} muted={muted} cardBg={cardBg} navigate={navigate} />
+
+      </div>
+    </div>
+  )
+}
+
+// ─── Tasks Widget ─────────────────────────────────────────────────────────────
+
+function TasksWidget({ isDark, border, text, muted, cardBg, navigate }: {
+  isDark: boolean; border: string; text: string; muted: string; cardBg: string
+  navigate: ReturnType<typeof useNavigate>
+}) {
+  const tasks    = useTaskStore((s) => s.tasks)
+  const complete = useTaskStore((s) => s.complete)
+
+  const today = new Date().toISOString().slice(0, 10)
+
+  const upcoming = useMemo(() => {
+    const pending = tasks.filter((t) => !t.completed_at)
+    const overdue = pending.filter((t) => t.due_date && t.due_date < today)
+    const todayT  = pending.filter((t) => t.due_date === today)
+    const future  = pending.filter((t) => !t.due_date || t.due_date > today)
+    return [...overdue, ...todayT, ...future].slice(0, 5)
+  }, [tasks, today])
+
+  if (upcoming.length === 0) return null
+
+  const hoverBg = isDark ? '#1c1c1a' : '#f8f7f4'
+
+  return (
+    <div style={{ marginTop: '16px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+        <p style={{ fontSize: '10px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+          Próximas Tarefas
+        </p>
+        <button
+          type="button"
+          onClick={() => navigate('/tarefas')}
+          style={{ fontSize: '10px', color: muted, background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px' }}
+        >
+          Ver todas <ArrowRight style={{ width: '10px', height: '10px' }} />
+        </button>
+      </div>
+
+      <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '8px', overflow: 'hidden' }}>
+        {upcoming.map((task, i) => {
+          const isOverdue = !!task.due_date && task.due_date < today
+          const isToday   = task.due_date === today
+
+          return (
+            <div
+              key={task.id}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '10px',
+                padding: '9px 14px',
+                borderBottom: i < upcoming.length - 1 ? `1px solid ${border}` : 'none',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = hoverBg)}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+            >
+              <button
+                type="button"
+                onClick={() => complete(task.id)}
+                style={{
+                  width: '16px', height: '16px', borderRadius: '4px', flexShrink: 0,
+                  border: `2px solid ${border}`, backgroundColor: 'transparent',
+                  cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#2d9e6b'; e.currentTarget.style.backgroundColor = '#2d9e6b20' }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = border; e.currentTarget.style.backgroundColor = 'transparent' }}
+              >
+                <Check style={{ width: '9px', height: '9px', color: '#2d9e6b', opacity: 0 }}
+                  onMouseEnter={(e) => ((e.currentTarget as SVGElement).style.opacity = '1')}
+                />
+              </button>
+
+              <p style={{
+                flex: 1, fontSize: '12px', fontWeight: 500, color: text,
+                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              }}>
+                {task.title}
+              </p>
+
+              {task.deal_title && (
+                <span style={{ fontSize: '10px', color: muted, flexShrink: 0, maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {task.deal_title}
+                </span>
+              )}
+
+              {task.due_date && (
+                <span style={{
+                  fontSize: '10px', flexShrink: 0, fontWeight: 600,
+                  color: isOverdue ? '#dc2626' : isToday ? '#b45309' : muted,
+                }}>
+                  {isOverdue ? '⚠ ' : ''}{isToday ? 'Hoje' : new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short' }).format(new Date(task.due_date + 'T12:00:00'))}
+                </span>
+              )}
+            </div>
+          )
+        })}
       </div>
     </div>
   )
