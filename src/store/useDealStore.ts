@@ -4,6 +4,7 @@ import { DEFAULT_PROBABILITIES, STAGES } from '@/constants/pipeline'
 import { useToastStore } from '@/store/useToastStore'
 import { useNotificationStore } from '@/store/useNotificationStore'
 import { useOwnerStore } from '@/store/useOwnerStore'
+import { useWebhookStore } from '@/store/useWebhookStore'
 import { fetchDeals, insertDeal, patchDeal, removeDeal } from '@/services/deal.service'
 import { supabase } from '@/lib/supabase'
 import type { Deal, NextActivity } from '@/types/deal.types'
@@ -148,6 +149,7 @@ export const useDealStore = create<DealStore>((set, get) => ({
       persistDeals(next)
       useToastStore.getState().addToast(`Lead criado — ${values.company_name}`, 'success')
       useNotificationStore.getState().addNotification(confirmed.id, values.company_name)
+      useWebhookStore.getState().fire('deal.created', { id: confirmed.id, title: confirmed.title, company_name: confirmed.company_name, stage_id: confirmed.stage_id, owner_id: confirmed.owner_id, value: confirmed.value })
       return confirmed
     } catch {
       // Revert optimistic
@@ -214,7 +216,10 @@ export const useDealStore = create<DealStore>((set, get) => ({
 
     try {
       await removeDeal(id)
-      if (deal) useToastStore.getState().addToast(`Lead removido — ${deal.company_name}`, 'error')
+      if (deal) {
+        useToastStore.getState().addToast(`Lead removido — ${deal.company_name}`, 'error')
+        useWebhookStore.getState().fire('deal.deleted', { id: deal.id, company_name: deal.company_name })
+      }
     } catch {
       set({ deals: prev })
       persistDeals(prev)
@@ -236,6 +241,7 @@ export const useDealStore = create<DealStore>((set, get) => ({
       if (deal) {
         const stageLabel = STAGES.find((s) => s.id === stageId)?.label ?? stageId
         useToastStore.getState().addToast(`${deal.company_name} → ${stageLabel}`, 'info')
+        useWebhookStore.getState().fire('deal.stage_changed', { id: deal.id, company_name: deal.company_name, from_stage: deal.stage_id, to_stage: stageId })
       }
     } catch {
       set({ deals: prev })

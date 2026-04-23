@@ -1,15 +1,5 @@
 import { useState } from 'react'
 import { useWebhookStore, type WebhookEvent } from '@/store/useWebhookStore'
-import { supabase } from '@/lib/supabase'
-import { useToastStore } from '@/store/useToastStore'
-
-interface IntakeForm {
-  id: string
-  token: string
-  name: string
-  active: boolean
-  created_at: string
-}
 
 const EVENT_LABELS: Record<WebhookEvent, string> = {
   'deal.created': 'Lead criado',
@@ -20,7 +10,7 @@ const EVENT_LABELS: Record<WebhookEvent, string> = {
 const accent = '#2c5545'
 
 export function IntegrationsPage() {
-  const [tab, setTab] = useState<'webhooks' | 'forms' | 'api'>('webhooks')
+  const [tab, setTab] = useState<'webhooks' | 'api'>('webhooks')
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -33,8 +23,8 @@ export function IntegrationsPage() {
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: '4px', borderBottom: '1px solid var(--color-border)' }}>
-        {(['webhooks', 'forms', 'api'] as const).map((t) => {
-          const labels = { webhooks: 'Webhooks', forms: 'Formulários', api: 'API' }
+        {(['webhooks', 'api'] as const).map((t) => {
+          const labels = { webhooks: 'Webhooks', api: 'API' }
           return (
             <button
               key={t}
@@ -55,7 +45,6 @@ export function IntegrationsPage() {
 
       <div style={{ flex: 1, overflow: 'auto' }}>
         {tab === 'webhooks' && <WebhooksTab />}
-        {tab === 'forms' && <FormsTab />}
         {tab === 'api' && <ApiTab />}
       </div>
     </div>
@@ -215,156 +204,6 @@ function WebhooksTab() {
       {configs.length === 0 && (
         <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--color-text-muted)', fontSize: '13px' }}>
           Nenhum webhook configurado ainda.
-        </div>
-      )}
-    </div>
-  )
-}
-
-/* ─── Intake Forms ──────────────────────────────────────────────────────────── */
-
-function FormsTab() {
-  const addToast = useToastStore((s) => s.addToast)
-  const [forms, setForms] = useState<IntakeForm[]>([])
-  const [loaded, setLoaded] = useState(false)
-  const [newName, setNewName] = useState('')
-  const [saving, setSaving] = useState(false)
-
-  useState(() => {
-    supabase.from('intake_forms').select('*').order('created_at', { ascending: false }).then(({ data }) => {
-      setForms((data ?? []) as IntakeForm[])
-      setLoaded(true)
-    })
-  })
-
-  async function createForm() {
-    if (!newName.trim()) return
-    setSaving(true)
-    const { data, error } = await supabase
-      .from('intake_forms')
-      .insert({ name: newName.trim(), owner_id: 'admin', stage_id: 'leads' })
-      .select()
-      .single()
-    if (!error && data) {
-      setForms((prev) => [data as IntakeForm, ...prev])
-      addToast(`Formulário "${newName.trim()}" criado`, 'success')
-      setNewName('')
-    }
-    setSaving(false)
-  }
-
-  async function toggleForm(id: string, active: boolean) {
-    await supabase.from('intake_forms').update({ active }).eq('id', id)
-    setForms((prev) => prev.map((f) => f.id === id ? { ...f, active } : f))
-  }
-
-  async function deleteForm(id: string) {
-    await supabase.from('intake_forms').delete().eq('id', id)
-    setForms((prev) => prev.filter((f) => f.id !== id))
-    addToast('Formulário removido', 'info')
-  }
-
-  const baseUrl = window.location.origin
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', maxWidth: '720px' }}>
-      {/* Create */}
-      <div style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '10px', padding: '20px' }}>
-        <p style={{ fontSize: '14px', fontWeight: 700, color: 'var(--color-text-primary)', marginBottom: '12px' }}>
-          Criar formulário público
-        </p>
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <input
-            type="text"
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && createForm()}
-            placeholder="Ex: Site principal, Landing page campanha"
-            style={{
-              flex: 1, height: '38px', padding: '0 12px', fontSize: '13px',
-              border: '1px solid var(--color-border)', borderRadius: '7px',
-              background: 'var(--color-bg)', color: 'var(--color-text-primary)', outline: 'none',
-            }}
-          />
-          <button
-            onClick={createForm}
-            disabled={saving || !newName.trim()}
-            style={{
-              padding: '0 18px', height: '38px', borderRadius: '7px', border: 'none',
-              backgroundColor: newName.trim() ? accent : 'var(--color-border)',
-              color: newName.trim() ? '#fff' : 'var(--color-text-muted)',
-              fontSize: '13px', fontWeight: 600, cursor: 'pointer',
-            }}
-          >
-            {saving ? '...' : 'Criar'}
-          </button>
-        </div>
-      </div>
-
-      {/* List */}
-      {!loaded ? (
-        <p style={{ fontSize: '13px', color: 'var(--color-text-muted)' }}>A carregar...</p>
-      ) : forms.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--color-text-muted)', fontSize: '13px' }}>
-          Nenhum formulário criado ainda.
-        </div>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {forms.map((form) => {
-            const link = `${baseUrl}/intake/${form.token}`
-            return (
-              <div
-                key={form.id}
-                style={{
-                  backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)',
-                  borderRadius: '8px', padding: '14px 16px',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                  <p style={{ fontSize: '14px', fontWeight: 700, color: 'var(--color-text-primary)' }}>{form.name}</p>
-                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '12px', color: 'var(--color-text-muted)' }}>
-                      <input
-                        type="checkbox"
-                        checked={form.active}
-                        onChange={(e) => toggleForm(form.id, e.target.checked)}
-                        style={{ accentColor: accent }}
-                      />
-                      Ativo
-                    </label>
-                    <button
-                      onClick={() => deleteForm(form.id)}
-                      style={{
-                        padding: '4px 10px', borderRadius: '6px', border: '1px solid #fca5a5',
-                        backgroundColor: 'transparent', color: '#dc2626', fontSize: '12px', cursor: 'pointer',
-                      }}
-                    >
-                      Remover
-                    </button>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <code style={{
-                    flex: 1, fontSize: '11px', padding: '6px 10px', borderRadius: '5px',
-                    backgroundColor: 'var(--color-bg)', border: '1px solid var(--color-border)',
-                    color: 'var(--color-text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                  }}>
-                    {link}
-                  </code>
-                  <button
-                    onClick={() => { navigator.clipboard.writeText(link); }}
-                    style={{
-                      padding: '4px 10px', borderRadius: '6px', border: '1px solid var(--color-border)',
-                      backgroundColor: 'transparent', color: 'var(--color-text-muted)', fontSize: '12px', cursor: 'pointer',
-                      flexShrink: 0,
-                    }}
-                  >
-                    Copiar link
-                  </button>
-                </div>
-              </div>
-            )
-          })}
         </div>
       )}
     </div>

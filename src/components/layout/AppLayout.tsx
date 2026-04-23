@@ -10,6 +10,7 @@ import { useMeetingStore } from '@/store/useMeetingStore'
 import { useOwnerStore } from '@/store/useOwnerStore'
 import { useActivityStore } from '@/store/useActivityStore'
 import { useTeamStore } from '@/store/useTeamStore'
+import { useWebhookStore } from '@/store/useWebhookStore'
 import { useOperationalAlerts } from '@/hooks/useOperationalAlerts'
 
 export function AppLayout() {
@@ -24,12 +25,14 @@ export function AppLayout() {
   const subscribeOwners       = useOwnerStore((s) => s.subscribeRealtime)
   const subscribeActivities   = useActivityStore((s) => s.subscribeRealtime)
   const initTeams             = useTeamStore((s) => s.initialize)
+  const initWebhooks          = useWebhookStore((s) => s.initialize)
 
   useEffect(() => {
     initOwners()
     initDeals()
     initMeetings()
     initTeams()
+    initWebhooks().catch(() => {})
     const unsubDeals       = subscribeDeals()
     const unsubMeetings    = subscribeMeetings()
     const unsubOwners      = subscribeOwners()
