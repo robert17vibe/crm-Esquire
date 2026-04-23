@@ -1173,6 +1173,31 @@ export function DealDetailPage() {
                     <span style={{ fontSize: '13px', fontWeight: 500, color: text }}>{owner.name}</span>
                   </div>
                 </div>
+                {/* Temperatura do lead */}
+                <div style={{ marginBottom: '10px' }}>
+                  <p style={{ fontSize: '10px', fontWeight: 600, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '4px' }}>Temperatura</p>
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    {([
+                      { value: 'hot',  emoji: '🔥', label: 'Quente', color: '#dc2626', bg: '#fee2e2' },
+                      { value: 'warm', emoji: '🌡',  label: 'Morno',  color: '#b45309', bg: '#fef3c7' },
+                      { value: 'cold', emoji: '🧊', label: 'Frio',   color: '#4a7c8a', bg: '#e0f2fe' },
+                    ] as const).map((t) => {
+                      const active = deal.lead_temperature === t.value
+                      return (
+                        <button key={t.value} type="button"
+                          onClick={() => saveField({ lead_temperature: active ? null : t.value } as Parameters<typeof saveField>[0])}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: '4px',
+                            fontSize: '11px', fontWeight: 600, padding: '4px 8px', borderRadius: '5px', cursor: 'pointer',
+                            border: `1px solid ${active ? t.color : border}`,
+                            backgroundColor: active ? t.bg : 'transparent',
+                            color: active ? t.color : muted,
+                          }}
+                        >{t.emoji} {t.label}</button>
+                      )
+                    })}
+                  </div>
+                </div>
                 {deal.lead_source && <Field label="Origem" icon={MapPin} muted={muted} text={text}>{deal.lead_source}</Field>}
                 {teams.length > 0 && (
                   <div style={{ marginBottom: '10px' }}>

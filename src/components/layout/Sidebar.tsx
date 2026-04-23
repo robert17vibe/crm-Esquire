@@ -20,7 +20,7 @@ const NAV_ITEMS = [
   { to: '/calendar',  label: 'Calendário', icon: CalendarDays    },
 ] as const
 
-type NavTo = (typeof NAV_ITEMS)[number]['to'] | '/teams'
+type NavTo = (typeof NAV_ITEMS)[number]['to'] | '/teams' | '/admin/users'
 
 // ─── Nav item ─────────────────────────────────────────────────────────────────
 
@@ -301,6 +301,31 @@ export function Sidebar() {
                 Admin
               </span>
             )}
+            <div ref={(el) => { if (el) wrapperRefs.current['/admin/users' as NavTo] = el }}>
+              <NavLink
+                to="/admin/users"
+                title={collapsed ? 'Utilizadores' : undefined}
+                className="sidebar-nav-item"
+                style={({ isActive }) => ({
+                  display: 'flex', alignItems: 'center', height: '36px',
+                  padding: collapsed ? '0' : '0 12px',
+                  justifyContent: collapsed ? 'center' : 'flex-start',
+                  borderRadius: '6px', gap: collapsed ? 0 : '10px',
+                  fontSize: '13px', fontWeight: 500, textDecoration: 'none',
+                  userSelect: 'none', cursor: 'pointer',
+                  transition: 'background-color 0.2s ease, color 0.2s ease',
+                  backgroundColor: isActive ? activeItemBg : 'transparent',
+                  color: isActive ? '#f0ede5' : '#9a9a9a',
+                })}
+              >
+                {({ isActive }) => (
+                  <>
+                    <Shield style={{ width: '16px', height: '16px', color: isActive ? '#f0ede5' : '#9a9a9a', transition: 'color 0.2s ease', flexShrink: 0 }} />
+                    {!collapsed && <span className="sidebar-label" style={{ flex: 1 }}>Utilizadores</span>}
+                  </>
+                )}
+              </NavLink>
+            </div>
             <div ref={(el) => { if (el) wrapperRefs.current['/teams' as NavTo] = el }}>
               <NavLink
                 to="/teams"

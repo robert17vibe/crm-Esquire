@@ -1,8 +1,16 @@
 import { useEffect, lazy, Suspense } from 'react'
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, Outlet } from 'react-router-dom'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { useThemeStore } from '@/store/useThemeStore'
 import { useAuthStore } from '@/store/useAuthStore'
+
+function AdminGuard() {
+  const profile = useAuthStore((s) => s.profile)
+  if (!profile) return null
+  return (profile.is_admin || profile.role === 'admin')
+    ? <Outlet />
+    : <Navigate to="/dashboard" replace />
+}
 
 const DashboardPage    = lazy(() => import('@/pages/DashboardPage').then((m) => ({ default: m.DashboardPage })))
 const PipelinePage     = lazy(() => import('@/pages/PipelinePage').then((m) => ({ default: m.PipelinePage })))
@@ -12,6 +20,7 @@ const CalendarPage     = lazy(() => import('@/pages/CalendarPage').then((m) => (
 const SettingsPage     = lazy(() => import('@/pages/SettingsPage').then((m) => ({ default: m.SettingsPage })))
 const DealDetailPage   = lazy(() => import('@/pages/DealDetailPage').then((m) => ({ default: m.DealDetailPage })))
 const TeamsPage        = lazy(() => import('@/pages/TeamsPage').then((m) => ({ default: m.TeamsPage })))
+const AdminUsersPage   = lazy(() => import('@/pages/AdminUsersPage').then((m) => ({ default: m.AdminUsersPage })))
 const LandingPage      = lazy(() => import('@/pages/LandingPage').then((m) => ({ default: m.LandingPage })))
 const LoginPage        = lazy(() => import('@/pages/LoginPage').then((m) => ({ default: m.LoginPage })))
 const ForgotPasswordPage = lazy(() => import('@/pages/ForgotPasswordPage').then((m) => ({ default: m.ForgotPasswordPage })))
@@ -77,7 +86,10 @@ export default function App() {
         <Route path="/calendar"  element={<CalendarPage />} />
         <Route path="/settings"  element={<SettingsPage />} />
         <Route path="/deal/:id"  element={<DealDetailPage />} />
-        <Route path="/teams"     element={<TeamsPage />} />
+        <Route element={<AdminGuard />}>
+          <Route path="/teams"     element={<TeamsPage />} />
+          <Route path="/admin/users" element={<AdminUsersPage />} />
+        </Route>
       </Route>
       <Route path="*" element={<Navigate to={session ? '/dashboard' : '/login'} replace />} />
     </Routes>

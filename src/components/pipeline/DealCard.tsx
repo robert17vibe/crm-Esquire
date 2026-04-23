@@ -38,6 +38,13 @@ export function DealCard({ deal, isOverlay = false, dimmed = false }: DealCardPr
   const tag        = deal.tags?.[0]
   const tagStyle   = tag ? getTagStyle(tag) : null
 
+  const tempCfg = {
+    hot:  { label: '🔥', title: 'Lead quente',  color: '#dc2626', bg: '#fee2e2' },
+    warm: { label: '🌡',  title: 'Lead morno',   color: '#b45309', bg: '#fef3c7' },
+    cold: { label: '🧊', title: 'Lead frio',    color: '#4a7c8a', bg: '#e0f2fe' },
+  } as const
+  const tempDisplay = deal.lead_temperature ? tempCfg[deal.lead_temperature] : null
+
   const isWon     = deal.stage_id === 'closed_won'
   const isLost    = deal.stage_id === 'closed_lost'
   const isSpecial = isWon || isLost
@@ -126,6 +133,9 @@ export function DealCard({ deal, isOverlay = false, dimmed = false }: DealCardPr
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexShrink: 0 }}>
+            {tempDisplay && (
+              <span title={tempDisplay.title} style={{ fontSize: '10px', lineHeight: 1 }}>{tempDisplay.label}</span>
+            )}
             {isSlaBreached && !isOverdue && (
               <span
                 title="SLA: sem atividade há +48h"

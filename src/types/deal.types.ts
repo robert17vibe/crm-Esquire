@@ -22,7 +22,8 @@ export interface NextActivity {
 
 export type CompanySize = '1-50' | '51-200' | '201-1000' | '1000+'
 export type ArrRange   = '<100k' | '100k-500k' | '500k-1M' | '>1M'
-export type LeadSource = 'Indicação' | 'Inbound' | 'Outbound' | 'Evento'
+export type LeadSource      = 'Indicação' | 'Inbound' | 'Outbound' | 'Evento'
+export type LeadTemperature = 'hot' | 'warm' | 'cold'
 
 export interface Team {
   id: string
@@ -82,6 +83,7 @@ export interface Deal {
 
   // ── Lead metadata ─────────────────────────────────────
   lead_source?: LeadSource
+  lead_temperature?: LeadTemperature | null
   loss_reason?: string | null
 
   // ── Timestamps ───────────────────────────────────────

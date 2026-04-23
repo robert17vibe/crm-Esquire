@@ -24,7 +24,8 @@
       "Bash(npx vite *)",
       "Bash(powershell *)",
       "mcp__claude_ai_Supabase__execute_sql",
-      "Read(//tmp/**)"
+      "Read(//tmp/**)",
+      "Bash(git commit *)"
     ]
   }
 }

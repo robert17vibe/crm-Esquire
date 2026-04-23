@@ -28,6 +28,7 @@ export function PipelinePage() {
   }, [searchParams])
 
   const [showNewModal, setShowNewModal]     = useState(false)
+  const [prioritySort, setPrioritySort]     = useState(false)
   const [editingDeal, setEditingDeal]       = useState<Deal | null>(null)
   const [pendingNewDeal, setPendingNewDeal] = useState<Deal | null>(null)
   const [updatedDeal, setUpdatedDeal]       = useState<Deal | null>(null)
@@ -84,8 +85,21 @@ export function PipelinePage() {
       })
     }
 
+    if (prioritySort) {
+      const tempScore = (d: Deal) =>
+        d.lead_temperature === 'hot' ? 3 : d.lead_temperature === 'warm' ? 2 : d.lead_temperature === 'cold' ? 1 : 0
+      const today = new Date().toISOString().slice(0, 10)
+      result = [...result].sort((a, b) => {
+        const aOverdue = a.next_activity?.due_date && a.next_activity.due_date < today ? 1 : 0
+        const bOverdue = b.next_activity?.due_date && b.next_activity.due_date < today ? 1 : 0
+        if (bOverdue !== aOverdue) return bOverdue - aOverdue
+        if (tempScore(b) !== tempScore(a)) return tempScore(b) - tempScore(a)
+        return b.days_in_stage - a.days_in_stage
+      })
+    }
+
     return result
-  }, [deals, selectedOwners, searchQuery])
+  }, [deals, selectedOwners, searchQuery, prioritySort])
 
   const hasFilter = selectedOwners.length > 0 || !!searchQuery
 
@@ -255,8 +269,21 @@ export function PipelinePage() {
           </Popover.Root>
         </div>
 
-        {/* Right: new lead button */}
+        {/* Right: priority sort + new lead */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+          <button type="button" onClick={() => setPrioritySort((v) => !v)}
+            title="Ordenar por prioridade (quente → vencido → dias parado)"
+            style={{
+              display: 'flex', alignItems: 'center', gap: '5px',
+              height: '32px', padding: '0 10px', borderRadius: '6px', cursor: 'pointer',
+              fontSize: '11px', fontWeight: 600,
+              backgroundColor: prioritySort ? (isDark ? '#1e1e1e' : '#ede9e2') : filterBg,
+              color: prioritySort ? (isDark ? '#e8e4dc' : '#1a1814') : filterText,
+              border: `1px solid ${prioritySort ? (isDark ? '#3a3a3a' : '#c8c4be') : filterBorder}`,
+              transition: 'all 0.15s ease', flexShrink: 0, whiteSpace: 'nowrap',
+            }}>
+            🔥 Prioridade
+          </button>
           <Tooltip.Provider delayDuration={400}>
             <Tooltip.Root>
               <Tooltip.Trigger asChild>
