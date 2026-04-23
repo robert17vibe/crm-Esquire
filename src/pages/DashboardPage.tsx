@@ -269,23 +269,7 @@ export function DashboardPage() {
   const goalPct      = quarterlyGoal > 0 ? Math.min((wonTotal / quarterlyGoal) * 100, 999) : 0
   const roiPipeline  = pipelineTotal > 0 ? ((wonTotal / (pipelineTotal + wonTotal)) * 100) : 0
 
-  const ownerRanking = useMemo(() => {
-    const map = new Map<string, { name: string; color: string; initials: string; wonValue: number; wonCount: number }>()
-    closedWon.forEach((d) => {
-      const key = d.owner_id
-      if (!map.has(key)) {
-        map.set(key, { name: d.owner?.name ?? '—', color: d.owner?.avatar_color ?? '#888', initials: d.owner?.initials ?? '?', wonValue: 0, wonCount: 0 })
-      }
-      const entry = map.get(key)!
-      entry.wonValue += Number(d.value)
-      entry.wonCount += 1
-    })
-    return [...map.entries()]
-      .map(([id, v]) => ({ id, ...v }))
-      .sort((a, b) => b.wonValue - a.wonValue)
-  }, [closedWon])
 
-  const _maxRankValue = ownerRanking.length > 0 ? ownerRanking[0].wonValue : 1
 
   // ── Stage conversion rates ─────────────────────────────────────────────────
 

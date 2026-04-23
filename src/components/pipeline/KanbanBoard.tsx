@@ -54,7 +54,7 @@ export function KanbanBoard({
   pendingUpdatedDeal,
   onUpdatedDealConsumed,
   onEditDeal: _onEditDeal,
-  onDeleteDeal,
+  onDeleteDeal: _onDeleteDeal,
   onStageChange,
   onLossReasonConfirmed,
 }: KanbanBoardProps) {
@@ -278,18 +278,6 @@ export function KanbanBoard({
     onStageChange?.(dealId, targetStage)
   }, [onStageChange])
 
-  // ── Delete from board ─────────────────────────────────────────────────────
-
-  const _handleDeleteDeal = useCallback((dealId: string) => {
-    setGrouped((prev) => {
-      const next = { ...prev }
-      for (const sid of Object.keys(next) as StageId[]) {
-        next[sid] = next[sid].filter((d) => d.id !== dealId)
-      }
-      return next
-    })
-    onDeleteDeal?.(dealId)
-  }, [onDeleteDeal])
 
   // ── Pending loss deal title ───────────────────────────────────────────────
 

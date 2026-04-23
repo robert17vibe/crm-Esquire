@@ -12,7 +12,7 @@ import { useThemeStore } from '@/store/useThemeStore'
 import { useActivityStore } from '@/store/useActivityStore'
 import { useMeetingStore } from '@/store/useMeetingStore'
 import { useAppStore } from '@/store/useAppStore'
-import { STAGES, getStageColor } from '@/constants/pipeline'
+import { STAGES } from '@/constants/pipeline'
 import { supabase } from '@/lib/supabase'
 import { fetchDealEvents } from '@/services/deal-events.service'
 import { useTeamStore } from '@/store/useTeamStore'
@@ -924,10 +924,6 @@ export function DealDetailPage() {
       </div>
     )
   }
-
-  const _stageColor = getStageColor(deal.stage_id)
-  const _stage      = STAGES.find((s) => s.id === deal.stage_id)
-  const _tag        = (deal.tags as string[] | null)?.[0]
 
   const contactName = deal.contact_name ?? deal.company_name ?? ''
   const initials    = contactName
