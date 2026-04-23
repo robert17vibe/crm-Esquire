@@ -8,6 +8,8 @@ interface Settings {
   showClosedDeals: boolean
   defaultCurrency: 'BRL' | 'USD' | 'EUR'
   notifications: boolean
+  overdueAlerts: boolean
+  followUpReminders: boolean
 }
 
 interface SettingsStore extends Settings {
@@ -21,6 +23,8 @@ const DEFAULTS: Settings = {
   showClosedDeals: true,
   defaultCurrency: 'BRL',
   notifications: true,
+  overdueAlerts: true,
+  followUpReminders: true,
 }
 
 function load(): Settings {

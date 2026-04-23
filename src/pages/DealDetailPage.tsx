@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import type { LucideIcon } from 'lucide-react'
 import {
@@ -389,111 +389,134 @@ function TemperatureSlider({
   cardBg: string
 }) {
   const muted = isDark ? '#5a5652' : '#8a857d'
-  const text  = isDark ? '#e8e4dc' : '#1a1814'
-
-  // slider: 0=cold, 50=warm, 100=hot
-  const valueToSlider = { cold: 0, warm: 50, hot: 100, null: 50 } as const
-  const sliderVal = value ? valueToSlider[value] : valueToSlider.null
-
-  function sliderToValue(n: number): 'cold' | 'warm' | 'hot' {
-    if (n <= 25) return 'cold'
-    if (n <= 75) return 'warm'
-    return 'hot'
-  }
+  const trackRef = React.useRef<HTMLDivElement>(null)
+  const dragging  = React.useRef(false)
 
   const cfg = {
-    hot:  { emoji: '🔥', label: 'Quente', color: '#dc2626', track: 'linear-gradient(to right, #60a5fa, #fbbf24, #ef4444)' },
-    warm: { emoji: '🌡',  label: 'Morno',  color: '#b45309', track: 'linear-gradient(to right, #60a5fa, #fbbf24, #ef4444)' },
-    cold: { emoji: '🧊', label: 'Frio',   color: '#3b82f6', track: 'linear-gradient(to right, #60a5fa, #fbbf24, #ef4444)' },
+    hot:  { emoji: '🔥', label: 'Quente', color: '#dc2626' },
+    warm: { emoji: '🌡',  label: 'Morno',  color: '#b45309' },
+    cold: { emoji: '🧊', label: 'Frio',   color: '#3b82f6' },
+  } as const
+
+  // percent position of thumb: cold=0%, warm=50%, hot=100%, null=50%
+  const thumbPct = value === 'cold' ? 0 : value === 'hot' ? 100 : 50
+  const current  = value ? cfg[value] : null
+  const thumbColor = current?.color ?? (isDark ? '#5a5652' : '#c4bfb8')
+
+  function pctFromEvent(e: { clientX: number }) {
+    const rect = trackRef.current?.getBoundingClientRect()
+    if (!rect) return 50
+    return Math.min(100, Math.max(0, ((e.clientX - rect.left) / rect.width) * 100))
   }
 
-  const current = value ? cfg[value] : null
+  function commitPct(pct: number) {
+    if (pct <= 33) onChange('cold')
+    else if (pct <= 66) onChange('warm')
+    else onChange('hot')
+  }
+
+  function onPointerDown(e: React.PointerEvent) {
+    e.currentTarget.setPointerCapture(e.pointerId)
+    dragging.current = true
+    commitPct(pctFromEvent(e))
+  }
+
+  function onPointerMove(e: React.PointerEvent) {
+    if (!dragging.current) return
+    commitPct(pctFromEvent(e))
+  }
+
+  function onPointerUp() {
+    dragging.current = false
+  }
 
   return (
     <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '8px', padding: '14px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
         <p style={{ fontSize: '10px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
           Temperatura
         </p>
-        {current && (
-          <span style={{ fontSize: '12px', fontWeight: 700, color: current.color, display: 'flex', alignItems: 'center', gap: '4px' }}>
-            {current.emoji} {current.label}
-          </span>
-        )}
-        {!current && (
-          <span style={{ fontSize: '11px', color: muted }}>Não definida</span>
-        )}
+        {current
+          ? <span style={{ fontSize: '12px', fontWeight: 700, color: current.color }}>{current.emoji} {current.label}</span>
+          : <span style={{ fontSize: '11px', color: muted }}>Não definida</span>
+        }
       </div>
 
-      {/* Track labels */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+      {/* Labels */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
         <span style={{ fontSize: '10px', color: '#3b82f6' }}>🧊 Frio</span>
         <span style={{ fontSize: '10px', color: '#b45309' }}>🌡 Morno</span>
         <span style={{ fontSize: '10px', color: '#dc2626' }}>🔥 Quente</span>
       </div>
 
-      {/* Slider */}
-      <div style={{ position: 'relative', paddingBottom: '4px' }}>
+      {/* Custom slider track */}
+      <div
+        ref={trackRef}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        style={{
+          position: 'relative',
+          height: '28px',
+          display: 'flex',
+          alignItems: 'center',
+          cursor: 'pointer',
+          userSelect: 'none',
+          touchAction: 'none',
+        }}
+      >
+        {/* Track bar */}
         <div style={{
-          position: 'absolute', top: '50%', left: 0, right: 0, height: '6px',
-          transform: 'translateY(-50%)',
+          position: 'absolute', left: 0, right: 0, height: '6px',
           borderRadius: '3px',
-          background: 'linear-gradient(to right, #3b82f6 0%, #60a5fa 25%, #fbbf24 50%, #f97316 75%, #ef4444 100%)',
-          pointerEvents: 'none',
+          background: 'linear-gradient(to right, #3b82f6 0%, #93c5fd 25%, #fbbf24 50%, #f97316 75%, #ef4444 100%)',
         }} />
-        <input
-          type="range"
-          min={0}
-          max={100}
-          step={1}
-          value={sliderVal}
-          onChange={(e) => onChange(sliderToValue(Number(e.target.value)))}
-          style={{
-            width: '100%',
-            appearance: 'none',
-            WebkitAppearance: 'none',
-            height: '6px',
-            borderRadius: '3px',
-            background: 'transparent',
-            cursor: 'pointer',
-            position: 'relative',
-            zIndex: 1,
-          }}
-        />
+
+        {/* Zone dividers */}
+        <div style={{ position: 'absolute', left: '33%', top: '50%', transform: 'translate(-50%,-50%)', width: '1px', height: '10px', backgroundColor: 'rgba(255,255,255,0.4)' }} />
+        <div style={{ position: 'absolute', left: '66%', top: '50%', transform: 'translate(-50%,-50%)', width: '1px', height: '10px', backgroundColor: 'rgba(255,255,255,0.4)' }} />
+
+        {/* Thumb */}
+        {value && (
+          <div style={{
+            position: 'absolute',
+            left: `${thumbPct}%`,
+            top: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: '18px',
+            height: '18px',
+            borderRadius: '50%',
+            backgroundColor: isDark ? '#e8e4dc' : '#ffffff',
+            border: `2.5px solid ${thumbColor}`,
+            boxShadow: `0 1px 6px rgba(0,0,0,0.25), 0 0 0 3px ${thumbColor}22`,
+            transition: 'left 0.15s ease',
+            pointerEvents: 'none',
+          }} />
+        )}
+
+        {/* No-value hint */}
+        {!value && (
+          <div style={{
+            position: 'absolute', left: '50%', top: '50%',
+            transform: 'translate(-50%,-50%)',
+            width: '14px', height: '14px', borderRadius: '50%',
+            backgroundColor: isDark ? '#2a2a28' : '#e4e0da',
+            border: `2px dashed ${muted}`,
+            pointerEvents: 'none',
+          }} />
+        )}
       </div>
 
-      {/* Clear button */}
       {value && (
         <button
           type="button"
           onClick={() => onChange(null)}
-          style={{ marginTop: '8px', fontSize: '10px', color: muted, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+          style={{ marginTop: '6px', fontSize: '10px', color: muted, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
         >
           Limpar
         </button>
       )}
-
-      <style>{`
-        input[type=range]::-webkit-slider-thumb {
-          -webkit-appearance: none;
-          width: 16px;
-          height: 16px;
-          border-radius: 50%;
-          background: ${isDark ? '#e8e4dc' : '#ffffff'};
-          border: 2px solid ${current ? current.color : (isDark ? '#5a5652' : '#c4bfb8')};
-          box-shadow: 0 1px 4px rgba(0,0,0,0.2);
-          cursor: pointer;
-        }
-        input[type=range]::-moz-range-thumb {
-          width: 16px;
-          height: 16px;
-          border-radius: 50%;
-          background: ${isDark ? '#e8e4dc' : '#ffffff'};
-          border: 2px solid ${current ? current.color : (isDark ? '#5a5652' : '#c4bfb8')};
-          box-shadow: 0 1px 4px rgba(0,0,0,0.2);
-          cursor: pointer;
-        }
-      `}</style>
     </div>
   )
 }

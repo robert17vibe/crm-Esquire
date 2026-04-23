@@ -322,10 +322,10 @@ export function SettingsPage() {
             <Toggle checked={settings.notifications} onChange={(v) => setSetting('notifications', v)} isDark={isDark} />
           </Row>
           <Row icon={AlertCircle} label="Alertas de vencimento" description="Avisa quando atividade estiver atrasada" isDark={isDark}>
-            <Toggle checked={true} onChange={() => {}} isDark={isDark} />
+            <Toggle checked={settings.overdueAlerts} onChange={(v) => setSetting('overdueAlerts', v)} isDark={isDark} />
           </Row>
           <Row icon={Clock} label="Lembrete de follow-up" description="Leads sem atividade há mais de 7 dias" isDark={isDark} last>
-            <Toggle checked={false} onChange={() => {}} isDark={isDark} />
+            <Toggle checked={settings.followUpReminders} onChange={(v) => setSetting('followUpReminders', v)} isDark={isDark} />
           </Row>
         </Section>
 

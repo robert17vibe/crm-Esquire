@@ -321,7 +321,7 @@ export function KanbanBoard({
           modifiers={[snapCenterToCursor]}
           dropAnimation={null}
           adjustScale={false}
-          style={{ width: '220px', cursor: 'grabbing' }}
+          style={{ width: '234px', cursor: 'grabbing' }}
         >
           {activeDeal ? <DealCard deal={activeDeal} isOverlay /> : null}
         </DragOverlay>

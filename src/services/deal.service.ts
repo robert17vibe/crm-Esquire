@@ -5,6 +5,7 @@ export async function fetchDeals(): Promise<Deal[]> {
   const { data, error } = await supabase
     .from('deals')
     .select('*')
+    .is('deleted_at', null)
     .order('updated_at', { ascending: false })
   if (error) throw error
   return (data ?? []) as Deal[]
