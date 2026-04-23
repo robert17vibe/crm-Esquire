@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils'
 import { useThemeStore } from '@/store/useThemeStore'
 import { useNotificationStore } from '@/store/useNotificationStore'
 import { getStageColor, getTagStyle, type StageId } from '@/constants/pipeline'
+import { evaluateDealScore, scoreColor, scoreBg } from '@/lib/dealScore'
 import type { Deal } from '@/types/deal.types'
 
 function fmtCompact(v: number) {
@@ -30,9 +31,10 @@ interface DealCardProps {
   isOverlay?: boolean
   onMoveDeal?: (dealId: string, targetStage: StageId) => void
   dimmed?: boolean
+  showScore?: boolean
 }
 
-export function DealCard({ deal, isOverlay = false, dimmed = false }: DealCardProps) {
+export function DealCard({ deal, isOverlay = false, dimmed = false, showScore = false }: DealCardProps) {
   const navigate      = useNavigate()
   const isDark        = useThemeStore((s) => s.isDark)
   const notifications = useNotificationStore((s) => s.notifications)
@@ -51,6 +53,7 @@ export function DealCard({ deal, isOverlay = false, dimmed = false }: DealCardPr
   const tagStyle    = tag ? getTagStyle(tag) : null
   const temp        = deal.lead_temperature ? TEMP_CFG[deal.lead_temperature] : null
   const probability = Math.min(100, Math.max(0, deal.probability ?? 0))
+  const score       = showScore && !isSpecial ? evaluateDealScore(deal) : null
   const value       = Number(deal.value ?? 0)
   const today       = new Date().toISOString().slice(0, 10)
   const isOverdue   = !isSpecial && !!deal.next_activity?.due_date && deal.next_activity.due_date < today
@@ -126,6 +129,15 @@ export function DealCard({ deal, isOverlay = false, dimmed = false }: DealCardPr
             }}>{tag}</span>
           )}
           <div style={{ flex: 1 }} />
+          {/* Score badge */}
+          {score !== null && (
+            <span style={{
+              fontSize: '9px', fontWeight: 800, letterSpacing: '0.04em',
+              color: scoreColor(score),
+              backgroundColor: scoreBg(score, isDark),
+              borderRadius: '4px', padding: '1px 5px', flexShrink: 0,
+            }}>{score}</span>
+          )}
           {/* Temperature dot */}
           {temp && (
             <span title={temp.label} style={{

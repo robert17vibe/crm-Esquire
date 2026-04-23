@@ -16,9 +16,10 @@ interface StageColumnProps {
   deals: Deal[]
   dimmedIds?: Set<string>
   onMoveDeal: (dealId: string, targetStage: StageId) => void
+  showScore?: boolean
 }
 
-export function StageColumn({ stage, deals, dimmedIds, onMoveDeal: _onMoveDeal }: StageColumnProps) {
+export function StageColumn({ stage, deals, dimmedIds, onMoveDeal: _onMoveDeal, showScore }: StageColumnProps) {
   const totalValue = deals.reduce((sum, d) => sum + Number(d.value ?? 0), 0)
   // Attach droppable to the outer column so even empty columns are a large drop target
   const { setNodeRef, isOver } = useDroppable({ id: stage.id })
@@ -94,6 +95,7 @@ export function StageColumn({ stage, deals, dimmedIds, onMoveDeal: _onMoveDeal }
               key={deal.id}
               deal={deal}
               dimmed={dimmedIds?.size ? !dimmedIds.has(deal.id) : false}
+              showScore={showScore}
             />
           ))}
           {deals.length === 0 && (

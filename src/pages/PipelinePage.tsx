@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Plus, Search, SlidersHorizontal, Check } from 'lucide-react'
+import { Plus, Search, SlidersHorizontal, Check, Zap } from 'lucide-react'
+import { evaluateDealScore } from '@/lib/dealScore'
 import * as Popover from '@radix-ui/react-popover'
 import * as Tooltip from '@radix-ui/react-tooltip'
 import { KanbanBoard } from '@/components/pipeline/KanbanBoard'
@@ -27,9 +28,13 @@ export function PipelinePage() {
     return raw ? raw.split(',').filter(Boolean) : []
   }, [searchParams])
 
-  const [showNewModal, setShowNewModal]     = useState(false)
-  const [prioritySort, setPrioritySort]     = useState(false)
-  const [editingDeal, setEditingDeal]       = useState<Deal | null>(null)
+  type SortMode  = 'manual' | 'score' | 'urgency'
+  type TempFilter = 'all' | 'hot' | 'warm' | 'cold'
+
+  const [showNewModal, setShowNewModal]   = useState(false)
+  const [sortMode, setSortMode]           = useState<SortMode>('manual')
+  const [tempFilter, setTempFilter]       = useState<TempFilter>('all')
+  const [editingDeal, setEditingDeal]     = useState<Deal | null>(null)
   const [pendingNewDeal, setPendingNewDeal] = useState<Deal | null>(null)
   const [updatedDeal, setUpdatedDeal]       = useState<Deal | null>(null)
 
@@ -59,12 +64,16 @@ export function PipelinePage() {
     }, { replace: true })
   }
 
-  // ── All filters in one place ──────────────────────────────────────────────
+  // ── All filters + sort ────────────────────────────────────────────────────
   const displayDeals = useMemo<Deal[]>(() => {
     let result = deals
 
     if (selectedOwners.length > 0) {
       result = result.filter((d) => selectedOwners.includes(d.owner_id))
+    }
+
+    if (tempFilter !== 'all') {
+      result = result.filter((d) => d.lead_temperature === tempFilter)
     }
 
     const q = searchQuery.trim().toLowerCase()
@@ -85,23 +94,24 @@ export function PipelinePage() {
       })
     }
 
-    if (prioritySort) {
-      const tempScore = (d: Deal) =>
-        d.lead_temperature === 'hot' ? 3 : d.lead_temperature === 'warm' ? 2 : d.lead_temperature === 'cold' ? 1 : 0
+    if (sortMode === 'score') {
+      result = [...result].sort((a, b) => evaluateDealScore(b) - evaluateDealScore(a))
+    } else if (sortMode === 'urgency') {
       const today = new Date().toISOString().slice(0, 10)
+      const tempN = (d: Deal) => d.lead_temperature === 'hot' ? 3 : d.lead_temperature === 'warm' ? 2 : d.lead_temperature === 'cold' ? 1 : 0
       result = [...result].sort((a, b) => {
-        const aOverdue = a.next_activity?.due_date && a.next_activity.due_date < today ? 1 : 0
-        const bOverdue = b.next_activity?.due_date && b.next_activity.due_date < today ? 1 : 0
-        if (bOverdue !== aOverdue) return bOverdue - aOverdue
-        if (tempScore(b) !== tempScore(a)) return tempScore(b) - tempScore(a)
+        const aOv = a.next_activity?.due_date && a.next_activity.due_date < today ? 1 : 0
+        const bOv = b.next_activity?.due_date && b.next_activity.due_date < today ? 1 : 0
+        if (bOv !== aOv) return bOv - aOv
+        if (tempN(b) !== tempN(a)) return tempN(b) - tempN(a)
         return b.days_in_stage - a.days_in_stage
       })
     }
 
     return result
-  }, [deals, selectedOwners, searchQuery, prioritySort])
+  }, [deals, selectedOwners, searchQuery, sortMode, tempFilter])
 
-  const hasFilter = selectedOwners.length > 0 || !!searchQuery
+  const hasFilter = selectedOwners.length > 0 || !!searchQuery || tempFilter !== 'all'
 
   // ── Theme tokens ──────────────────────────────────────────────────────────
   const headerBorder     = isDark ? '#242424' : '#e8e6e1'
@@ -269,20 +279,48 @@ export function PipelinePage() {
           </Popover.Root>
         </div>
 
-        {/* Right: priority sort + new lead */}
+        {/* Right: sort + temp filter + new lead */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-          <button type="button" onClick={() => setPrioritySort((v) => !v)}
-            title="Ordenar por prioridade (quente → vencido → dias parado)"
+
+          {/* Temperature quick filter */}
+          {([
+            { key: 'all',  label: 'Todos', emoji: '' },
+            { key: 'hot',  label: 'Quente', emoji: '🔥' },
+            { key: 'warm', label: 'Morno',  emoji: '🌡' },
+            { key: 'cold', label: 'Frio',   emoji: '🧊' },
+          ] as const).map(({ key, label, emoji }) => (
+            <button key={key} type="button"
+              onClick={() => setTempFilter(key)}
+              title={label}
+              style={{
+                height: '32px', padding: '0 9px', borderRadius: '6px', cursor: 'pointer',
+                fontSize: '11px', fontWeight: 600, flexShrink: 0,
+                backgroundColor: tempFilter === key ? (isDark ? '#1e1e1e' : '#ede9e2') : filterBg,
+                color: tempFilter === key ? (isDark ? '#e8e4dc' : '#1a1814') : filterText,
+                border: `1px solid ${tempFilter === key ? (isDark ? '#3a3a3a' : '#c8c4be') : filterBorder}`,
+                transition: 'all 0.15s ease',
+              }}>
+              {emoji || label}
+            </button>
+          ))}
+
+          <div style={{ width: '1px', height: '20px', backgroundColor: filterBorder, flexShrink: 0 }} />
+
+          {/* Sort mode */}
+          <button type="button"
+            onClick={() => setSortMode((m) => m === 'score' ? 'manual' : 'score')}
+            title="Ordenar por score de prioridade"
             style={{
-              display: 'flex', alignItems: 'center', gap: '5px',
+              display: 'flex', alignItems: 'center', gap: '4px',
               height: '32px', padding: '0 10px', borderRadius: '6px', cursor: 'pointer',
-              fontSize: '11px', fontWeight: 600,
-              backgroundColor: prioritySort ? (isDark ? '#1e1e1e' : '#ede9e2') : filterBg,
-              color: prioritySort ? (isDark ? '#e8e4dc' : '#1a1814') : filterText,
-              border: `1px solid ${prioritySort ? (isDark ? '#3a3a3a' : '#c8c4be') : filterBorder}`,
-              transition: 'all 0.15s ease', flexShrink: 0, whiteSpace: 'nowrap',
+              fontSize: '11px', fontWeight: 600, flexShrink: 0,
+              backgroundColor: sortMode === 'score' ? (isDark ? '#1e1e1e' : '#ede9e2') : filterBg,
+              color: sortMode === 'score' ? (isDark ? '#e8e4dc' : '#1a1814') : filterText,
+              border: `1px solid ${sortMode === 'score' ? (isDark ? '#3a3a3a' : '#c8c4be') : filterBorder}`,
+              transition: 'all 0.15s ease',
             }}>
-            🔥 Prioridade
+            <Zap style={{ width: '11px', height: '11px' }} />
+            Score
           </button>
           <Tooltip.Provider delayDuration={400}>
             <Tooltip.Root>
@@ -321,7 +359,7 @@ export function PipelinePage() {
           <Search style={{ width: '28px', height: '28px', color: filterText }} />
           <p style={{ fontSize: '13px', fontWeight: 600, color: filterText }}>Nenhum deal encontrado</p>
           <p style={{ fontSize: '12px', color: filterText }}>Tente outros termos ou limpe os filtros</p>
-          <button type="button" onClick={() => { clearOwners(); setSearch('') }}
+          <button type="button" onClick={() => { clearOwners(); setSearch(''); setTempFilter('all'); setSortMode('manual') }}
             style={{ fontSize: '12px', fontWeight: 600, color: '#2c5545', background: 'none', border: 'none', cursor: 'pointer', marginTop: '4px' }}>
             Limpar filtros
           </button>
@@ -341,6 +379,7 @@ export function PipelinePage() {
             onDeleteDeal={(id) => { deleteDeal(id) }}
             onStageChange={(id, stageId) => { moveDeal(id, stageId) }}
             onLossReasonConfirmed={(id, reason) => { setLossReason(id, reason) }}
+            showScore={sortMode === 'score'}
           />
         </div>
       )}

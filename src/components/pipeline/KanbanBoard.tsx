@@ -30,6 +30,8 @@ interface KanbanBoardProps {
   onDeleteDeal?: (dealId: string) => void
   onStageChange?: (dealId: string, stageId: StageId) => void
   onLossReasonConfirmed?: (dealId: string, reason: string) => void
+  showScore?: boolean
+  dimmedIds?: Set<string>
 }
 
 function groupByStage(deals: Deal[]): GroupedDeals {
@@ -57,6 +59,8 @@ export function KanbanBoard({
   onDeleteDeal: _onDeleteDeal,
   onStageChange,
   onLossReasonConfirmed,
+  showScore,
+  dimmedIds,
 }: KanbanBoardProps) {
   const [grouped, setGrouped] = useState<GroupedDeals>(() => groupByStage(initialDeals))
   const [activeId, setActiveId] = useState<string | null>(null)
@@ -301,6 +305,8 @@ export function KanbanBoard({
               stage={stage}
               deals={grouped[stage.id] ?? []}
               onMoveDeal={onMoveDeal}
+              showScore={showScore}
+              dimmedIds={dimmedIds}
             />
           ))}
         </div>
