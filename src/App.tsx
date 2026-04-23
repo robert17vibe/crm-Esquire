@@ -20,8 +20,11 @@ const CalendarPage     = lazy(() => import('@/pages/CalendarPage').then((m) => (
 const SettingsPage     = lazy(() => import('@/pages/SettingsPage').then((m) => ({ default: m.SettingsPage })))
 const DealDetailPage   = lazy(() => import('@/pages/DealDetailPage').then((m) => ({ default: m.DealDetailPage })))
 const TeamsPage        = lazy(() => import('@/pages/TeamsPage').then((m) => ({ default: m.TeamsPage })))
-const AdminUsersPage   = lazy(() => import('@/pages/AdminUsersPage').then((m) => ({ default: m.AdminUsersPage })))
-const LandingPage      = lazy(() => import('@/pages/LandingPage').then((m) => ({ default: m.LandingPage })))
+const AdminUsersPage      = lazy(() => import('@/pages/AdminUsersPage').then((m) => ({ default: m.AdminUsersPage })))
+const IntakeFormPage      = lazy(() => import('@/pages/IntakeFormPage').then((m) => ({ default: m.IntakeFormPage })))
+const SubmissionsPage     = lazy(() => import('@/pages/SubmissionsPage').then((m) => ({ default: m.SubmissionsPage })))
+const IntegrationsPage    = lazy(() => import('@/pages/IntegrationsPage').then((m) => ({ default: m.IntegrationsPage })))
+const LandingPage         = lazy(() => import('@/pages/LandingPage').then((m) => ({ default: m.LandingPage })))
 const LoginPage        = lazy(() => import('@/pages/LoginPage').then((m) => ({ default: m.LoginPage })))
 const ForgotPasswordPage = lazy(() => import('@/pages/ForgotPasswordPage').then((m) => ({ default: m.ForgotPasswordPage })))
 const ResetPasswordPage  = lazy(() => import('@/pages/ResetPasswordPage').then((m) => ({ default: m.ResetPasswordPage })))
@@ -68,6 +71,8 @@ export default function App() {
   return (
     <Suspense fallback={null}>
     <Routes>
+      {/* Public routes — no auth required */}
+      <Route path="/intake/:token" element={<IntakeFormPage />} />
       <Route
         path="/login"
         element={session ? <Navigate to="/pipeline" replace /> : <LoginPage />}
@@ -87,8 +92,10 @@ export default function App() {
         <Route path="/settings"  element={<SettingsPage />} />
         <Route path="/deal/:id"  element={<DealDetailPage />} />
         <Route element={<AdminGuard />}>
-          <Route path="/teams"     element={<TeamsPage />} />
-          <Route path="/admin/users" element={<AdminUsersPage />} />
+          <Route path="/teams"            element={<TeamsPage />} />
+          <Route path="/admin/users"      element={<AdminUsersPage />} />
+          <Route path="/admin/submissions" element={<SubmissionsPage />} />
+          <Route path="/integrations"     element={<IntegrationsPage />} />
         </Route>
       </Route>
       <Route path="*" element={<Navigate to={session ? '/dashboard' : '/login'} replace />} />
