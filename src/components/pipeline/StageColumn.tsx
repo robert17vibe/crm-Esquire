@@ -5,6 +5,12 @@ import { DealCard } from './DealCard'
 import type { Stage, StageId } from '@/constants/pipeline'
 import type { Deal } from '@/types/deal.types'
 
+function fmtCompact(v: number) {
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency', currency: 'BRL', notation: 'compact', maximumFractionDigits: 1,
+  }).format(v)
+}
+
 interface StageColumnProps {
   stage: Stage
   deals: Deal[]
@@ -13,6 +19,7 @@ interface StageColumnProps {
 }
 
 export function StageColumn({ stage, deals, dimmedIds, onMoveDeal: _onMoveDeal }: StageColumnProps) {
+  const totalValue = deals.reduce((sum, d) => sum + Number(d.value ?? 0), 0)
   // Attach droppable to the outer column so even empty columns are a large drop target
   const { setNodeRef, isOver } = useDroppable({ id: stage.id })
   const isDark = useThemeStore((s) => s.isDark)
@@ -41,7 +48,7 @@ export function StageColumn({ stage, deals, dimmedIds, onMoveDeal: _onMoveDeal }
       }}
     >
       {/* ── Header ── */}
-      <div style={{ padding: '12px 14px 10px', flexShrink: 0, borderBottom: `1px solid ${isDark ? '#1e1e1e' : '#e8edf2'}` }}>
+      <div style={{ padding: '10px 14px 9px', flexShrink: 0, borderBottom: `1px solid ${isDark ? '#1e1e1e' : '#e8edf2'}` }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span style={{
             fontSize: '11px', fontWeight: 600, letterSpacing: '0.06em',
@@ -57,6 +64,15 @@ export function StageColumn({ stage, deals, dimmedIds, onMoveDeal: _onMoveDeal }
             {deals.length}
           </span>
         </div>
+        {totalValue > 0 && (
+          <p style={{
+            fontSize: '11px', fontWeight: 700,
+            color: isDark ? '#6b7280' : '#64748b',
+            marginTop: '2px', fontVariantNumeric: 'tabular-nums',
+          }}>
+            {fmtCompact(totalValue)}
+          </p>
+        )}
       </div>
 
       {/* ── Cards (scrollable) ── */}
