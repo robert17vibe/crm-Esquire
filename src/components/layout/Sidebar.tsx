@@ -63,15 +63,15 @@ function NavItem({
         userSelect: 'none',
         cursor: 'pointer',
         transition: 'background-color 0.2s ease, color 0.2s ease',
-        backgroundColor: isActive ? 'var(--surface-col-over)' : hovered ? 'var(--surface-col)' : 'transparent',
-        color: isActive || hovered ? 'var(--ink-base)' : 'var(--ink-muted)',
+        backgroundColor: isActive ? 'rgba(255,255,255,0.10)' : hovered ? 'rgba(255,255,255,0.06)' : 'transparent',
+        color: isActive || hovered ? '#f0ede5' : 'rgba(240,237,229,0.45)',
         position: 'relative',
       })}
     >
       {({ isActive }) => (
         <>
           <div style={{ position: 'relative', flexShrink: 0 }}>
-            <Icon style={{ width: '16px', height: '16px', color: isActive || hovered ? 'var(--ink-base)' : 'var(--ink-muted)', transition: 'color 0.2s ease' }} />
+            <Icon style={{ width: '16px', height: '16px', color: isActive || hovered ? '#f0ede5' : 'rgba(240,237,229,0.45)', transition: 'color 0.2s ease' }} />
             {badge && badge > 0 && collapsed && (
               <span style={{
                 position: 'absolute', top: '-4px', right: '-4px',
@@ -127,13 +127,13 @@ function SettingsItem({ collapsed }: { collapsed: boolean }) {
         userSelect: 'none',
         cursor: 'pointer',
         transition: 'background-color 0.2s ease, color 0.2s ease',
-        backgroundColor: isActive ? 'var(--surface-col-over)' : hovered ? 'var(--surface-col)' : 'transparent',
-        color: isActive || hovered ? 'var(--ink-base)' : 'var(--ink-faint)',
+        backgroundColor: isActive ? 'rgba(255,255,255,0.10)' : hovered ? 'rgba(255,255,255,0.06)' : 'transparent',
+        color: isActive || hovered ? '#f0ede5' : 'rgba(240,237,229,0.3)',
       })}
     >
       {({ isActive }) => (
         <>
-          <Settings style={{ width: '14px', height: '14px', flexShrink: 0, color: isActive || hovered ? 'var(--ink-base)' : 'var(--ink-faint)', transition: 'color 0.2s ease' }} />
+          <Settings style={{ width: '14px', height: '14px', flexShrink: 0, color: isActive || hovered ? '#f0ede5' : 'rgba(240,237,229,0.3)', transition: 'color 0.2s ease' }} />
           {!collapsed && <span className="sidebar-label">Configurações</span>}
         </>
       )}
@@ -379,9 +379,9 @@ export function Sidebar() {
       {/* Logo */}
       <div style={{ padding: collapsed ? '20px 0 16px' : '20px 12px 16px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'flex-start' }}>
         {collapsed ? (
-          <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--ink-base)', letterSpacing: '-0.01em' }}>E</span>
+          <span style={{ fontSize: '14px', fontWeight: 700, color: '#f0ede5', letterSpacing: '-0.01em' }}>E</span>
         ) : (
-          <span className="sidebar-logo-text" style={{ fontSize: '14px', fontWeight: 600, letterSpacing: '-0.01em', color: 'var(--ink-base)' }}>
+          <span className="sidebar-logo-text" style={{ fontSize: '14px', fontWeight: 600, letterSpacing: '-0.01em', color: '#f0ede5' }}>
             Esquire CRM
           </span>
         )}
@@ -410,7 +410,7 @@ export function Sidebar() {
           <>
             <div style={{ height: '1px', backgroundColor: 'var(--line)', margin: '8px 0 6px' }} />
             {!collapsed && (
-              <span style={{ fontSize: '9px', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--ink-faint)', paddingLeft: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <span style={{ fontSize: '9px', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(240,237,229,0.25)', paddingLeft: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <Shield style={{ width: '9px', height: '9px' }} />
                 Admin
               </span>
@@ -428,13 +428,13 @@ export function Sidebar() {
                   fontSize: '13px', fontWeight: 500, textDecoration: 'none',
                   userSelect: 'none', cursor: 'pointer',
                   transition: 'background-color 0.2s ease, color 0.2s ease',
-                  backgroundColor: isActive ? 'var(--surface-col-over)' : 'transparent',
-                  color: isActive ? 'var(--ink-base)' : 'var(--ink-muted)',
+                  backgroundColor: isActive ? 'rgba(255,255,255,0.10)' : 'transparent',
+                  color: isActive ? '#f0ede5' : 'rgba(240,237,229,0.45)',
                 })}
               >
                 {({ isActive }) => (
                   <>
-                    <Shield style={{ width: '16px', height: '16px', color: isActive ? 'var(--ink-base)' : 'var(--ink-muted)', transition: 'color 0.2s ease', flexShrink: 0 }} />
+                    <Shield style={{ width: '16px', height: '16px', color: isActive ? '#f0ede5' : 'rgba(240,237,229,0.45)', transition: 'color 0.2s ease', flexShrink: 0 }} />
                     {!collapsed && <span className="sidebar-label" style={{ flex: 1 }}>Utilizadores</span>}
                   </>
                 )}
@@ -453,13 +453,13 @@ export function Sidebar() {
                   fontSize: '13px', fontWeight: 500, textDecoration: 'none',
                   userSelect: 'none', cursor: 'pointer',
                   transition: 'background-color 0.2s ease, color 0.2s ease',
-                  backgroundColor: isActive ? 'var(--surface-col-over)' : 'transparent',
-                  color: isActive ? 'var(--ink-base)' : 'var(--ink-muted)',
+                  backgroundColor: isActive ? 'rgba(255,255,255,0.10)' : 'transparent',
+                  color: isActive ? '#f0ede5' : 'rgba(240,237,229,0.45)',
                 })}
               >
                 {({ isActive }) => (
                   <>
-                    <Users2 style={{ width: '16px', height: '16px', color: isActive ? 'var(--ink-base)' : 'var(--ink-muted)', transition: 'color 0.2s ease', flexShrink: 0 }} />
+                    <Users2 style={{ width: '16px', height: '16px', color: isActive ? '#f0ede5' : 'rgba(240,237,229,0.45)', transition: 'color 0.2s ease', flexShrink: 0 }} />
                     {!collapsed && <span className="sidebar-label" style={{ flex: 1 }}>Grupos</span>}
                   </>
                 )}
@@ -486,14 +486,14 @@ export function Sidebar() {
               justifyContent: collapsed ? 'center' : 'flex-start',
               borderRadius: '6px', gap: collapsed ? 0 : '8px',
               fontSize: '11px', fontWeight: 500,
-              background: showNotif ? 'var(--surface-col-over)' : 'none',
+              background: showNotif ? 'rgba(255,255,255,0.10)' : 'none',
               border: 'none', cursor: 'pointer',
-              color: showNotif ? 'var(--ink-base)' : 'var(--ink-faint)',
+              color: showNotif ? '#f0ede5' : 'rgba(240,237,229,0.3)',
               transition: 'background-color 0.15s ease, color 0.15s ease',
               position: 'relative',
             }}
-            onMouseEnter={(e) => { if (!showNotif) { e.currentTarget.style.backgroundColor = 'var(--surface-col)'; e.currentTarget.style.color = 'var(--ink-base)' } }}
-            onMouseLeave={(e) => { if (!showNotif) { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = 'var(--ink-faint)' } }}
+            onMouseEnter={(e) => { if (!showNotif) { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = '#f0ede5' } }}
+            onMouseLeave={(e) => { if (!showNotif) { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = 'rgba(240,237,229,0.3)' } }}
           >
             <div style={{ position: 'relative', flexShrink: 0 }}>
               <Bell style={{ width: '14px', height: '14px' }} />
@@ -529,10 +529,10 @@ export function Sidebar() {
               {displayInitials}
             </div>
             <div style={{ minWidth: 0, flex: 1 }}>
-              <p style={{ fontSize: '12px', fontWeight: 500, color: 'var(--ink-base)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: 1.3 }}>
+              <p style={{ fontSize: '12px', fontWeight: 500, color: '#f0ede5', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: 1.3 }}>
                 {displayName}
               </p>
-              <p style={{ fontSize: '10px', color: 'var(--ink-faint)', textTransform: 'uppercase', letterSpacing: '0.08em', lineHeight: 1.4, marginTop: '1px' }}>
+              <p style={{ fontSize: '10px', color: 'rgba(240,237,229,0.3)', textTransform: 'uppercase', letterSpacing: '0.08em', lineHeight: 1.4, marginTop: '1px' }}>
                 {displayRole}
               </p>
             </div>
@@ -540,9 +540,9 @@ export function Sidebar() {
               type="button"
               onClick={() => signOut()}
               title="Sair"
-              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', flexShrink: 0, color: 'var(--ink-faint)', transition: 'color 0.15s ease' }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--ink-base)')}
-              onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--ink-faint)')}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', flexShrink: 0, color: 'rgba(240,237,229,0.3)', transition: 'color 0.15s ease' }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = '#f0ede5')}
+              onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(240,237,229,0.3)')}
             >
               <LogOut style={{ width: '14px', height: '14px' }} />
             </button>
