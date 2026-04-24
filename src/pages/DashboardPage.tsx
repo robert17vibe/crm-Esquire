@@ -5,42 +5,77 @@ import {
   ArrowRight, AlertTriangle, Video, Phone, CheckSquare, Mail,
   GripVertical, Trophy, BarChart2, Percent, Check,
 } from 'lucide-react'
+import {
+  DndContext,
+  DragEndEvent,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  closestCenter,
+} from '@dnd-kit/core'
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+  arrayMove,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { useDealStore } from '@/store/useDealStore'
 import { useThemeStore } from '@/store/useThemeStore'
 import { useSettingsStore } from '@/store/useSettingsStore'
 import { useTaskStore } from '@/store/useTaskStore'
 import { STAGES } from '@/constants/pipeline'
 
+// ─── Widget Registry ──────────────────────────────────────────────────────────
+
+interface WidgetDef {
+  id: string
+  title: string
+  description: string
+  defaultEnabled: boolean
+  minRole: 'user' | 'admin'
+  tab: 'operacao' | 'resultados' | 'ambos'
+}
+
+const WIDGET_DEFS: WidgetDef[] = [
+  { id: 'kpis',     title: 'KPIs de Performance',    description: 'Pipeline, commit, cobertura e win rate',    defaultEnabled: true,  minRole: 'user',  tab: 'operacao'   },
+  { id: 'funil',    title: 'Funil & Forecast',        description: 'Funil por estágio e forecast do trimestre', defaultEnabled: true,  minRole: 'user',  tab: 'operacao'   },
+  { id: 'aging',    title: 'Aging & Evolução Mensal', description: 'Top deals paralisados e pipeline mensal',   defaultEnabled: true,  minRole: 'user',  tab: 'operacao'   },
+  { id: 'riscos',   title: 'Riscos & Próximas Ações', description: 'Deals em risco e atividades pendentes',     defaultEnabled: true,  minRole: 'user',  tab: 'operacao'   },
+  { id: 'inativos', title: 'Leads Sem Atividade',     description: 'Leads sem atividade há mais de 21 dias',    defaultEnabled: true,  minRole: 'user',  tab: 'operacao'   },
+  { id: 'tarefas',  title: 'Próximas Tarefas',        description: 'Tarefas pendentes e vencidas',              defaultEnabled: true,  minRole: 'user',  tab: 'ambos'      },
+  { id: 'res_kpis', title: 'KPIs de Resultados',      description: 'Ganhos, meta atingida e ticket médio',      defaultEnabled: true,  minRole: 'user',  tab: 'resultados' },
+  { id: 'ranking',  title: 'Performance & Histórico', description: 'Ranking por operador e histórico de won',   defaultEnabled: true,  minRole: 'admin', tab: 'resultados' },
+  { id: 'conv',     title: 'Conversão & Ciclo',       description: 'Distribuição pipeline e tempo por etapa',   defaultEnabled: true,  minRole: 'user',  tab: 'resultados' },
+]
+
+// ─── Widget order localStorage ────────────────────────────────────────────────
+
+const WIDGET_ORDER_KEY = 'esq_dashboard_widgets_v1'
+
+function defaultWidgetOrder(): string[] {
+  return WIDGET_DEFS.filter((w) => w.defaultEnabled).map((w) => w.id)
+}
+
+function loadWidgetOrder(): string[] {
+  try {
+    const raw = localStorage.getItem(WIDGET_ORDER_KEY)
+    if (raw) {
+      const parsed = JSON.parse(raw) as string[]
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed
+    }
+  } catch { /* ignore */ }
+  return defaultWidgetOrder()
+}
+
+function saveWidgetOrder(order: string[]) {
+  localStorage.setItem(WIDGET_ORDER_KEY, JSON.stringify(order))
+}
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const KPI_ORDER_KEY     = 'esq_kpi_order'
 const DEFAULT_KPI_ORDER = ['pipeline', 'commit', 'coverage', 'winrate', 'ticket', 'cycle']
-
-const WIDGET_VIS_KEY = 'esq_widget_visibility'
-const ALL_WIDGETS = [
-  { id: 'kpis',     label: 'KPIs de Performance',    tab: 'operacao'   },
-  { id: 'funil',    label: 'Funil & Forecast',        tab: 'operacao'   },
-  { id: 'aging',    label: 'Aging & Evolução Mensal', tab: 'operacao'   },
-  { id: 'riscos',   label: 'Riscos & Próximas Ações', tab: 'operacao'   },
-  { id: 'inativos', label: 'Leads Sem Atividade',     tab: 'operacao'   },
-  { id: 'tarefas',  label: 'Próximas Tarefas',        tab: 'ambos'      },
-  { id: 'res_kpis', label: 'KPIs de Resultados',      tab: 'resultados' },
-  { id: 'ranking',  label: 'Performance & Histórico', tab: 'resultados' },
-  { id: 'conv',     label: 'Conversão & Ciclo',       tab: 'resultados' },
-] as const
-type WidgetId = typeof ALL_WIDGETS[number]['id']
-
-function defaultVisibility(): Set<WidgetId> {
-  return new Set(ALL_WIDGETS.map((w) => w.id) as WidgetId[])
-}
-
-function loadVisibility(): Set<WidgetId> {
-  try {
-    const raw = localStorage.getItem(WIDGET_VIS_KEY)
-    if (raw) return new Set(JSON.parse(raw) as WidgetId[])
-  } catch { /* ignore */ }
-  return defaultVisibility()
-}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -181,11 +216,87 @@ function KpiSkeleton({ isDark }: { isDark: boolean }) {
   )
 }
 
+// ─── WidgetWrapper ─────────────────────────────────────────────────────────────
+
+interface WidgetWrapperProps {
+  id: string
+  onRemove: (id: string) => void
+  children: React.ReactNode
+  isDark: boolean
+}
+
+function WidgetWrapper({ id, onRemove, children, isDark }: WidgetWrapperProps) {
+  const [hovered, setHovered] = useState(false)
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id })
+
+  const wrapperStyle: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+    position: 'relative',
+  }
+
+  const handleColor = isDark ? '#6b6560' : '#8a857d'
+  const removeColor = isDark ? '#fc8181' : '#c53030'
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={wrapperStyle}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      {hovered && (
+        <div
+          {...attributes}
+          {...listeners}
+          title="Arraste para reorganizar"
+          style={{
+            position: 'absolute', top: '8px', right: '36px', zIndex: 10,
+            width: '22px', height: '22px', borderRadius: '4px',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'grab', color: handleColor,
+            backgroundColor: isDark ? 'rgba(30,30,28,0.9)' : 'rgba(255,255,255,0.9)',
+            border: `1px solid ${isDark ? '#333' : '#ddd'}`,
+          }}
+        >
+          <GripVertical style={{ width: '12px', height: '12px' }} />
+        </div>
+      )}
+      {hovered && (
+        <button
+          type="button"
+          title="Remover widget"
+          onClick={() => onRemove(id)}
+          style={{
+            position: 'absolute', top: '8px', right: '8px', zIndex: 10,
+            width: '22px', height: '22px', borderRadius: '4px',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer', color: removeColor, border: 'none',
+            backgroundColor: isDark ? 'rgba(30,30,28,0.9)' : 'rgba(255,255,255,0.9)',
+            outline: `1px solid ${isDark ? '#333' : '#ddd'}`,
+            fontSize: '14px', lineHeight: 1,
+          }}
+        >
+          ✕
+        </button>
+      )}
+      {children}
+    </div>
+  )
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export function DashboardPage() {
-  const deals      = useDealStore((s) => s.deals)
-  const staleCount = useDealStore((s) => s.staleCount)
+  const deals    = useDealStore((s) => s.deals)
   const isDark   = useThemeStore((s) => s.isDark)
   const navigate = useNavigate()
   const { quarterlyGoal } = useSettingsStore()
@@ -197,6 +308,39 @@ export function DashboardPage() {
     const t = setTimeout(() => setLoaded(true), 280)
     return () => clearTimeout(t)
   }, [])
+
+  // ── Widget order state ─────────────────────────────────────────────────────
+  const [widgetOrder, setWidgetOrder] = useState<string[]>(loadWidgetOrder)
+  const [showWidgetModal, setShowWidgetModal] = useState(false)
+
+  useEffect(() => {
+    saveWidgetOrder(widgetOrder)
+  }, [widgetOrder])
+
+  function removeWidget(id: string) {
+    setWidgetOrder((prev) => prev.filter((w) => w !== id))
+  }
+
+  function addWidget(id: string) {
+    setWidgetOrder((prev) => prev.includes(id) ? prev : [...prev, id])
+  }
+
+  // ── dnd-kit sensors ────────────────────────────────────────────────────────
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+  )
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+    if (over && active.id !== over.id) {
+      setWidgetOrder((prev) => {
+        const oldIndex = prev.indexOf(String(active.id))
+        const newIndex = prev.indexOf(String(over.id))
+        if (oldIndex === -1 || newIndex === -1) return prev
+        return arrayMove(prev, oldIndex, newIndex)
+      })
+    }
+  }
 
   // ── Shared Metrics ─────────────────────────────────────────────────────────
 
@@ -217,23 +361,6 @@ export function DashboardPage() {
   const avgTicket        = valueDeals.length > 0 ? pipelineTotal / valueDeals.length : 0
   const avgCycle         = valueDeals.length > 0
     ? Math.round(valueDeals.reduce((s, d) => s + d.days_in_stage, 0) / valueDeals.length) : 0
-
-  // ── KPI drag-and-drop ─────────────────────────────────────────────────────
-
-  // ── Widget visibility ─────────────────────────────────────────────────────
-  const [visibleWidgets, setVisibleWidgets] = useState<Set<WidgetId>>(loadVisibility)
-  const [showWidgetModal, setShowWidgetModal] = useState(false)
-
-  function toggleWidget(id: WidgetId) {
-    setVisibleWidgets((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id); else next.add(id)
-      localStorage.setItem(WIDGET_VIS_KEY, JSON.stringify([...next]))
-      return next
-    })
-  }
-
-  const vis = visibleWidgets
 
   // ── Sparkline data (last 6 months) ────────────────────────────────────────
   const last6Months = useMemo(() => {
@@ -283,10 +410,10 @@ export function DashboardPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [pipelineTotal, commitTotal, coverage, winRate, avgTicket, avgCycle, sparkPipeline, sparkWon, sparkCount])
 
-  function handleDragStart(id: string, idx: number, e: React.DragEvent) {
+  function handleKpiDragStart(id: string, idx: number, e: React.DragEvent) {
     dragIdx.current = idx; setDraggingId(id); e.dataTransfer.effectAllowed = 'move'
   }
-  function handleDrop(targetIdx: number) {
+  function handleKpiDrop(targetIdx: number) {
     if (dragIdx.current === null || dragIdx.current === targetIdx) return
     const next = [...kpiOrder]
     const [moved] = next.splice(dragIdx.current, 1)
@@ -368,8 +495,6 @@ export function DashboardPage() {
   const goalPct      = quarterlyGoal > 0 ? Math.min((wonTotal / quarterlyGoal) * 100, 999) : 0
   const roiPipeline  = pipelineTotal > 0 ? ((wonTotal / (pipelineTotal + wonTotal)) * 100) : 0
 
-
-
   // ── Stage conversion rates ─────────────────────────────────────────────────
 
   const stageConversion = useMemo(() => {
@@ -381,7 +506,7 @@ export function DashboardPage() {
     })
   }, [deals, activeDeals])
 
-  // ── Avg days per stage (P5.2) ──────────────────────────────────────────────
+  // ── Avg days per stage ─────────────────────────────────────────────────────
 
   const avgDaysPerStage = useMemo(() => STAGES.filter((s) => !s.is_closed).map((stage) => {
     const sd = activeDeals.filter((d) => d.stage_id === stage.id)
@@ -389,7 +514,7 @@ export function DashboardPage() {
     return { stage, avg, count: sd.length }
   }), [activeDeals])
 
-  // ── Inactive leads — no activity for 21+ days (P5.4) ──────────────────────
+  // ── Inactive leads ─────────────────────────────────────────────────────────
 
   const inactiveDeals = useMemo(() => {
     const cutoff = new Date(Date.now() - 21 * 86_400_000).toISOString()
@@ -403,7 +528,7 @@ export function DashboardPage() {
       .slice(0, 6)
   }, [activeDeals])
 
-  // ── Active leads per owner + conversion rate (P5.3) ───────────────────────
+  // ── Owner stats ────────────────────────────────────────────────────────────
 
   const ownerStats = useMemo(() => {
     const map = new Map<string, {
@@ -457,6 +582,482 @@ export function DashboardPage() {
     )
   }
 
+  // ── renderWidget ───────────────────────────────────────────────────────────
+
+  function renderWidgetContent(id: string): React.ReactNode {
+    switch (id) {
+
+      case 'kpis':
+        return (
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+              <GripVertical style={{ width: '11px', height: '11px', color: muted }} />
+              <span style={{ fontSize: '10px', color: muted, fontWeight: 500 }}>Arraste os cards para reorganizar</span>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, minmax(0, 1fr))', gap: '10px' }}>
+              {!loaded
+                ? DEFAULT_KPI_ORDER.map((kid) => <KpiSkeleton key={kid} isDark={isDark} />)
+                : kpiOrder.map((kid, idx) => {
+                    const kpi = kpiDefs[kid]
+                    if (!kpi) return null
+                    return (
+                      <KpiCard
+                        key={kid} {...kpi} isDark={isDark}
+                        isDragging={draggingId === kid}
+                        onDragStart={(e) => handleKpiDragStart(kid, idx, e)}
+                        onDragOver={(e) => e.preventDefault()}
+                        onDrop={() => handleKpiDrop(idx)}
+                        onDragEnd={() => { dragIdx.current = null; setDraggingId(null) }}
+                      />
+                    )
+                  })
+              }
+            </div>
+          </div>
+        )
+
+      case 'funil':
+        return (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: '12px' }}>
+            <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '8px', padding: '18px 20px' }}>
+              <p style={{ fontSize: '11px', fontWeight: 700, color: text, marginBottom: '14px' }}>Funil por Estágio</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {funnelData.map(({ stage, count, value, convRate }) => (
+                  <div key={stage.id}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '5px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
+                        <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: stage.color, display: 'inline-block', flexShrink: 0 }} />
+                        <span style={{ fontSize: '12px', fontWeight: 500, color: text }}>{stage.label}</span>
+                        <span style={{ fontSize: '10px', fontWeight: 600, color: muted, backgroundColor: trackBg, borderRadius: '3px', padding: '1px 5px' }}>{count}</span>
+                        {convRate !== null && (
+                          <span style={{ fontSize: '10px', fontWeight: 600, color: convRate > 60 ? '#2d9e6b' : convRate > 30 ? '#b45309' : (isDark ? '#fc8181' : '#c53030') }}>
+                            {convRate}% conv.
+                          </span>
+                        )}
+                      </div>
+                      <span style={{ fontSize: '11px', fontWeight: 600, color: value > 0 ? text : muted, fontVariantNumeric: 'tabular-nums' }}>
+                        {value > 0 ? fmt(value) : '—'}
+                      </span>
+                    </div>
+                    <div style={{ height: '4px', borderRadius: '99px', backgroundColor: trackBg, overflow: 'hidden' }}>
+                      <div style={{ height: '100%', borderRadius: '99px', width: `${value > 0 ? Math.round((value / maxFunnelVal) * 100) : (count > 0 ? 6 : 0)}%`, backgroundColor: stage.color, opacity: 0.85, transition: 'width 0.5s ease' }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ marginTop: '16px', paddingTop: '14px', borderTop: `1px solid ${border}`, display: 'flex', gap: '24px' }}>
+                {[
+                  { label: 'Total Pipeline', value: fmt(pipelineTotal), color: text },
+                  { label: 'Ganhos',         value: fmt(wonTotal),      color: '#2d9e6b' },
+                  { label: 'Perdidos',       value: fmt(lostTotal),     color: isDark ? '#fc8181' : '#c53030' },
+                  { label: 'Win Rate',       value: `${winRate}%`,      color: text },
+                ].map(({ label, value: v, color }) => (
+                  <div key={label}>
+                    <p style={{ fontSize: '10px', fontWeight: 600, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '3px' }}>{label}</p>
+                    <p style={{ fontSize: '13px', fontWeight: 700, color, fontVariantNumeric: 'tabular-nums' }}>{v}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '8px', padding: '18px 20px', display: 'flex', flexDirection: 'column' }}>
+              <p style={{ fontSize: '11px', fontWeight: 700, color: text, marginBottom: '16px' }}>Forecast Q2 · 2026</p>
+              <div style={{ marginBottom: '18px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '7px' }}>
+                  <span style={{ fontSize: '11px', color: muted }}>Pipeline ponderado</span>
+                  <span style={{ fontSize: '11px', fontWeight: 700, color: text, fontVariantNumeric: 'tabular-nums' }}>{fmt(weightedPipeline)}</span>
+                </div>
+                <div style={{ height: '8px', borderRadius: '99px', backgroundColor: trackBg, overflow: 'hidden' }}>
+                  <div style={{ height: '100%', borderRadius: '99px', width: `${forecastPct}%`, background: 'linear-gradient(90deg, #2c5545, #4a9080)', transition: 'width 0.6s ease' }} />
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '5px' }}>
+                  <span style={{ fontSize: '10px', color: muted }}>{forecastPct.toFixed(0)}% da meta</span>
+                  <span style={{ fontSize: '10px', color: muted }}>Meta: {fmt(quarterlyGoal)}</span>
+                </div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
+                {funnelData.filter((f) => f.value > 0).map(({ stage, count }) => {
+                  const stageDeals = valueDeals.filter((d) => d.stage_id === stage.id)
+                  const weighted   = stageDeals.reduce((s, d) => s + d.value * (d.probability / 100), 0)
+                  const pct        = Math.round((weighted / quarterlyGoal) * 100)
+                  return (
+                    <div key={stage.id} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: stage.color, flexShrink: 0 }} />
+                      <span style={{ fontSize: '11px', color: muted, flex: 1 }}>{stage.label} ({count})</span>
+                      <span style={{ fontSize: '11px', fontWeight: 600, color: text, fontVariantNumeric: 'tabular-nums', minWidth: '56px', textAlign: 'right' }}>{fmt(weighted)}</span>
+                      <span style={{ fontSize: '10px', color: muted, minWidth: '28px', textAlign: 'right' }}>{pct}%</span>
+                    </div>
+                  )
+                })}
+              </div>
+              <div style={{ marginTop: '14px', paddingTop: '12px', borderTop: `1px solid ${border}` }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '10px', fontWeight: 600, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Gap para meta</span>
+                  <span style={{ fontSize: '13px', fontWeight: 700, color: weightedPipeline >= quarterlyGoal ? '#2d9e6b' : (isDark ? '#fc8181' : '#c53030'), fontVariantNumeric: 'tabular-nums' }}>
+                    {weightedPipeline >= quarterlyGoal ? '+' : ''}{fmt(weightedPipeline - quarterlyGoal)}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )
+
+      case 'aging':
+        return (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '8px', padding: '18px 20px' }}>
+              <p style={{ fontSize: '11px', fontWeight: 700, color: text, marginBottom: '12px' }}>Aging — Top 5 Paralisados</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                {aging.map((deal) => {
+                  const stage = STAGES.find((s) => s.id === deal.stage_id)
+                  const agingColor = deal.days_in_stage > 60 ? (isDark ? '#fc8181' : '#c53030') : deal.days_in_stage > 30 ? '#b45309' : muted
+                  return (
+                    <button key={deal.id} type="button" onClick={() => navigate(`/deal/${deal.id}`)}
+                      style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '8px', borderRadius: '6px', border: 'none', backgroundColor: 'transparent', cursor: 'pointer', textAlign: 'left', transition: 'background-color 0.1s ease' }}
+                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = trackBg)}
+                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                    >
+                      <span style={{ width: '3px', height: '32px', borderRadius: '99px', backgroundColor: stage?.color, flexShrink: 0 }} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ fontSize: '12px', fontWeight: 600, color: text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{deal.company_name}</p>
+                        <p style={{ fontSize: '10px', color: muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{deal.title}</p>
+                      </div>
+                      <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                        <p style={{ fontSize: '13px', fontWeight: 700, color: agingColor }}>{deal.days_in_stage}d</p>
+                        <p style={{ fontSize: '10px', color: muted }}>{stage?.label}</p>
+                      </div>
+                      <div style={{ width: '24px', height: '24px', borderRadius: '50%', backgroundColor: deal.owner.avatar_color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '7px', fontWeight: 700, flexShrink: 0 }}>
+                        {deal.owner.initials}
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+            <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '8px', padding: '18px 20px' }}>
+              <p style={{ fontSize: '11px', fontWeight: 700, color: text, marginBottom: '12px' }}>Evolução Mensal — Pipeline Criado</p>
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px', height: '108px' }}>
+                {monthlyPipeline.map(({ label, value, key }) => {
+                  const maxV = Math.max(...monthlyPipeline.map((m) => m.value), 1)
+                  const barH = Math.max(Math.round((value / maxV) * 80), 3)
+                  const isCurrent = key === new Date().toISOString().slice(0, 7)
+                  return (
+                    <div key={key} title={`${label}: ${fmt(value)}`} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px' }}>
+                      <div style={{ width: '100%', height: `${barH}px`, backgroundColor: isCurrent ? '#4a9080' : '#2c5545', borderRadius: '3px 3px 0 0', opacity: isCurrent ? 1 : 0.7, transition: 'height 0.4s ease' }} />
+                      <span style={{ fontSize: '9px', color: isCurrent ? text : muted, fontWeight: isCurrent ? 600 : 400, textTransform: 'capitalize' }}>{label}</span>
+                    </div>
+                  )
+                })}
+              </div>
+              <div style={{ marginTop: '12px', paddingTop: '10px', borderTop: `1px solid ${border}`, display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: '10px', color: muted }}>{monthlyPipeline.length} meses analisados</span>
+                <span style={{ fontSize: '10px', fontWeight: 600, color: text, fontVariantNumeric: 'tabular-nums' }}>Total {fmt(monthlyPipeline.reduce((s, m) => s + m.value, 0))}</span>
+              </div>
+            </div>
+          </div>
+        )
+
+      case 'riscos':
+        return (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '8px', overflow: 'hidden' }}>
+              <div style={{ padding: '12px 18px', borderBottom: `1px solid ${border}`, display: 'flex', alignItems: 'center', gap: '7px' }}>
+                <AlertTriangle style={{ width: '12px', height: '12px', color: isDark ? '#fc8181' : '#c53030' }} />
+                <p style={{ fontSize: '11px', fontWeight: 700, color: text }}>Riscos da Semana</p>
+                {risks.length > 0 && <span style={{ fontSize: '9px', fontWeight: 700, color: '#fff', backgroundColor: '#c53030', borderRadius: '99px', padding: '1px 6px', marginLeft: 'auto' }}>{risks.length}</span>}
+              </div>
+              {risks.length === 0 ? (
+                <div style={{ padding: '20px', textAlign: 'center' }}>
+                  <p style={{ fontSize: '12px', color: muted }}>Nenhum risco identificado</p>
+                </div>
+              ) : risks.map((deal, i) => {
+                const stage     = STAGES.find((s) => s.id === deal.stage_id)
+                const isOverdue = deal.next_activity && daysDiff(deal.next_activity.due_date) < 0
+                const reason    = isOverdue ? `Atividade vencida há ${Math.abs(daysDiff(deal.next_activity!.due_date))}d` : `${deal.days_in_stage}d em ${stage?.label ?? ''} sem avançar`
+                return (
+                  <button key={deal.id} type="button" onClick={() => navigate(`/deal/${deal.id}`)}
+                    style={{ display: 'flex', alignItems: 'center', gap: '12px', width: '100%', padding: '10px 18px', borderBottom: i < risks.length - 1 ? `1px solid ${border}` : 'none', backgroundColor: 'transparent', cursor: 'pointer', textAlign: 'left', border: 'none', transition: 'background-color 0.1s ease' }}
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = trackBg)}
+                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                  >
+                    <span style={{ width: '3px', height: '28px', borderRadius: '99px', backgroundColor: isDark ? '#fc8181' : '#c53030', flexShrink: 0 }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontSize: '12px', fontWeight: 600, color: text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{deal.company_name}</p>
+                      <p style={{ fontSize: '10px', color: muted }}>{reason}</p>
+                    </div>
+                    <p style={{ fontSize: '11px', fontWeight: 700, color: text, flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>{fmt(deal.value)}</p>
+                  </button>
+                )
+              })}
+            </div>
+            <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '8px', overflow: 'hidden' }}>
+              <div style={{ padding: '12px 18px', borderBottom: `1px solid ${border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <p style={{ fontSize: '11px', fontWeight: 700, color: text }}>Próximas Ações</p>
+                <button type="button" onClick={() => navigate('/pipeline')}
+                  style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '10px', fontWeight: 600, color: muted, background: 'none', border: 'none', cursor: 'pointer', transition: 'color 0.15s ease' }}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = '#2c5545')}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = muted)}
+                >
+                  Ver pipeline <ArrowRight style={{ width: '10px', height: '10px' }} />
+                </button>
+              </div>
+              {upcoming.map(({ deal, activity }, i) => {
+                const diff = daysDiff(activity.due_date)
+                const Icon = ACT_ICONS[activity.type] ?? CheckSquare
+                const urgent = diff < 0; const today = diff === 0
+                const dateColor = urgent ? (isDark ? '#fc8181' : '#c53030') : today ? '#b45309' : muted
+                return (
+                  <button key={deal.id} type="button" onClick={() => navigate(`/deal/${deal.id}`)}
+                    style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '10px 18px', borderBottom: i < upcoming.length - 1 ? `1px solid ${border}` : 'none', backgroundColor: 'transparent', cursor: 'pointer', textAlign: 'left', border: 'none', transition: 'background-color 0.1s ease' }}
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = trackBg)}
+                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                  >
+                    <div style={{ width: '26px', height: '26px', borderRadius: '6px', backgroundColor: `${deal.owner.avatar_color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <Icon style={{ width: '11px', height: '11px', color: deal.owner.avatar_color }} />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontSize: '12px', fontWeight: 600, color: text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{deal.company_name}</p>
+                      <p style={{ fontSize: '10px', color: muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{activity.label}</p>
+                    </div>
+                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                      <p style={{ fontSize: '10px', fontWeight: 600, color: dateColor }}>{urgent ? `${Math.abs(diff)}d atrás` : today ? 'Hoje' : diff === 1 ? 'Amanhã' : fmtDate(activity.due_date)}</p>
+                      <div style={{ width: '16px', height: '16px', borderRadius: '50%', backgroundColor: deal.owner.avatar_color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '6px', fontWeight: 700, marginTop: '3px', marginLeft: 'auto' }}>
+                        {deal.owner.initials}
+                      </div>
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )
+
+      case 'inativos':
+        if (inactiveDeals.length === 0) return null
+        return (
+          <div style={{ backgroundColor: cardBg, border: `1px solid ${isDark ? '#4a2a1a' : '#fed7aa'}`, borderRadius: '8px', overflow: 'hidden' }}>
+            <div style={{ padding: '12px 18px', borderBottom: `1px solid ${border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <AlertTriangle style={{ width: '12px', height: '12px', color: '#b45309' }} />
+                <p style={{ fontSize: '11px', fontWeight: 700, color: text }}>Leads Sem Atividade</p>
+                <span style={{ fontSize: '9px', fontWeight: 700, color: '#b45309', backgroundColor: isDark ? '#2a1a0a' : '#fef3c7', borderRadius: '4px', padding: '1px 5px' }}>
+                  +21 dias
+                </span>
+              </div>
+              <span style={{ fontSize: '10px', color: muted }}>{inactiveDeals.length} leads</span>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)' }}>
+              {inactiveDeals.map((deal, i) => {
+                const daysSince = deal.last_activity_at
+                  ? Math.round((Date.now() - new Date(deal.last_activity_at).getTime()) / 86_400_000)
+                  : null
+                const stage = STAGES.find((s) => s.id === deal.stage_id)
+                const isLast = i >= inactiveDeals.length - 2
+                return (
+                  <button key={deal.id} type="button" onClick={() => navigate(`/deal/${deal.id}`)}
+                    style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 18px', backgroundColor: 'transparent', cursor: 'pointer', textAlign: 'left', border: 'none', borderBottom: isLast ? 'none' : `1px solid ${border}`, borderRight: i % 2 === 0 ? `1px solid ${border}` : 'none', transition: 'background-color 0.1s ease' }}
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = trackBg)}
+                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                  >
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontSize: '12px', fontWeight: 600, color: text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{deal.company_name}</p>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginTop: '2px' }}>
+                        {stage && <span style={{ fontSize: '9px', fontWeight: 600, color: stage.color }}>{stage.label}</span>}
+                        <span style={{ fontSize: '9px', color: muted }}>·</span>
+                        <span style={{ fontSize: '10px', color: '#b45309', fontWeight: 600 }}>
+                          {daysSince === null ? 'nunca' : `${daysSince}d sem atividade`}
+                        </span>
+                      </div>
+                    </div>
+                    <div style={{ width: '22px', height: '22px', borderRadius: '50%', backgroundColor: deal.owner.avatar_color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '7px', fontWeight: 700, flexShrink: 0 }} title={deal.owner.name}>
+                      {deal.owner.initials}
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )
+
+      case 'tarefas':
+        return (
+          <TasksWidget isDark={isDark} border={border} text={text} muted={muted} cardBg={cardBg} navigate={navigate} />
+        )
+
+      case 'res_kpis':
+        return (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: '10px' }}>
+            {[
+              { label: 'Ganhos Totais',       value: fmtFull(wonTotal),        sub: `${closedWon.length} deals fechados`, icon: Trophy,    accent: '#2d9e6b' },
+              { label: 'Meta Atingida',        value: `${goalPct.toFixed(1)}%`, sub: `Meta: ${fmt(quarterlyGoal)}`,        icon: Target,    accent: goalPct >= 100 ? '#2d9e6b' : goalPct >= 70 ? '#b45309' : (isDark ? '#fc8181' : '#c53030') },
+              { label: 'Ticket Médio Fechado', value: fmtFull(avgTicketWon),    sub: closedWon.length > 0 ? `${closedWon.length} deals base` : 'Sem dados', icon: DollarSign, accent: '#8b6914' },
+              { label: 'Conv. Pipeline → Won', value: `${roiPipeline.toFixed(1)}%`, sub: `${fmt(wonTotal)} ganhos de ${fmt(pipelineTotal + wonTotal)}`, icon: Percent, accent: '#4a7c8a' },
+            ].map(({ label, value, sub, icon: Icon, accent }) => (
+              <div key={label} style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '8px', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <p style={{ fontSize: '10px', fontWeight: 600, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', lineHeight: 1.2 }}>{label}</p>
+                  <div style={{ width: '26px', height: '26px', borderRadius: '6px', backgroundColor: `${accent}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <Icon style={{ width: '12px', height: '12px', color: accent }} />
+                  </div>
+                </div>
+                <div>
+                  <p style={{ fontSize: '20px', fontWeight: 700, color: text, letterSpacing: '-0.02em', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{value}</p>
+                  {sub && <p style={{ fontSize: '10px', color: muted, marginTop: '4px', lineHeight: 1.3 }}>{sub}</p>}
+                </div>
+              </div>
+            ))}
+          </div>
+        )
+
+      case 'ranking':
+        return (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '8px', padding: '18px 20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+                <Trophy style={{ width: '13px', height: '13px', color: '#b45309' }} />
+                <p style={{ fontSize: '11px', fontWeight: 700, color: text }}>Performance por Operador</p>
+              </div>
+              {ownerStats.length === 0 ? (
+                <p style={{ fontSize: '12px', color: muted, textAlign: 'center', padding: '20px 0' }}>Sem dados ainda</p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {ownerStats.map((o) => {
+                    const maxActive = Math.max(...ownerStats.map((x) => x.active), 1)
+                    const barW = Math.round((o.active / maxActive) * 100)
+                    return (
+                      <div key={o.id}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '5px' }}>
+                          <div style={{ width: '22px', height: '22px', borderRadius: '50%', backgroundColor: o.color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '7px', fontWeight: 700, flexShrink: 0 }}>
+                            {o.initials}
+                          </div>
+                          <span style={{ fontSize: '12px', fontWeight: 500, color: text, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {o.name.split(' ')[0]}
+                          </span>
+                          <span style={{ fontSize: '10px', color: muted, flexShrink: 0 }} title="Leads ativos">{o.active} ativos</span>
+                          {o.convRate !== null && (
+                            <span style={{ fontSize: '10px', fontWeight: 700, color: o.convRate >= 50 ? '#2d9e6b' : '#b45309', flexShrink: 0 }} title="Taxa de conversão">
+                              {o.convRate}% conv.
+                            </span>
+                          )}
+                          <span style={{ fontSize: '10px', fontWeight: 700, color: '#2d9e6b', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>{fmt(o.wonValue)}</span>
+                        </div>
+                        <div style={{ height: '3px', borderRadius: '99px', backgroundColor: trackBg, overflow: 'hidden' }}>
+                          <div style={{ height: '100%', borderRadius: '99px', width: `${barW}%`, backgroundColor: '#4a7c8a', transition: 'width 0.5s ease' }} />
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+            <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '8px', padding: '18px 20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                <BarChart2 style={{ width: '13px', height: '13px', color: '#2d9e6b' }} />
+                <p style={{ fontSize: '11px', fontWeight: 700, color: text }}>Histórico de Vendas por Mês</p>
+              </div>
+              {monthlyWon.length === 0 ? (
+                <p style={{ fontSize: '12px', color: muted, textAlign: 'center', padding: '20px 0' }}>Sem histórico de vendas</p>
+              ) : (
+                <>
+                  <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px', height: '100px' }}>
+                    {monthlyWon.map(({ label, value, key }) => {
+                      const maxV = Math.max(...monthlyWon.map((m) => m.value), 1)
+                      const barH = Math.max(Math.round((value / maxV) * 80), 3)
+                      const isCurrent = key === new Date().toISOString().slice(0, 7)
+                      return (
+                        <div key={key} title={`${label}: ${fmt(value)}`} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px' }}>
+                          <div style={{ width: '100%', height: `${barH}px`, backgroundColor: isCurrent ? '#2d9e6b' : '#4a9080', borderRadius: '3px 3px 0 0', opacity: isCurrent ? 1 : 0.75, transition: 'height 0.4s ease' }} />
+                          <span style={{ fontSize: '9px', color: isCurrent ? text : muted, fontWeight: isCurrent ? 600 : 400, textTransform: 'capitalize' }}>{label}</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                  <div style={{ marginTop: '12px', paddingTop: '10px', borderTop: `1px solid ${border}`, display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '10px', color: muted }}>{monthlyWon.length} meses com vendas</span>
+                    <span style={{ fontSize: '10px', fontWeight: 600, color: '#2d9e6b', fontVariantNumeric: 'tabular-nums' }}>Total {fmtFull(wonTotal)}</span>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        )
+
+      case 'conv':
+        return (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '8px', padding: '18px 20px' }}>
+              <p style={{ fontSize: '11px', fontWeight: 700, color: text, marginBottom: '14px' }}>Distribuição do Pipeline Ativo</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {stageConversion.map(({ stage, pct }) => {
+                  const count = activeDeals.filter((d) => d.stage_id === stage.id).length
+                  return (
+                    <div key={stage.id}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: stage.color, flexShrink: 0 }} />
+                          <span style={{ fontSize: '11px', color: text }}>{stage.label}</span>
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                          <span style={{ fontSize: '10px', color: muted }}>{count} deal{count !== 1 ? 's' : ''}</span>
+                          <span style={{ fontSize: '10px', fontWeight: 700, color: text }}>{pct}%</span>
+                        </div>
+                      </div>
+                      <div style={{ height: '3px', borderRadius: '99px', backgroundColor: trackBg, overflow: 'hidden' }}>
+                        <div style={{ height: '100%', borderRadius: '99px', width: `${pct}%`, backgroundColor: stage.color, opacity: 0.8, transition: 'width 0.5s ease' }} />
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+            <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '8px', padding: '18px 20px' }}>
+              <p style={{ fontSize: '11px', fontWeight: 700, color: text, marginBottom: '4px' }}>Tempo Médio por Etapa</p>
+              <p style={{ fontSize: '10px', color: muted, marginBottom: '14px' }}>Gargalos do pipeline — dias médios na etapa</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {avgDaysPerStage.map(({ stage, avg, count }) => {
+                  const maxAvg = Math.max(...avgDaysPerStage.map((x) => x.avg ?? 0), 1)
+                  const barW   = avg !== null ? Math.round((avg / maxAvg) * 100) : 0
+                  const isHot  = avg !== null && avg > 60
+                  return (
+                    <div key={stage.id}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: stage.color, flexShrink: 0 }} />
+                          <span style={{ fontSize: '11px', color: text }}>{stage.label}</span>
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                          <span style={{ fontSize: '10px', color: muted }}>{count} lead{count !== 1 ? 's' : ''}</span>
+                          <span style={{ fontSize: '11px', fontWeight: 700, color: isHot ? (isDark ? '#fc8181' : '#c53030') : text, fontVariantNumeric: 'tabular-nums' }}>
+                            {avg !== null ? `${avg}d` : '—'}
+                          </span>
+                        </div>
+                      </div>
+                      <div style={{ height: '3px', borderRadius: '99px', backgroundColor: trackBg, overflow: 'hidden' }}>
+                        <div style={{ height: '100%', borderRadius: '99px', width: `${barW}%`, backgroundColor: isHot ? (isDark ? '#c53030' : '#ef4444') : stage.color, opacity: 0.8, transition: 'width 0.5s ease' }} />
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+              <div style={{ marginTop: '14px', paddingTop: '10px', borderTop: `1px solid ${border}`, display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: '10px', color: muted }}>Ciclo médio geral</span>
+                <span style={{ fontSize: '11px', fontWeight: 700, color: text }}>{avgCycle}d</span>
+              </div>
+            </div>
+          </div>
+        )
+
+      default:
+        return null
+    }
+  }
+
+  // ── Visible widget ids for current tab ────────────────────────────────────
+  const tabWidgetIds = widgetOrder.filter((id) => {
+    const def = WIDGET_DEFS.find((w) => w.id === id)
+    if (!def) return false
+    return def.tab === activeTab || def.tab === 'ambos'
+  })
+
   return (
     <>
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: pageBg }}>
@@ -494,14 +1095,16 @@ export function DashboardPage() {
             onClick={() => setShowWidgetModal(true)}
             title="Gerenciar widgets"
             style={{
-              width: '28px', height: '28px', borderRadius: '6px', border: `1px solid ${border}`,
+              height: '28px', padding: '0 10px', borderRadius: '6px', border: `1px solid ${border}`,
               backgroundColor: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center',
-              justifyContent: 'center', color: muted, fontSize: '16px', lineHeight: 1,
+              justifyContent: 'center', color: muted, fontSize: '11px', fontWeight: 600, gap: '4px',
               transition: 'all 0.15s ease',
             }}
             onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#2c5545'; e.currentTarget.style.color = '#2c5545' }}
             onMouseLeave={(e) => { e.currentTarget.style.borderColor = border; e.currentTarget.style.color = muted }}
-          >+</button>
+          >
+            + Widgets
+          </button>
           <span style={{
             fontSize: '10px', fontWeight: 700, color: '#2c5545',
             backgroundColor: isDark ? '#1a2e22' : '#e6f2ee',
@@ -516,515 +1119,19 @@ export function DashboardPage() {
 
       {/* ── Content ────────────────────────────────────────────────────────── */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-
-        {/* ════════════════════════ TAB 1 — OPERAÇÃO ════════════════════════ */}
-        {activeTab === 'operacao' && (
-          <>
-            {/* KPIs */}
-            {vis.has('kpis') && <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
-                <GripVertical style={{ width: '11px', height: '11px', color: muted }} />
-                <span style={{ fontSize: '10px', color: muted, fontWeight: 500 }}>Arraste os cards para reorganizar</span>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, minmax(0, 1fr))', gap: '10px' }}>
-                {!loaded
-                  ? DEFAULT_KPI_ORDER.map((id) => <KpiSkeleton key={id} isDark={isDark} />)
-                  : kpiOrder.map((id, idx) => {
-                      const kpi = kpiDefs[id]
-                      if (!kpi) return null
-                      return (
-                        <KpiCard
-                          key={id} {...kpi} isDark={isDark}
-                          isDragging={draggingId === id}
-                          onDragStart={(e) => handleDragStart(id, idx, e)}
-                          onDragOver={(e) => e.preventDefault()}
-                          onDrop={() => handleDrop(idx)}
-                          onDragEnd={() => { dragIdx.current = null; setDraggingId(null) }}
-                        />
-                      )
-                    })
-                }
-              </div>
-            </div>}
-
-            {/* Funil & Forecast */}
-            {vis.has('funil') && <div style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: '12px' }}>
-              <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '8px', padding: '18px 20px' }}>
-                <p style={{ fontSize: '11px', fontWeight: 700, color: text, marginBottom: '14px' }}>Funil por Estágio</p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  {funnelData.map(({ stage, count, value, convRate }) => (
-                    <div key={stage.id}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '5px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
-                          <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: stage.color, display: 'inline-block', flexShrink: 0 }} />
-                          <span style={{ fontSize: '12px', fontWeight: 500, color: text }}>{stage.label}</span>
-                          <span style={{ fontSize: '10px', fontWeight: 600, color: muted, backgroundColor: trackBg, borderRadius: '3px', padding: '1px 5px' }}>{count}</span>
-                          {convRate !== null && (
-                            <span style={{ fontSize: '10px', fontWeight: 600, color: convRate > 60 ? '#2d9e6b' : convRate > 30 ? '#b45309' : (isDark ? '#fc8181' : '#c53030') }}>
-                              {convRate}% conv.
-                            </span>
-                          )}
-                        </div>
-                        <span style={{ fontSize: '11px', fontWeight: 600, color: value > 0 ? text : muted, fontVariantNumeric: 'tabular-nums' }}>
-                          {value > 0 ? fmt(value) : '—'}
-                        </span>
-                      </div>
-                      <div style={{ height: '4px', borderRadius: '99px', backgroundColor: trackBg, overflow: 'hidden' }}>
-                        <div style={{ height: '100%', borderRadius: '99px', width: `${value > 0 ? Math.round((value / maxFunnelVal) * 100) : (count > 0 ? 6 : 0)}%`, backgroundColor: stage.color, opacity: 0.85, transition: 'width 0.5s ease' }} />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <div style={{ marginTop: '16px', paddingTop: '14px', borderTop: `1px solid ${border}`, display: 'flex', gap: '24px' }}>
-                  {[
-                    { label: 'Total Pipeline', value: fmt(pipelineTotal), color: text },
-                    { label: 'Ganhos',         value: fmt(wonTotal),      color: '#2d9e6b' },
-                    { label: 'Perdidos',       value: fmt(lostTotal),     color: isDark ? '#fc8181' : '#c53030' },
-                    { label: 'Win Rate',       value: `${winRate}%`,      color: text },
-                  ].map(({ label, value: v, color }) => (
-                    <div key={label}>
-                      <p style={{ fontSize: '10px', fontWeight: 600, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '3px' }}>{label}</p>
-                      <p style={{ fontSize: '13px', fontWeight: 700, color, fontVariantNumeric: 'tabular-nums' }}>{v}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Forecast */}
-              <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '8px', padding: '18px 20px', display: 'flex', flexDirection: 'column' }}>
-                <p style={{ fontSize: '11px', fontWeight: 700, color: text, marginBottom: '16px' }}>Forecast Q2 · 2026</p>
-                <div style={{ marginBottom: '18px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '7px' }}>
-                    <span style={{ fontSize: '11px', color: muted }}>Pipeline ponderado</span>
-                    <span style={{ fontSize: '11px', fontWeight: 700, color: text, fontVariantNumeric: 'tabular-nums' }}>{fmt(weightedPipeline)}</span>
-                  </div>
-                  <div style={{ height: '8px', borderRadius: '99px', backgroundColor: trackBg, overflow: 'hidden' }}>
-                    <div style={{ height: '100%', borderRadius: '99px', width: `${forecastPct}%`, background: 'linear-gradient(90deg, #2c5545, #4a9080)', transition: 'width 0.6s ease' }} />
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '5px' }}>
-                    <span style={{ fontSize: '10px', color: muted }}>{forecastPct.toFixed(0)}% da meta</span>
-                    <span style={{ fontSize: '10px', color: muted }}>Meta: {fmt(quarterlyGoal)}</span>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
-                  {funnelData.filter((f) => f.value > 0).map(({ stage, count }) => {
-                    const stageDeals = valueDeals.filter((d) => d.stage_id === stage.id)
-                    const weighted   = stageDeals.reduce((s, d) => s + d.value * (d.probability / 100), 0)
-                    const pct        = Math.round((weighted / quarterlyGoal) * 100)
-                    return (
-                      <div key={stage.id} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: stage.color, flexShrink: 0 }} />
-                        <span style={{ fontSize: '11px', color: muted, flex: 1 }}>{stage.label} ({count})</span>
-                        <span style={{ fontSize: '11px', fontWeight: 600, color: text, fontVariantNumeric: 'tabular-nums', minWidth: '56px', textAlign: 'right' }}>{fmt(weighted)}</span>
-                        <span style={{ fontSize: '10px', color: muted, minWidth: '28px', textAlign: 'right' }}>{pct}%</span>
-                      </div>
-                    )
-                  })}
-                </div>
-                <div style={{ marginTop: '14px', paddingTop: '12px', borderTop: `1px solid ${border}` }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '10px', fontWeight: 600, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Gap para meta</span>
-                    <span style={{ fontSize: '13px', fontWeight: 700, color: weightedPipeline >= quarterlyGoal ? '#2d9e6b' : (isDark ? '#fc8181' : '#c53030'), fontVariantNumeric: 'tabular-nums' }}>
-                      {weightedPipeline >= quarterlyGoal ? '+' : ''}{fmt(weightedPipeline - quarterlyGoal)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>}
-
-            {/* Aging & Evolução mensal */}
-            {vis.has('aging') && <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-              {/* Aging */}
-              <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '8px', padding: '18px 20px' }}>
-                <p style={{ fontSize: '11px', fontWeight: 700, color: text, marginBottom: '12px' }}>Aging — Top 5 Paralisados</p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                  {aging.map((deal) => {
-                    const stage = STAGES.find((s) => s.id === deal.stage_id)
-                    const agingColor = deal.days_in_stage > 60 ? (isDark ? '#fc8181' : '#c53030') : deal.days_in_stage > 30 ? '#b45309' : muted
-                    return (
-                      <button key={deal.id} type="button" onClick={() => navigate(`/deal/${deal.id}`)}
-                        style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '8px', borderRadius: '6px', border: 'none', backgroundColor: 'transparent', cursor: 'pointer', textAlign: 'left', transition: 'background-color 0.1s ease' }}
-                        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = trackBg)}
-                        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-                      >
-                        <span style={{ width: '3px', height: '32px', borderRadius: '99px', backgroundColor: stage?.color, flexShrink: 0 }} />
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <p style={{ fontSize: '12px', fontWeight: 600, color: text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{deal.company_name}</p>
-                          <p style={{ fontSize: '10px', color: muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{deal.title}</p>
-                        </div>
-                        <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                          <p style={{ fontSize: '13px', fontWeight: 700, color: agingColor }}>{deal.days_in_stage}d</p>
-                          <p style={{ fontSize: '10px', color: muted }}>{stage?.label}</p>
-                        </div>
-                        <div style={{ width: '24px', height: '24px', borderRadius: '50%', backgroundColor: deal.owner.avatar_color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '7px', fontWeight: 700, flexShrink: 0 }}>
-                          {deal.owner.initials}
-                        </div>
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-
-              {/* Evolução mensal */}
-              <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '8px', padding: '18px 20px' }}>
-                <p style={{ fontSize: '11px', fontWeight: 700, color: text, marginBottom: '12px' }}>Evolução Mensal — Pipeline Criado</p>
-                <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px', height: '108px' }}>
-                  {monthlyPipeline.map(({ label, value, key }) => {
-                    const maxV = Math.max(...monthlyPipeline.map((m) => m.value), 1)
-                    const barH = Math.max(Math.round((value / maxV) * 80), 3)
-                    const isCurrent = key === new Date().toISOString().slice(0, 7)
-                    return (
-                      <div key={key} title={`${label}: ${fmt(value)}`} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px' }}>
-                        <div style={{ width: '100%', height: `${barH}px`, backgroundColor: isCurrent ? '#4a9080' : '#2c5545', borderRadius: '3px 3px 0 0', opacity: isCurrent ? 1 : 0.7, transition: 'height 0.4s ease' }} />
-                        <span style={{ fontSize: '9px', color: isCurrent ? text : muted, fontWeight: isCurrent ? 600 : 400, textTransform: 'capitalize' }}>{label}</span>
-                      </div>
-                    )
-                  })}
-                </div>
-                <div style={{ marginTop: '12px', paddingTop: '10px', borderTop: `1px solid ${border}`, display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: '10px', color: muted }}>{monthlyPipeline.length} meses analisados</span>
-                  <span style={{ fontSize: '10px', fontWeight: 600, color: text, fontVariantNumeric: 'tabular-nums' }}>Total {fmt(monthlyPipeline.reduce((s, m) => s + m.value, 0))}</span>
-                </div>
-              </div>
-            </div>}
-
-            {/* Riscos & Próximas ações */}
-            {vis.has('riscos') && <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-              <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '8px', overflow: 'hidden' }}>
-                <div style={{ padding: '12px 18px', borderBottom: `1px solid ${border}`, display: 'flex', alignItems: 'center', gap: '7px' }}>
-                  <AlertTriangle style={{ width: '12px', height: '12px', color: isDark ? '#fc8181' : '#c53030' }} />
-                  <p style={{ fontSize: '11px', fontWeight: 700, color: text }}>Riscos da Semana</p>
-                  {risks.length > 0 && <span style={{ fontSize: '9px', fontWeight: 700, color: '#fff', backgroundColor: '#c53030', borderRadius: '99px', padding: '1px 6px', marginLeft: 'auto' }}>{risks.length}</span>}
-                </div>
-                {risks.length === 0 ? (
-                  <div style={{ padding: '20px', textAlign: 'center' }}>
-                    <p style={{ fontSize: '12px', color: muted }}>Nenhum risco identificado</p>
-                  </div>
-                ) : risks.map((deal, i) => {
-                  const stage     = STAGES.find((s) => s.id === deal.stage_id)
-                  const isOverdue = deal.next_activity && daysDiff(deal.next_activity.due_date) < 0
-                  const reason    = isOverdue ? `Atividade vencida há ${Math.abs(daysDiff(deal.next_activity!.due_date))}d` : `${deal.days_in_stage}d em ${stage?.label ?? ''} sem avançar`
-                  return (
-                    <button key={deal.id} type="button" onClick={() => navigate(`/deal/${deal.id}`)}
-                      style={{ display: 'flex', alignItems: 'center', gap: '12px', width: '100%', padding: '10px 18px', borderBottom: i < risks.length - 1 ? `1px solid ${border}` : 'none', backgroundColor: 'transparent', cursor: 'pointer', textAlign: 'left', border: 'none', transition: 'background-color 0.1s ease' }}
-                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = trackBg)}
-                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-                    >
-                      <span style={{ width: '3px', height: '28px', borderRadius: '99px', backgroundColor: isDark ? '#fc8181' : '#c53030', flexShrink: 0 }} />
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <p style={{ fontSize: '12px', fontWeight: 600, color: text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{deal.company_name}</p>
-                        <p style={{ fontSize: '10px', color: muted }}>{reason}</p>
-                      </div>
-                      <p style={{ fontSize: '11px', fontWeight: 700, color: text, flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>{fmt(deal.value)}</p>
-                    </button>
-                  )
-                })}
-              </div>
-
-              <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '8px', overflow: 'hidden' }}>
-                <div style={{ padding: '12px 18px', borderBottom: `1px solid ${border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <p style={{ fontSize: '11px', fontWeight: 700, color: text }}>Próximas Ações</p>
-                  <button type="button" onClick={() => navigate('/pipeline')}
-                    style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '10px', fontWeight: 600, color: muted, background: 'none', border: 'none', cursor: 'pointer', transition: 'color 0.15s ease' }}
-                    onMouseEnter={(e) => (e.currentTarget.style.color = '#2c5545')}
-                    onMouseLeave={(e) => (e.currentTarget.style.color = muted)}
-                  >
-                    Ver pipeline <ArrowRight style={{ width: '10px', height: '10px' }} />
-                  </button>
-                </div>
-                {upcoming.map(({ deal, activity }, i) => {
-                  const diff = daysDiff(activity.due_date)
-                  const Icon = ACT_ICONS[activity.type] ?? CheckSquare
-                  const urgent = diff < 0; const today = diff === 0
-                  const dateColor = urgent ? (isDark ? '#fc8181' : '#c53030') : today ? '#b45309' : muted
-                  return (
-                    <button key={deal.id} type="button" onClick={() => navigate(`/deal/${deal.id}`)}
-                      style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '10px 18px', borderBottom: i < upcoming.length - 1 ? `1px solid ${border}` : 'none', backgroundColor: 'transparent', cursor: 'pointer', textAlign: 'left', border: 'none', transition: 'background-color 0.1s ease' }}
-                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = trackBg)}
-                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-                    >
-                      <div style={{ width: '26px', height: '26px', borderRadius: '6px', backgroundColor: `${deal.owner.avatar_color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                        <Icon style={{ width: '11px', height: '11px', color: deal.owner.avatar_color }} />
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <p style={{ fontSize: '12px', fontWeight: 600, color: text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{deal.company_name}</p>
-                        <p style={{ fontSize: '10px', color: muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{activity.label}</p>
-                      </div>
-                      <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                        <p style={{ fontSize: '10px', fontWeight: 600, color: dateColor }}>{urgent ? `${Math.abs(diff)}d atrás` : today ? 'Hoje' : diff === 1 ? 'Amanhã' : fmtDate(activity.due_date)}</p>
-                        <div style={{ width: '16px', height: '16px', borderRadius: '50%', backgroundColor: deal.owner.avatar_color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '6px', fontWeight: 700, marginTop: '3px', marginLeft: 'auto' }}>
-                          {deal.owner.initials}
-                        </div>
-                      </div>
-                    </button>
-                  )
-                })}
-              </div>
-            </div>}
-
-            {/* P6.4 — Leads Parados (>7 dias sem atividade) */}
-            {staleCount > 0 && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', backgroundColor: isDark ? '#1a1200' : '#fffbeb', border: `1px solid ${isDark ? '#5a3e00' : '#fde68a'}`, borderRadius: '8px' }}>
-                <AlertTriangle style={{ width: '13px', height: '13px', color: '#b45309', flexShrink: 0 }} />
-                <p style={{ fontSize: '12px', fontWeight: 600, color: isDark ? '#fbbf24' : '#92400e' }}>
-                  Leads Parados
-                </p>
-                <span style={{ fontSize: '11px', fontWeight: 700, color: '#fff', backgroundColor: '#b45309', borderRadius: '99px', padding: '1px 7px' }}>{staleCount}</span>
-                <p style={{ fontSize: '11px', color: isDark ? '#d97706' : '#b45309', marginLeft: '2px' }}>
-                  {staleCount === 1 ? 'lead sem atividade há mais de 7 dias' : 'leads sem atividade há mais de 7 dias'}
-                </p>
-                <button type="button" onClick={() => navigate('/pipeline')}
-                  style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '3px', fontSize: '10px', fontWeight: 600, color: '#b45309', background: 'none', border: 'none', cursor: 'pointer' }}>
-                  Ver pipeline <ArrowRight style={{ width: '10px', height: '10px' }} />
-                </button>
-              </div>
-            )}
-
-            {/* Leads sem atividade recente */}
-            {vis.has('inativos') && inactiveDeals.length > 0 && (
-              <div style={{ backgroundColor: cardBg, border: `1px solid ${isDark ? '#4a2a1a' : '#fed7aa'}`, borderRadius: '8px', overflow: 'hidden' }}>
-                <div style={{ padding: '12px 18px', borderBottom: `1px solid ${border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <AlertTriangle style={{ width: '12px', height: '12px', color: '#b45309' }} />
-                    <p style={{ fontSize: '11px', fontWeight: 700, color: text }}>Leads Sem Atividade</p>
-                    <span style={{ fontSize: '9px', fontWeight: 700, color: '#b45309', backgroundColor: isDark ? '#2a1a0a' : '#fef3c7', borderRadius: '4px', padding: '1px 5px' }}>
-                      +21 dias
-                    </span>
-                  </div>
-                  <span style={{ fontSize: '10px', color: muted }}>{inactiveDeals.length} leads</span>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)' }}>
-                  {inactiveDeals.map((deal, i) => {
-                    const daysSince = deal.last_activity_at
-                      ? Math.round((Date.now() - new Date(deal.last_activity_at).getTime()) / 86_400_000)
-                      : null
-                    const stage = STAGES.find((s) => s.id === deal.stage_id)
-                    const isLast = i >= inactiveDeals.length - 2
-                    return (
-                      <button key={deal.id} type="button" onClick={() => navigate(`/deal/${deal.id}`)}
-                        style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 18px', backgroundColor: 'transparent', cursor: 'pointer', textAlign: 'left', border: 'none', borderBottom: isLast ? 'none' : `1px solid ${border}`, borderRight: i % 2 === 0 ? `1px solid ${border}` : 'none', transition: 'background-color 0.1s ease' }}
-                        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = trackBg)}
-                        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-                      >
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <p style={{ fontSize: '12px', fontWeight: 600, color: text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{deal.company_name}</p>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginTop: '2px' }}>
-                            {stage && <span style={{ fontSize: '9px', fontWeight: 600, color: stage.color }}>{stage.label}</span>}
-                            <span style={{ fontSize: '9px', color: muted }}>·</span>
-                            <span style={{ fontSize: '10px', color: '#b45309', fontWeight: 600 }}>
-                              {daysSince === null ? 'nunca' : `${daysSince}d sem atividade`}
-                            </span>
-                          </div>
-                        </div>
-                        <div style={{ width: '22px', height: '22px', borderRadius: '50%', backgroundColor: deal.owner.avatar_color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '7px', fontWeight: 700, flexShrink: 0 }} title={deal.owner.name}>
-                          {deal.owner.initials}
-                        </div>
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-            )}
-          </>
-        )}
-
-        {/* ════════════════════════ TAB 2 — RESULTADOS ══════════════════════ */}
-        {activeTab === 'resultados' && (
-          <>
-            {/* KPIs de Resultados */}
-            {vis.has('res_kpis') && <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: '10px' }}>
-              {[
-                {
-                  label: 'Ganhos Totais',
-                  value: fmtFull(wonTotal),
-                  sub: `${closedWon.length} deals fechados`,
-                  icon: Trophy,
-                  accent: '#2d9e6b',
-                },
-                {
-                  label: 'Meta Atingida',
-                  value: `${goalPct.toFixed(1)}%`,
-                  sub: `Meta: ${fmt(quarterlyGoal)}`,
-                  icon: Target,
-                  accent: goalPct >= 100 ? '#2d9e6b' : goalPct >= 70 ? '#b45309' : (isDark ? '#fc8181' : '#c53030'),
-                },
-                {
-                  label: 'Ticket Médio Fechado',
-                  value: fmtFull(avgTicketWon),
-                  sub: closedWon.length > 0 ? `${closedWon.length} deals base` : 'Sem dados',
-                  icon: DollarSign,
-                  accent: '#8b6914',
-                },
-                {
-                  label: 'Conv. Pipeline → Won',
-                  value: `${roiPipeline.toFixed(1)}%`,
-                  sub: `${fmt(wonTotal)} ganhos de ${fmt(pipelineTotal + wonTotal)}`,
-                  icon: Percent,
-                  accent: '#4a7c8a',
-                },
-              ].map(({ label, value, sub, icon: Icon, accent }) => (
-                <div key={label} style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '8px', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <p style={{ fontSize: '10px', fontWeight: 600, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', lineHeight: 1.2 }}>{label}</p>
-                    <div style={{ width: '26px', height: '26px', borderRadius: '6px', backgroundColor: `${accent}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      <Icon style={{ width: '12px', height: '12px', color: accent }} />
-                    </div>
-                  </div>
-                  <div>
-                    <p style={{ fontSize: '20px', fontWeight: 700, color: text, letterSpacing: '-0.02em', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{value}</p>
-                    {sub && <p style={{ fontSize: '10px', color: muted, marginTop: '4px', lineHeight: 1.3 }}>{sub}</p>}
-                  </div>
-                </div>
-              ))}
-            </div>}
-
-            {/* Ranking + Histórico de Won */}
-            {vis.has('ranking') && <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-
-              {/* Performance por Operador */}
-              <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '8px', padding: '18px 20px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
-                  <Trophy style={{ width: '13px', height: '13px', color: '#b45309' }} />
-                  <p style={{ fontSize: '11px', fontWeight: 700, color: text }}>Performance por Operador</p>
-                </div>
-                {ownerStats.length === 0 ? (
-                  <p style={{ fontSize: '12px', color: muted, textAlign: 'center', padding: '20px 0' }}>Sem dados ainda</p>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    {ownerStats.map((o) => {
-                      const maxActive = Math.max(...ownerStats.map((x) => x.active), 1)
-                      const barW = Math.round((o.active / maxActive) * 100)
-                      return (
-                        <div key={o.id}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '5px' }}>
-                            <div style={{ width: '22px', height: '22px', borderRadius: '50%', backgroundColor: o.color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '7px', fontWeight: 700, flexShrink: 0 }}>
-                              {o.initials}
-                            </div>
-                            <span style={{ fontSize: '12px', fontWeight: 500, color: text, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                              {o.name.split(' ')[0]}
-                            </span>
-                            <span style={{ fontSize: '10px', color: muted, flexShrink: 0 }} title="Leads ativos">{o.active} ativos</span>
-                            {o.convRate !== null && (
-                              <span style={{ fontSize: '10px', fontWeight: 700, color: o.convRate >= 50 ? '#2d9e6b' : '#b45309', flexShrink: 0 }} title="Taxa de conversão">
-                                {o.convRate}% conv.
-                              </span>
-                            )}
-                            <span style={{ fontSize: '10px', fontWeight: 700, color: '#2d9e6b', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>{fmt(o.wonValue)}</span>
-                          </div>
-                          <div style={{ height: '3px', borderRadius: '99px', backgroundColor: trackBg, overflow: 'hidden' }}>
-                            <div style={{ height: '100%', borderRadius: '99px', width: `${barW}%`, backgroundColor: '#4a7c8a', transition: 'width 0.5s ease' }} />
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
-              </div>
-
-              {/* Histórico de Won por mês */}
-              <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '8px', padding: '18px 20px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-                  <BarChart2 style={{ width: '13px', height: '13px', color: '#2d9e6b' }} />
-                  <p style={{ fontSize: '11px', fontWeight: 700, color: text }}>Histórico de Vendas por Mês</p>
-                </div>
-                {monthlyWon.length === 0 ? (
-                  <p style={{ fontSize: '12px', color: muted, textAlign: 'center', padding: '20px 0' }}>Sem histórico de vendas</p>
-                ) : (
-                  <>
-                    <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px', height: '100px' }}>
-                      {monthlyWon.map(({ label, value, key }) => {
-                        const maxV = Math.max(...monthlyWon.map((m) => m.value), 1)
-                        const barH = Math.max(Math.round((value / maxV) * 80), 3)
-                        const isCurrent = key === new Date().toISOString().slice(0, 7)
-                        return (
-                          <div key={key} title={`${label}: ${fmt(value)}`} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px' }}>
-                            <div style={{ width: '100%', height: `${barH}px`, backgroundColor: isCurrent ? '#2d9e6b' : '#4a9080', borderRadius: '3px 3px 0 0', opacity: isCurrent ? 1 : 0.75, transition: 'height 0.4s ease' }} />
-                            <span style={{ fontSize: '9px', color: isCurrent ? text : muted, fontWeight: isCurrent ? 600 : 400, textTransform: 'capitalize' }}>{label}</span>
-                          </div>
-                        )
-                      })}
-                    </div>
-                    <div style={{ marginTop: '12px', paddingTop: '10px', borderTop: `1px solid ${border}`, display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ fontSize: '10px', color: muted }}>{monthlyWon.length} meses com vendas</span>
-                      <span style={{ fontSize: '10px', fontWeight: 600, color: '#2d9e6b', fontVariantNumeric: 'tabular-nums' }}>Total {fmtFull(wonTotal)}</span>
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>}
-
-            {/* Taxa de conversão + métricas de ciclo */}
-            {vis.has('conv') && <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-
-              {/* Distribuição do Pipeline Ativo */}
-              <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '8px', padding: '18px 20px' }}>
-                <p style={{ fontSize: '11px', fontWeight: 700, color: text, marginBottom: '14px' }}>Distribuição do Pipeline Ativo</p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  {stageConversion.map(({ stage, pct }) => {
-                    const count = activeDeals.filter((d) => d.stage_id === stage.id).length
-                    return (
-                      <div key={stage.id}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: stage.color, flexShrink: 0 }} />
-                            <span style={{ fontSize: '11px', color: text }}>{stage.label}</span>
-                          </div>
-                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                            <span style={{ fontSize: '10px', color: muted }}>{count} deal{count !== 1 ? 's' : ''}</span>
-                            <span style={{ fontSize: '10px', fontWeight: 700, color: text }}>{pct}%</span>
-                          </div>
-                        </div>
-                        <div style={{ height: '3px', borderRadius: '99px', backgroundColor: trackBg, overflow: 'hidden' }}>
-                          <div style={{ height: '100%', borderRadius: '99px', width: `${pct}%`, backgroundColor: stage.color, opacity: 0.8, transition: 'width 0.5s ease' }} />
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-
-              {/* Tempo médio por etapa */}
-              <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '8px', padding: '18px 20px' }}>
-                <p style={{ fontSize: '11px', fontWeight: 700, color: text, marginBottom: '4px' }}>Tempo Médio por Etapa</p>
-                <p style={{ fontSize: '10px', color: muted, marginBottom: '14px' }}>Gargalos do pipeline — dias médios na etapa</p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  {avgDaysPerStage.map(({ stage, avg, count }) => {
-                    const maxAvg = Math.max(...avgDaysPerStage.map((x) => x.avg ?? 0), 1)
-                    const barW   = avg !== null ? Math.round((avg / maxAvg) * 100) : 0
-                    const isHot  = avg !== null && avg > 60
-                    return (
-                      <div key={stage.id}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: stage.color, flexShrink: 0 }} />
-                            <span style={{ fontSize: '11px', color: text }}>{stage.label}</span>
-                          </div>
-                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                            <span style={{ fontSize: '10px', color: muted }}>{count} lead{count !== 1 ? 's' : ''}</span>
-                            <span style={{ fontSize: '11px', fontWeight: 700, color: isHot ? (isDark ? '#fc8181' : '#c53030') : text, fontVariantNumeric: 'tabular-nums' }}>
-                              {avg !== null ? `${avg}d` : '—'}
-                            </span>
-                          </div>
-                        </div>
-                        <div style={{ height: '3px', borderRadius: '99px', backgroundColor: trackBg, overflow: 'hidden' }}>
-                          <div style={{ height: '100%', borderRadius: '99px', width: `${barW}%`, backgroundColor: isHot ? (isDark ? '#c53030' : '#ef4444') : stage.color, opacity: 0.8, transition: 'width 0.5s ease' }} />
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-                <div style={{ marginTop: '14px', paddingTop: '10px', borderTop: `1px solid ${border}`, display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: '10px', color: muted }}>Ciclo médio geral</span>
-                  <span style={{ fontSize: '11px', fontWeight: 700, color: text }}>{avgCycle}d</span>
-                </div>
-              </div>
-            </div>}
-          </>
-        )}
-
-        {/* ── Próximas Tarefas ── */}
-        {vis.has('tarefas') && <TasksWidget isDark={isDark} border={border} text={text} muted={muted} cardBg={cardBg} navigate={navigate} />}
-
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={tabWidgetIds} strategy={verticalListSortingStrategy}>
+            {tabWidgetIds.map((id) => {
+              const content = renderWidgetContent(id)
+              if (content === null) return null
+              return (
+                <WidgetWrapper key={id} id={id} onRemove={removeWidget} isDark={isDark}>
+                  {content}
+                </WidgetWrapper>
+              )
+            })}
+          </SortableContext>
+        </DndContext>
       </div>
     </div>
 
@@ -1037,9 +1144,10 @@ export function DashboardPage() {
         <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)' }} />
         <div
           style={{
-            position: 'relative', width: '340px', borderRadius: '12px',
+            position: 'relative', width: '380px', borderRadius: '12px',
             backgroundColor: cardBg, border: `1px solid ${border}`,
             padding: '20px', boxShadow: '0 16px 40px rgba(0,0,0,0.24)',
+            maxHeight: '80vh', overflowY: 'auto',
           }}
           onClick={(e) => e.stopPropagation()}
         >
@@ -1049,33 +1157,53 @@ export function DashboardPage() {
               style={{ background: 'none', border: 'none', cursor: 'pointer', color: muted, fontSize: '18px', lineHeight: 1, padding: '2px 6px' }}>×</button>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            {ALL_WIDGETS.map((w) => {
-              const active = vis.has(w.id)
+            {WIDGET_DEFS.map((w) => {
+              const enabled = widgetOrder.includes(w.id)
               return (
-                <button key={w.id} type="button" onClick={() => toggleWidget(w.id)}
+                <div key={w.id}
                   style={{
                     display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 12px',
-                    borderRadius: '7px', border: `1px solid ${active ? '#2c5545' : border}`,
-                    backgroundColor: active ? (isDark ? '#0e1f17' : '#f0faf4') : 'transparent',
-                    cursor: 'pointer', transition: 'all 0.12s ease', textAlign: 'left',
+                    borderRadius: '7px', border: `1px solid ${enabled ? '#2c5545' : border}`,
+                    backgroundColor: enabled ? (isDark ? '#0e1f17' : '#f0faf4') : 'transparent',
                   }}
                 >
-                  <div style={{
-                    width: '14px', height: '14px', borderRadius: '3px', flexShrink: 0,
-                    border: `2px solid ${active ? '#2c5545' : border}`,
-                    backgroundColor: active ? '#2c5545' : 'transparent',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}>
-                    {active && <span style={{ color: '#fff', fontSize: '9px', fontWeight: 700 }}>✓</span>}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ fontSize: '12px', fontWeight: 600, color: text }}>{w.title}</p>
+                    <p style={{ fontSize: '10px', color: muted, marginTop: '1px' }}>{w.description}</p>
                   </div>
-                  <span style={{ fontSize: '12px', fontWeight: 500, color: text }}>{w.label}</span>
-                  <span style={{ fontSize: '10px', color: muted, marginLeft: 'auto', textTransform: 'capitalize' }}>{w.tab}</span>
-                </button>
+                  <span style={{ fontSize: '9px', color: muted, flexShrink: 0, textTransform: 'capitalize', minWidth: '52px', textAlign: 'right' }}>
+                    {w.tab === 'ambos' ? 'ambas' : w.tab}
+                  </span>
+                  {enabled ? (
+                    <button type="button" onClick={() => removeWidget(w.id)}
+                      style={{
+                        flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        width: '22px', height: '22px', borderRadius: '4px',
+                        border: '1px solid #2c5545', backgroundColor: '#2c5545',
+                        cursor: 'pointer', color: '#fff', fontSize: '11px',
+                      }}
+                      title="Remover widget"
+                    >
+                      ✓
+                    </button>
+                  ) : (
+                    <button type="button" onClick={() => addWidget(w.id)}
+                      style={{
+                        flexShrink: 0, padding: '3px 10px', borderRadius: '4px',
+                        border: `1px solid ${border}`, backgroundColor: 'transparent',
+                        cursor: 'pointer', color: text, fontSize: '10px', fontWeight: 600,
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      + Adicionar
+                    </button>
+                  )}
+                </div>
               )
             })}
           </div>
           <div style={{ marginTop: '14px', paddingTop: '12px', borderTop: `1px solid ${border}`, display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-            <button type="button" onClick={() => { setVisibleWidgets(defaultVisibility()); localStorage.removeItem(WIDGET_VIS_KEY) }}
+            <button type="button" onClick={() => setWidgetOrder(defaultWidgetOrder())}
               style={{ fontSize: '11px', color: muted, background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px' }}>
               Restaurar padrão
             </button>
