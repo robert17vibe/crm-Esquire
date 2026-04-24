@@ -31,14 +31,12 @@ function NavItem({
   to,
   label,
   icon: Icon,
-  activeItemBg,
   collapsed,
   badge,
 }: {
   to: NavTo
   label: string
   icon: React.ComponentType<{ style?: React.CSSProperties }>
-  activeItemBg: string
   collapsed: boolean
   badge?: number
 }) {
@@ -65,20 +63,20 @@ function NavItem({
         userSelect: 'none',
         cursor: 'pointer',
         transition: 'background-color 0.2s ease, color 0.2s ease',
-        backgroundColor: isActive ? activeItemBg : hovered ? '#242424' : 'transparent',
-        color: isActive || hovered ? '#f0ede5' : '#9a9a9a',
+        backgroundColor: isActive ? 'var(--surface-col-over)' : hovered ? 'var(--surface-col)' : 'transparent',
+        color: isActive || hovered ? 'var(--ink-base)' : 'var(--ink-muted)',
         position: 'relative',
       })}
     >
       {({ isActive }) => (
         <>
           <div style={{ position: 'relative', flexShrink: 0 }}>
-            <Icon style={{ width: '16px', height: '16px', color: isActive || hovered ? '#f0ede5' : '#9a9a9a', transition: 'color 0.2s ease' }} />
+            <Icon style={{ width: '16px', height: '16px', color: isActive || hovered ? 'var(--ink-base)' : 'var(--ink-muted)', transition: 'color 0.2s ease' }} />
             {badge && badge > 0 && collapsed && (
               <span style={{
                 position: 'absolute', top: '-4px', right: '-4px',
                 width: '8px', height: '8px', borderRadius: '50%',
-                backgroundColor: '#dc2626', border: '1.5px solid #0a0a0a',
+                backgroundColor: '#dc2626', border: '1.5px solid var(--surface-sidebar)',
               }} />
             )}
           </div>
@@ -105,7 +103,7 @@ function NavItem({
 
 // ─── Settings item ────────────────────────────────────────────────────────────
 
-function SettingsItem({ activeItemBg, collapsed }: { activeItemBg: string; collapsed: boolean }) {
+function SettingsItem({ collapsed }: { collapsed: boolean }) {
   const [hovered, setHovered] = useState(false)
 
   return (
@@ -129,13 +127,13 @@ function SettingsItem({ activeItemBg, collapsed }: { activeItemBg: string; colla
         userSelect: 'none',
         cursor: 'pointer',
         transition: 'background-color 0.2s ease, color 0.2s ease',
-        backgroundColor: isActive ? activeItemBg : hovered ? '#242424' : 'transparent',
-        color: isActive || hovered ? '#f0ede5' : '#6b6b6b',
+        backgroundColor: isActive ? 'var(--surface-col-over)' : hovered ? 'var(--surface-col)' : 'transparent',
+        color: isActive || hovered ? 'var(--ink-base)' : 'var(--ink-faint)',
       })}
     >
       {({ isActive }) => (
         <>
-          <Settings style={{ width: '14px', height: '14px', flexShrink: 0, color: isActive || hovered ? '#f0ede5' : '#6b6b6b', transition: 'color 0.2s ease' }} />
+          <Settings style={{ width: '14px', height: '14px', flexShrink: 0, color: isActive || hovered ? 'var(--ink-base)' : 'var(--ink-faint)', transition: 'color 0.2s ease' }} />
           {!collapsed && <span className="sidebar-label">Configurações</span>}
         </>
       )}
@@ -146,7 +144,7 @@ function SettingsItem({ activeItemBg, collapsed }: { activeItemBg: string; colla
 // ─── Notification Panel ───────────────────────────────────────────────────────
 
 const NOTIF_LABELS: Record<string, { label: string; color: string }> = {
-  new_deal:         { label: 'Novo Lead',    color: '#2c5545' },
+  new_deal:         { label: 'Novo Lead',    color: 'var(--brand)' },
   overdue_activity: { label: 'Parado',       color: '#b45309' },
   sla_breach:       { label: 'SLA',          color: '#dc2626' },
 }
@@ -190,57 +188,57 @@ function NotificationPanel({ onClose, collapsed }: { onClose: () => void; collap
       style={{
         position: 'fixed', left: `${left + 8}px`, bottom: '60px', zIndex: 100,
         width: '300px', maxHeight: '420px',
-        backgroundColor: '#161614', border: '1px solid #2a2a28',
-        borderRadius: '10px', overflow: 'hidden',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+        backgroundColor: 'var(--surface-card)', border: '1px solid var(--line)',
+        borderRadius: 'var(--radius-lg)', overflow: 'hidden',
+        boxShadow: 'var(--shadow-overlay)',
         display: 'flex', flexDirection: 'column',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', borderBottom: '1px solid #242422', flexShrink: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', borderBottom: '1px solid var(--line)', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
-          <Bell style={{ width: '12px', height: '12px', color: '#9a9a9a' }} />
-          <span style={{ fontSize: '12px', fontWeight: 700, color: '#e8e4dc' }}>Notificações</span>
+          <Bell style={{ width: '12px', height: '12px', color: 'var(--ink-muted)' }} />
+          <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--ink-base)' }}>Notificações</span>
           {unread.length > 0 && (
             <span style={{ fontSize: '9px', fontWeight: 700, color: '#fff', backgroundColor: '#dc2626', borderRadius: '99px', padding: '1px 5px' }}>{unread.length}</span>
           )}
         </div>
         {unread.length > 0 && (
           <button type="button" onClick={markAllRead}
-            style={{ fontSize: '10px', color: '#6b6560', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = '#e8e4dc')}
-            onMouseLeave={(e) => (e.currentTarget.style.color = '#6b6560')}
+            style={{ fontSize: '10px', color: 'var(--ink-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, transition: 'color 0.15s ease' }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--ink-base)')}
+            onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--ink-muted)')}
           >Marcar todas como lidas</button>
         )}
       </div>
 
       <div style={{ overflowY: 'auto', flex: 1 }}>
         {notifications.length === 0 ? (
-          <div style={{ padding: '28px', textAlign: 'center', color: '#4a4a4a', fontSize: '12px' }}>
+          <div style={{ padding: '28px', textAlign: 'center', color: 'var(--ink-faint)', fontSize: '12px' }}>
             Nenhuma notificação
           </div>
         ) : (
           notifications.slice(0, 30).map((n, i) => {
-            const cfg = NOTIF_LABELS[n.type] ?? { label: n.type, color: '#6b6560' }
+            const cfg = NOTIF_LABELS[n.type] ?? { label: n.type, color: 'var(--ink-muted)' }
             return (
               <button key={n.id} type="button" onClick={() => handleClick(n)}
                 style={{
                   display: 'flex', alignItems: 'flex-start', gap: '9px', width: '100%', padding: '10px 14px',
-                  backgroundColor: n.read ? 'transparent' : '#1a1a18',
-                  borderBottom: i < notifications.length - 1 ? '1px solid #1e1e1c' : 'none',
+                  backgroundColor: n.read ? 'transparent' : 'var(--surface-hover)',
+                  borderBottom: i < notifications.length - 1 ? '1px solid var(--line)' : 'none',
                   cursor: 'pointer', textAlign: 'left', border: 'none',
                   transition: 'background-color 0.1s ease',
                 }}
-                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#222220')}
-                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = n.read ? 'transparent' : '#1a1a18')}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--surface-col)')}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = n.read ? 'transparent' : 'var(--surface-hover)')}
               >
                 <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: n.read ? 'transparent' : cfg.color, flexShrink: 0, marginTop: '5px' }} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '2px' }}>
-                    <span style={{ fontSize: '9px', fontWeight: 700, color: cfg.color, backgroundColor: `${cfg.color}18`, borderRadius: '3px', padding: '1px 5px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{cfg.label}</span>
-                    <span style={{ fontSize: '10px', color: '#4a4a4a', marginLeft: 'auto', flexShrink: 0 }}>{timeAgo(n.createdAt)}</span>
+                    <span style={{ fontSize: '9px', fontWeight: 700, color: cfg.color, backgroundColor: `color-mix(in srgb, ${cfg.color} 12%, transparent)`, borderRadius: '3px', padding: '1px 5px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{cfg.label}</span>
+                    <span style={{ fontSize: '10px', color: 'var(--ink-faint)', marginLeft: 'auto', flexShrink: 0 }}>{timeAgo(n.createdAt)}</span>
                   </div>
-                  <p style={{ fontSize: '11px', fontWeight: 600, color: '#e8e4dc', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n.dealName}</p>
-                  {n.meta && <p style={{ fontSize: '10px', color: '#6b6560', marginTop: '1px' }}>{n.meta}</p>}
+                  <p style={{ fontSize: '11px', fontWeight: 600, color: 'var(--ink-base)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n.dealName}</p>
+                  {n.meta && <p style={{ fontSize: '10px', color: 'var(--ink-muted)', marginTop: '1px' }}>{n.meta}</p>}
                 </div>
               </button>
             )
@@ -288,9 +286,7 @@ export function Sidebar() {
   const [collapsed, setCollapsed] = useState(() => window.innerWidth < 900)
 
   useEffect(() => {
-    function handleResize() {
-      setCollapsed(window.innerWidth < 900)
-    }
+    function handleResize() { setCollapsed(window.innerWidth < 900) }
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
   }, [])
@@ -299,9 +295,6 @@ export function Sidebar() {
   const indicatorRef = useRef<HTMLDivElement>(null)
   const wrapperRefs  = useRef<Partial<Record<NavTo, HTMLDivElement>>>({})
   const firstRender  = useRef(true)
-
-  const sidebarBg    = isDark ? '#0a0a0a' : '#1a1a1a'
-  const activeItemBg = isDark ? '#1a1a1a' : '#2a2a2a'
 
   const sidebarWidth = collapsed ? 56 : 200
 
@@ -351,7 +344,7 @@ export function Sidebar() {
       style={{
         width: `${sidebarWidth}px`,
         minWidth: `${sidebarWidth}px`,
-        backgroundColor: sidebarBg,
+        backgroundColor: 'var(--surface-sidebar)',
         borderRadius: '0 20px 20px 0',
         margin: '12px 0',
         height: 'calc(100vh - 24px)',
@@ -364,7 +357,7 @@ export function Sidebar() {
         transition: 'width 0.25s cubic-bezier(0.4,0,0.2,1), background-color 0.3s ease',
       }}
     >
-      {/* Sliding accent indicator — 2px left edge */}
+      {/* Sliding accent indicator — 3px brand left edge */}
       <div
         ref={indicatorRef}
         aria-hidden
@@ -372,10 +365,10 @@ export function Sidebar() {
           position: 'absolute',
           left: '0',
           top: 0,
-          width: '2px',
+          width: '3px',
           height: '36px',
-          backgroundColor: '#f0ede5',
-          borderRadius: '0 2px 2px 0',
+          backgroundColor: 'var(--brand)',
+          borderRadius: '0 3px 3px 0',
           opacity: 0,
           pointerEvents: 'none',
           zIndex: 20,
@@ -386,15 +379,15 @@ export function Sidebar() {
       {/* Logo */}
       <div style={{ padding: collapsed ? '20px 0 16px' : '20px 12px 16px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'flex-start' }}>
         {collapsed ? (
-          <span style={{ fontSize: '14px', fontWeight: 700, color: '#f0ede5', letterSpacing: '-0.01em' }}>E</span>
+          <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--ink-base)', letterSpacing: '-0.01em' }}>E</span>
         ) : (
-          <span className="sidebar-logo-text" style={{ fontSize: '14px', fontWeight: 600, letterSpacing: '-0.01em', color: '#f0ede5' }}>
+          <span className="sidebar-logo-text" style={{ fontSize: '14px', fontWeight: 600, letterSpacing: '-0.01em', color: 'var(--ink-base)' }}>
             Esquire CRM
           </span>
         )}
       </div>
 
-      <div style={{ height: '1px', backgroundColor: '#242424', marginBottom: '12px', flexShrink: 0 }} />
+      <div style={{ height: '1px', backgroundColor: 'var(--line)', marginBottom: '12px', flexShrink: 0 }} />
 
       {/* Navigation */}
       <nav className="flex-1 flex flex-col" style={{ padding: collapsed ? '0 8px' : '0 12px', gap: '4px' }}>
@@ -407,7 +400,6 @@ export function Sidebar() {
               to={to}
               label={label}
               icon={icon}
-              activeItemBg={activeItemBg}
               collapsed={collapsed}
               badge={to === '/pipeline' ? overdueCount : to === '/tarefas' ? overdueTaskCount : undefined}
             />
@@ -416,9 +408,9 @@ export function Sidebar() {
 
         {(profile?.is_admin || profile?.role === 'admin') && (
           <>
-            <div style={{ height: '1px', backgroundColor: '#242424', margin: '8px 0 6px' }} />
+            <div style={{ height: '1px', backgroundColor: 'var(--line)', margin: '8px 0 6px' }} />
             {!collapsed && (
-              <span style={{ fontSize: '9px', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#3a3a3a', paddingLeft: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <span style={{ fontSize: '9px', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--ink-faint)', paddingLeft: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <Shield style={{ width: '9px', height: '9px' }} />
                 Admin
               </span>
@@ -436,13 +428,13 @@ export function Sidebar() {
                   fontSize: '13px', fontWeight: 500, textDecoration: 'none',
                   userSelect: 'none', cursor: 'pointer',
                   transition: 'background-color 0.2s ease, color 0.2s ease',
-                  backgroundColor: isActive ? activeItemBg : 'transparent',
-                  color: isActive ? '#f0ede5' : '#9a9a9a',
+                  backgroundColor: isActive ? 'var(--surface-col-over)' : 'transparent',
+                  color: isActive ? 'var(--ink-base)' : 'var(--ink-muted)',
                 })}
               >
                 {({ isActive }) => (
                   <>
-                    <Shield style={{ width: '16px', height: '16px', color: isActive ? '#f0ede5' : '#9a9a9a', transition: 'color 0.2s ease', flexShrink: 0 }} />
+                    <Shield style={{ width: '16px', height: '16px', color: isActive ? 'var(--ink-base)' : 'var(--ink-muted)', transition: 'color 0.2s ease', flexShrink: 0 }} />
                     {!collapsed && <span className="sidebar-label" style={{ flex: 1 }}>Utilizadores</span>}
                   </>
                 )}
@@ -461,13 +453,13 @@ export function Sidebar() {
                   fontSize: '13px', fontWeight: 500, textDecoration: 'none',
                   userSelect: 'none', cursor: 'pointer',
                   transition: 'background-color 0.2s ease, color 0.2s ease',
-                  backgroundColor: isActive ? activeItemBg : 'transparent',
-                  color: isActive ? '#f0ede5' : '#9a9a9a',
+                  backgroundColor: isActive ? 'var(--surface-col-over)' : 'transparent',
+                  color: isActive ? 'var(--ink-base)' : 'var(--ink-muted)',
                 })}
               >
                 {({ isActive }) => (
                   <>
-                    <Users2 style={{ width: '16px', height: '16px', color: isActive ? '#f0ede5' : '#9a9a9a', transition: 'color 0.2s ease', flexShrink: 0 }} />
+                    <Users2 style={{ width: '16px', height: '16px', color: isActive ? 'var(--ink-base)' : 'var(--ink-muted)', transition: 'color 0.2s ease', flexShrink: 0 }} />
                     {!collapsed && <span className="sidebar-label" style={{ flex: 1 }}>Grupos</span>}
                   </>
                 )}
@@ -477,7 +469,7 @@ export function Sidebar() {
         )}
       </nav>
 
-      <div style={{ height: '1px', backgroundColor: '#242424', flexShrink: 0 }} />
+      <div style={{ height: '1px', backgroundColor: 'var(--line)', flexShrink: 0 }} />
 
       {/* Footer */}
       <div style={{ padding: collapsed ? '10px 8px 14px' : '10px 12px 14px', flexShrink: 0 }}>
@@ -494,14 +486,14 @@ export function Sidebar() {
               justifyContent: collapsed ? 'center' : 'flex-start',
               borderRadius: '6px', gap: collapsed ? 0 : '8px',
               fontSize: '11px', fontWeight: 500,
-              background: showNotif ? activeItemBg : 'none',
+              background: showNotif ? 'var(--surface-col-over)' : 'none',
               border: 'none', cursor: 'pointer',
-              color: showNotif ? '#f0ede5' : '#6b6b6b',
+              color: showNotif ? 'var(--ink-base)' : 'var(--ink-faint)',
               transition: 'background-color 0.15s ease, color 0.15s ease',
               position: 'relative',
             }}
-            onMouseEnter={(e) => { if (!showNotif) { e.currentTarget.style.backgroundColor = '#1a1a1a'; e.currentTarget.style.color = '#f0ede5' } }}
-            onMouseLeave={(e) => { if (!showNotif) { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#6b6b6b' } }}
+            onMouseEnter={(e) => { if (!showNotif) { e.currentTarget.style.backgroundColor = 'var(--surface-col)'; e.currentTarget.style.color = 'var(--ink-base)' } }}
+            onMouseLeave={(e) => { if (!showNotif) { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = 'var(--ink-faint)' } }}
           >
             <div style={{ position: 'relative', flexShrink: 0 }}>
               <Bell style={{ width: '14px', height: '14px' }} />
@@ -519,28 +511,28 @@ export function Sidebar() {
         </div>
 
         <div style={{ marginBottom: '10px' }}>
-          <SettingsItem activeItemBg={activeItemBg} collapsed={collapsed} />
+          <SettingsItem collapsed={collapsed} />
         </div>
 
-        <div style={{ height: '1px', backgroundColor: '#2a2a2a', marginBottom: '10px' }} />
+        <div style={{ height: '1px', backgroundColor: 'var(--line)', marginBottom: '10px' }} />
 
         {/* User */}
         {collapsed ? (
           <div style={{ display: 'flex', justifyContent: 'center' }}>
-            <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: displayColor, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#f0ede5', fontSize: '11px', fontWeight: 600 }}>
+            <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: displayColor, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#fff', fontSize: '11px', fontWeight: 600 }}>
               {displayInitials}
             </div>
           </div>
         ) : (
           <div className="sidebar-user-details" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: displayColor, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#f0ede5', fontSize: '11px', fontWeight: 600 }}>
+            <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: displayColor, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#fff', fontSize: '11px', fontWeight: 600 }}>
               {displayInitials}
             </div>
             <div style={{ minWidth: 0, flex: 1 }}>
-              <p style={{ fontSize: '12px', fontWeight: 500, color: '#f0ede5', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: 1.3 }}>
+              <p style={{ fontSize: '12px', fontWeight: 500, color: 'var(--ink-base)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: 1.3 }}>
                 {displayName}
               </p>
-              <p style={{ fontSize: '10px', color: '#6b6b6b', textTransform: 'uppercase', letterSpacing: '0.08em', lineHeight: 1.4, marginTop: '1px' }}>
+              <p style={{ fontSize: '10px', color: 'var(--ink-faint)', textTransform: 'uppercase', letterSpacing: '0.08em', lineHeight: 1.4, marginTop: '1px' }}>
                 {displayRole}
               </p>
             </div>
@@ -548,9 +540,9 @@ export function Sidebar() {
               type="button"
               onClick={() => signOut()}
               title="Sair"
-              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', flexShrink: 0, color: '#4a4a4a', transition: 'color 0.15s ease' }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = '#f0ede5')}
-              onMouseLeave={(e) => (e.currentTarget.style.color = '#4a4a4a')}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', flexShrink: 0, color: 'var(--ink-faint)', transition: 'color 0.15s ease' }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--ink-base)')}
+              onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--ink-faint)')}
             >
               <LogOut style={{ width: '14px', height: '14px' }} />
             </button>

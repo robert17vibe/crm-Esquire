@@ -432,15 +432,12 @@ function GroupCard({
   const members = owners.filter((o) => o.team_id === team.id)
 
   return (
-    <button type="button" onClick={onOpen} style={{
+    <button type="button" onClick={onOpen} className="card-hover" style={{
       display: 'flex', flexDirection: 'column', gap: '14px',
       backgroundColor: cardBg, border: `1px solid ${border}`,
       borderRadius: '12px', padding: '18px', cursor: 'pointer', textAlign: 'left',
-      boxShadow: isDark ? '0 2px 8px rgba(0,0,0,0.3)' : '0 2px 8px rgba(0,0,0,0.06)',
-      transition: 'box-shadow 0.15s',
+      boxShadow: 'var(--shadow-card)',
     }}
-      onMouseEnter={(e) => (e.currentTarget.style.boxShadow = isDark ? '0 4px 16px rgba(0,0,0,0.5)' : '0 4px 16px rgba(0,0,0,0.12)')}
-      onMouseLeave={(e) => (e.currentTarget.style.boxShadow = isDark ? '0 2px 8px rgba(0,0,0,0.3)' : '0 2px 8px rgba(0,0,0,0.06)')}
     >
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
