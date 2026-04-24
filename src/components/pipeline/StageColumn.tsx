@@ -1,6 +1,5 @@
 import { useDroppable } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
-import { useThemeStore } from '@/store/useThemeStore'
 import { DealCard } from './DealCard'
 import type { Stage, StageId } from '@/constants/pipeline'
 import type { Deal } from '@/types/deal.types'
@@ -23,9 +22,6 @@ export function StageColumn({ stage, deals, dimmedIds, onMoveDeal: _onMoveDeal, 
   const totalValue = deals.reduce((sum, d) => sum + Number(d.value ?? 0), 0)
   // Attach droppable to the outer column so even empty columns are a large drop target
   const { setNodeRef, isOver } = useDroppable({ id: stage.id })
-  const isDark = useThemeStore((s) => s.isDark)
-
-  const colBg = isDark ? (isOver ? '#1c1c1c' : '#141414') : (isOver ? '#f1f5f9' : '#f8fafc')
 
   return (
     <div
@@ -37,10 +33,8 @@ export function StageColumn({ stage, deals, dimmedIds, onMoveDeal: _onMoveDeal, 
         maxWidth: '234px',
         flexShrink: 0,
         borderRadius: '8px',
-        backgroundColor: colBg,
-        border: isOver
-          ? `1px solid ${isDark ? '#3a3a3a' : '#94a3b8'}`
-          : `1px solid ${isDark ? '#242424' : '#e2e8f0'}`,
+        backgroundColor: isOver ? 'var(--surface-col-over)' : 'var(--surface-col)',
+        border: isOver ? '1px solid var(--brand)' : '1px solid var(--line)',
         display: 'flex',
         flexDirection: 'column',
         height: '100%',
@@ -49,7 +43,7 @@ export function StageColumn({ stage, deals, dimmedIds, onMoveDeal: _onMoveDeal, 
       }}
     >
       {/* ── Header ── */}
-      <div style={{ padding: '10px 14px 9px', flexShrink: 0, borderBottom: `1px solid ${isDark ? '#1e1e1e' : '#e8edf2'}` }}>
+      <div style={{ padding: '10px 14px 9px', flexShrink: 0, borderBottom: '1px solid var(--line)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span style={{
             fontSize: '11px', fontWeight: 600, letterSpacing: '0.06em',
@@ -59,7 +53,7 @@ export function StageColumn({ stage, deals, dimmedIds, onMoveDeal: _onMoveDeal, 
           </span>
           <span style={{
             fontSize: '11px', fontWeight: 500,
-            color: isDark ? '#4a5568' : '#94a3b8',
+            color: 'var(--ink-faint)',
             fontVariantNumeric: 'tabular-nums',
           }}>
             {deals.length}
@@ -68,7 +62,7 @@ export function StageColumn({ stage, deals, dimmedIds, onMoveDeal: _onMoveDeal, 
         {totalValue > 0 && (
           <p style={{
             fontSize: '11px', fontWeight: 700,
-            color: isDark ? '#6b7280' : '#64748b',
+            color: 'var(--ink-muted)',
             marginTop: '2px', fontVariantNumeric: 'tabular-nums',
           }}>
             {fmtCompact(totalValue)}
@@ -106,10 +100,10 @@ export function StageColumn({ stage, deals, dimmedIds, onMoveDeal: _onMoveDeal, 
               justifyContent: 'center',
               minHeight: '60px',
               fontSize: '11px',
-              color: isOver ? (isDark ? '#6b6b6b' : '#94a3b8') : (isDark ? '#2d3748' : '#cbd5e1'),
+              color: isOver ? 'var(--ink-muted)' : 'var(--ink-faint)',
               userSelect: 'none',
               letterSpacing: '0.02em',
-              border: isOver ? `1px dashed ${isDark ? '#3a3a3a' : '#94a3b8'}` : '1px dashed transparent',
+              border: isOver ? '1px dashed var(--brand)' : '1px dashed transparent',
               borderRadius: '6px',
               transition: 'all 0.15s ease',
             }}>
