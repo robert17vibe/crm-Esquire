@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, Kanban, Users, Mic, CalendarDays, CheckSquare, Settings, LogOut, Users2, Shield, Bell, Zap, Mail } from 'lucide-react'
+import { LayoutDashboard, Kanban, Users, Mic, CalendarDays, CheckSquare, Settings, LogOut, Users2, Shield, Bell, Zap, Mail, Megaphone } from 'lucide-react'
 import { useAuthStore } from '@/store/useAuthStore'
 import { useDealStore } from '@/store/useDealStore'
 import { useTaskStore } from '@/store/useTaskStore'
@@ -23,7 +23,7 @@ const NAV_ITEMS = [
   { to: '/email',     label: 'Email',      icon: Mail            },
 ] as const
 
-type NavTo = (typeof NAV_ITEMS)[number]['to'] | '/teams' | '/admin/users'
+type NavTo = (typeof NAV_ITEMS)[number]['to'] | '/teams' | '/admin/users' | '/admin/notifications'
 
 // ─── Nav item ─────────────────────────────────────────────────────────────────
 
@@ -344,6 +344,31 @@ export function Sidebar() {
                   </span>
                 </div>
               )}
+              <NavLink
+                to="/admin/notifications"
+                title={collapsed ? 'Notificações Equipa' : undefined}
+                style={({ isActive }) => ({
+                  display: 'flex', alignItems: 'center', height: '38px',
+                  padding: collapsed ? '0' : '0 10px',
+                  justifyContent: collapsed ? 'center' : 'flex-start',
+                  borderRadius: 'var(--radius-sm)', gap: collapsed ? 0 : '10px',
+                  fontSize: '13px', fontWeight: isActive ? 600 : 500, textDecoration: 'none',
+                  color: isActive ? '#f0ede5' : 'rgba(240,237,229,0.5)',
+                  backgroundColor: isActive ? 'rgba(255,255,255,0.10)' : 'transparent',
+                  transition: 'background-color 0.15s ease',
+                  position: 'relative',
+                })}
+                onMouseEnter={(e) => { const el = e.currentTarget; if (!location.pathname.startsWith('/admin/notif')) el.style.backgroundColor = 'rgba(255,255,255,0.06)' }}
+                onMouseLeave={(e) => { const el = e.currentTarget; if (!location.pathname.startsWith('/admin/notif')) el.style.backgroundColor = 'transparent' }}
+              >
+                {({ isActive }) => (
+                  <>
+                    {isActive && !collapsed && <span style={{ position: 'absolute', left: '-10px', top: '50%', transform: 'translateY(-50%)', width: '3px', height: '20px', borderRadius: '0 3px 3px 0', backgroundColor: 'var(--brand)' }} />}
+                    <Megaphone style={{ width: '16px', height: '16px', color: isActive ? '#f0ede5' : 'rgba(240,237,229,0.5)', flexShrink: 0 }} />
+                    {!collapsed && <span>Comunicados</span>}
+                  </>
+                )}
+              </NavLink>
               <NavLink
                 to="/admin/users"
                 title={collapsed ? 'Utilizadores' : undefined}
