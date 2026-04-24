@@ -1,9 +1,12 @@
 import { useNavigate } from 'react-router-dom'
+import { useState, useRef, useEffect } from 'react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { cn } from '@/lib/utils'
 import { useThemeStore } from '@/store/useThemeStore'
 import { useNotificationStore } from '@/store/useNotificationStore'
+import { useTaskStore } from '@/store/useTaskStore'
+import { useToastStore } from '@/store/useToastStore'
 import { getStageColor, getTagStyle, type StageId } from '@/constants/pipeline'
 import { evaluateDealScore, scoreColor, scoreBg } from '@/lib/dealScore'
 import type { Deal } from '@/types/deal.types'
@@ -34,10 +37,89 @@ interface DealCardProps {
   showScore?: boolean
 }
 
+// ─── Task Quick-Add Popover ───────────────────────────────────────────────────
+
+function TaskQuickAdd({ dealId, isDark, onClose }: { dealId: string; isDark: boolean; onClose: () => void }) {
+  const createTask = useTaskStore((s) => s.create)
+  const addToast   = useToastStore((s) => s.addToast)
+  const [title, setTitle] = useState('')
+  const [saving, setSaving] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => { inputRef.current?.focus() }, [])
+
+  function getDate(offset: number) {
+    const d = new Date(); d.setDate(d.getDate() + offset)
+    return d.toISOString().slice(0, 10)
+  }
+
+  async function save(dueDate: string | null) {
+    if (!title.trim() || saving) return
+    setSaving(true)
+    const err = await createTask({ title: title.trim(), deal_id: dealId, due_date: dueDate, priority: 'medium', task_type: 'follow_up' })
+    setSaving(false)
+    if (!err) { addToast('Tarefa criada', 'success'); onClose() }
+    else addToast('Erro ao criar tarefa', 'error')
+  }
+
+  const bg     = isDark ? '#1a1a18' : '#ffffff'
+  const border = isDark ? '#2e2e2c' : '#e4e0da'
+  const text   = isDark ? '#e8e4dc' : '#1a1814'
+  const muted  = isDark ? '#5a5652' : '#8a857d'
+
+  return (
+    <div
+      onClick={(e) => e.stopPropagation()}
+      style={{
+        position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 60, marginTop: '4px',
+        backgroundColor: bg, border: `1px solid ${border}`, borderRadius: '8px',
+        padding: '10px', boxShadow: isDark ? '0 8px 24px rgba(0,0,0,0.5)' : '0 8px 24px rgba(0,0,0,0.12)',
+        display: 'flex', flexDirection: 'column', gap: '8px',
+      }}
+    >
+      <input
+        ref={inputRef}
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        onKeyDown={(e) => { if (e.key === 'Enter') save(getDate(0)); if (e.key === 'Escape') onClose() }}
+        placeholder="O que precisa ser feito?"
+        style={{
+          width: '100%', height: '30px', padding: '0 8px', fontSize: '12px',
+          backgroundColor: isDark ? '#111110' : '#f5f4f0', border: `1px solid ${border}`,
+          borderRadius: '6px', color: text, outline: 'none', boxSizing: 'border-box',
+        }}
+      />
+      <div style={{ display: 'flex', gap: '4px' }}>
+        {[
+          { label: 'Hoje', date: getDate(0) },
+          { label: 'Amanhã', date: getDate(1) },
+          { label: 'Prox sem', date: getDate(7) },
+        ].map(({ label, date }) => (
+          <button key={label} type="button" onClick={() => save(date)} disabled={!title.trim() || saving}
+            style={{
+              flex: 1, height: '26px', fontSize: '10px', fontWeight: 600,
+              backgroundColor: title.trim() ? (isDark ? '#0d1a14' : '#f0f7f3') : (isDark ? '#111110' : '#f5f4f0'),
+              color: title.trim() ? (isDark ? '#a0c4b4' : '#2c5545') : muted,
+              border: `1px solid ${title.trim() ? (isDark ? '#1e4a38' : '#a3d9c0') : border}`,
+              borderRadius: '5px', cursor: title.trim() ? 'pointer' : 'not-allowed',
+            }}>{label}</button>
+        ))}
+      </div>
+      <button type="button" onClick={() => onClose()}
+        style={{ alignSelf: 'flex-end', fontSize: '10px', color: muted, background: 'none', border: 'none', cursor: 'pointer' }}>
+        Cancelar
+      </button>
+    </div>
+  )
+}
+
+// ─── DealCard ─────────────────────────────────────────────────────────────────
+
 export function DealCard({ deal, isOverlay = false, dimmed = false, showScore = false }: DealCardProps) {
   const navigate      = useNavigate()
   const isDark        = useThemeStore((s) => s.isDark)
   const notifications = useNotificationStore((s) => s.notifications)
+  const [showQuickAdd, setShowQuickAdd] = useState(false)
 
   const isNew = notifications.some((n) => n.dealId === deal.id && !n.read)
 
@@ -107,11 +189,12 @@ export function DealCard({ deal, isOverlay = false, dimmed = false, showScore = 
   const extraCount   = (deal.stakeholders?.length ?? 0) - 3
 
   return (
+    <div style={{ position: 'relative', width: '100%' }}>
     <div
       ref={setNodeRef}
       style={cardStyle}
       {...(isOverlay ? {} : { ...attributes, ...listeners })}
-      onClick={isOverlay ? undefined : () => navigate(`/deal/${deal.id}`)}
+      onClick={isOverlay ? undefined : () => { if (!showQuickAdd) navigate(`/deal/${deal.id}`) }}
       className={cn(
         'deal-card group/card w-full select-none',
         !isOverlay && !isDragging && 'cursor-grab active:cursor-grabbing',
@@ -270,6 +353,39 @@ export function DealCard({ deal, isOverlay = false, dimmed = false, showScore = 
         </div>
 
       </div>
+
+      {/* Quick-add task button — top-right corner, hover only */}
+      {!isOverlay && !isSpecial && (
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); setShowQuickAdd((v) => !v) }}
+          title="Adicionar tarefa rápida"
+          className="group/qadd"
+          style={{
+            position: 'absolute', top: '6px', right: '6px',
+            width: '18px', height: '18px', borderRadius: '4px',
+            backgroundColor: showQuickAdd ? (isDark ? '#1e4a38' : '#d1fae5') : 'transparent',
+            border: `1px solid ${showQuickAdd ? (isDark ? '#2c5545' : '#6ee7b7') : 'transparent'}`,
+            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: showQuickAdd ? '#2c5545' : textMuted,
+            opacity: showQuickAdd ? 1 : 0,
+            transition: 'opacity 0.1s, background-color 0.1s',
+            zIndex: 10,
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.backgroundColor = isDark ? '#1e4a38' : '#d1fae5'; e.currentTarget.style.borderColor = isDark ? '#2c5545' : '#6ee7b7' }}
+          onMouseLeave={(e) => { if (!showQuickAdd) { e.currentTarget.style.opacity = '0'; e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.borderColor = 'transparent' } }}
+        >
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
+            <path d="M5 1v8M1 5h8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" fill="none"/>
+          </svg>
+        </button>
+      )}
+    </div>
+
+    {/* Quick-add popover */}
+    {showQuickAdd && (
+      <TaskQuickAdd dealId={deal.id} isDark={isDark} onClose={() => setShowQuickAdd(false)} />
+    )}
     </div>
   )
 }
