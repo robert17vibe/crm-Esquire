@@ -332,6 +332,202 @@ function NewMeetingModal({ defaultDate, onClose, isDark }: { defaultDate: string
   )
 }
 
+// ─── Week helpers ─────────────────────────────────────────────────────────────
+
+const HOUR_START = 7   // 7am
+const HOUR_END   = 21  // 9pm
+const SLOT_H     = 56  // px per hour
+
+function getWeekDays(dateStr: string): string[] {
+  const d = new Date(dateStr + 'T12:00:00')
+  const dow = d.getDay() // 0=Sun
+  const monday = new Date(d)
+  monday.setDate(d.getDate() - (dow === 0 ? 6 : dow - 1))
+  return Array.from({ length: 7 }, (_, i) => {
+    const day = new Date(monday)
+    day.setDate(monday.getDate() + i)
+    return day.toISOString().slice(0, 10)
+  })
+}
+
+function timeToMinutes(timeStr: string): number {
+  const [h, m] = timeStr.split(':').map(Number)
+  return h * 60 + (m ?? 0)
+}
+
+function isoToMinutes(isoStr: string): number {
+  const t = isoStr.slice(11, 16)
+  return timeToMinutes(t)
+}
+
+// ─── Week View ────────────────────────────────────────────────────────────────
+
+interface WeekMeeting {
+  id: string; title: string; color: string; subtitle?: string; dealId?: string
+  startMin: number; durationMin: number; date: string
+}
+
+function WeekView({ weekDays, eventsByDate, meetings, isDark, onDayClick, todayStr, onMeetingClick }: {
+  weekDays: string[]
+  eventsByDate: Map<string, CalEvent[]>
+  meetings: import('@/types/deal.types').DealMeeting[]
+  isDark: boolean
+  todayStr: string
+  onDayClick: (d: string) => void
+  onMeetingClick: (dealId: string) => void
+}) {
+  const border  = isDark ? '#242422' : '#e4e0da'
+  const text    = isDark ? '#e8e4dc' : '#1a1814'
+  const muted   = isDark ? '#6b6560' : '#8a857d'
+  const trackBg = isDark ? '#0f0f0e' : '#f8f7f4'
+
+  const totalH   = (HOUR_END - HOUR_START) * SLOT_H
+  const hours    = Array.from({ length: HOUR_END - HOUR_START }, (_, i) => HOUR_START + i)
+  const DAYS_SHORT = ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom']
+
+  // All-day events (activities — no time)
+  const allDay = weekDays.map((d) =>
+    (eventsByDate.get(d) ?? []).filter((e) => e.type === 'activity')
+  )
+
+  // Timed meetings per day
+  const timedPerDay: WeekMeeting[][] = weekDays.map((d) => {
+    return meetings
+      .filter((m) => m.scheduled_at.slice(0, 10) === d)
+      .map((m) => ({
+        id: m.id, title: m.title, color: '#2c5545',
+        subtitle: m.attendees?.slice(0, 1).join('') ?? undefined,
+        dealId: m.deal_id,
+        startMin: isoToMinutes(m.scheduled_at),
+        durationMin: m.duration_minutes ?? 60,
+        date: d,
+      }))
+  })
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+      {/* All-day row */}
+      <div style={{ display: 'grid', gridTemplateColumns: '48px repeat(7, 1fr)', borderBottom: `1px solid ${border}`, flexShrink: 0 }}>
+        <div style={{ borderRight: `1px solid ${border}`, padding: '6px 0' }} />
+        {weekDays.map((d, i) => {
+          const [, , dd] = d.split('-').map(Number)
+          const isToday  = d === todayStr
+          const acts     = allDay[i]
+          return (
+            <div key={d} style={{ borderRight: i < 6 ? `1px solid ${border}` : 'none', padding: '6px 4px', minHeight: '36px' }}>
+              <button type="button" onClick={() => onDayClick(d)}
+                style={{
+                  background: 'none', border: 'none', cursor: 'pointer', padding: '2px 6px', borderRadius: '5px',
+                  display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '3px',
+                  backgroundColor: isToday ? '#2c5545' : 'transparent',
+                }}
+              >
+                <span style={{ fontSize: '10px', fontWeight: 600, color: isToday ? '#fff' : muted, textTransform: 'uppercase' }}>{DAYS_SHORT[i]}</span>
+                <span style={{ fontSize: '14px', fontWeight: 700, color: isToday ? '#fff' : text }}>{dd}</span>
+              </button>
+              {acts.map((ev) => (
+                <div key={ev.id} title={ev.subtitle ?? ev.title}
+                  style={{ fontSize: '9px', fontWeight: 600, color: '#fff', backgroundColor: ev.color, borderRadius: '3px', padding: '1px 5px', marginBottom: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {ev.title}
+                </div>
+              ))}
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Time grid (scrollable) */}
+      <div style={{ flex: 1, overflowY: 'auto' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '48px repeat(7, 1fr)', position: 'relative', height: `${totalH}px` }}>
+          {/* Hour labels */}
+          <div style={{ position: 'relative', borderRight: `1px solid ${border}` }}>
+            {hours.map((h) => (
+              <div key={h} style={{ position: 'absolute', top: `${(h - HOUR_START) * SLOT_H}px`, right: '6px', fontSize: '9px', fontWeight: 600, color: muted, transform: 'translateY(-50%)', userSelect: 'none' }}>
+                {h}:00
+              </div>
+            ))}
+          </div>
+
+          {/* Day columns */}
+          {weekDays.map((d, ci) => {
+            const isToday = d === todayStr
+            const timed   = timedPerDay[ci]
+
+            return (
+              <div key={d} style={{
+                position: 'relative', borderRight: ci < 6 ? `1px solid ${border}` : 'none',
+                backgroundColor: isToday ? (isDark ? '#0e1a14' : '#f4fbf7') : 'transparent',
+              }}>
+                {/* Hour lines */}
+                {hours.map((h) => (
+                  <div key={h} style={{
+                    position: 'absolute', top: `${(h - HOUR_START) * SLOT_H}px`,
+                    left: 0, right: 0, height: '1px',
+                    backgroundColor: isDark ? '#1e1e1c' : '#f0eeea',
+                  }} />
+                ))}
+
+                {/* Half-hour lines */}
+                {hours.map((h) => (
+                  <div key={`h${h}`} style={{
+                    position: 'absolute', top: `${(h - HOUR_START) * SLOT_H + SLOT_H / 2}px`,
+                    left: 0, right: 0, height: '1px',
+                    backgroundColor: isDark ? '#181816' : '#f8f7f4',
+                  }} />
+                ))}
+
+                {/* Current time indicator */}
+                {isToday && (() => {
+                  const now = new Date()
+                  const mins = now.getHours() * 60 + now.getMinutes()
+                  const top = ((mins - HOUR_START * 60) / 60) * SLOT_H
+                  if (top < 0 || top > totalH) return null
+                  return (
+                    <div style={{ position: 'absolute', left: 0, right: 0, top: `${top}px`, zIndex: 10, display: 'flex', alignItems: 'center', pointerEvents: 'none' }}>
+                      <div style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: '#ef4444', flexShrink: 0 }} />
+                      <div style={{ flex: 1, height: '1.5px', backgroundColor: '#ef4444' }} />
+                    </div>
+                  )
+                })()}
+
+                {/* Meeting blocks */}
+                {timed.map((ev) => {
+                  const topMin  = ev.startMin - HOUR_START * 60
+                  const top     = (topMin / 60) * SLOT_H
+                  const height  = Math.max((ev.durationMin / 60) * SLOT_H - 2, 20)
+                  if (top < 0 || top > totalH) return null
+                  return (
+                    <button key={ev.id} type="button"
+                      onClick={() => ev.dealId && onMeetingClick(ev.dealId)}
+                      title={`${ev.title}${ev.subtitle ? ` — ${ev.subtitle}` : ''}`}
+                      style={{
+                        position: 'absolute', left: '2px', right: '2px',
+                        top: `${top}px`, height: `${height}px`, zIndex: 5,
+                        backgroundColor: `${ev.color}cc`, border: `1px solid ${ev.color}`,
+                        borderRadius: '4px', padding: '2px 5px', cursor: ev.dealId ? 'pointer' : 'default',
+                        overflow: 'hidden', textAlign: 'left', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start',
+                      }}
+                    >
+                      <span style={{ fontSize: '10px', fontWeight: 700, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: 1.3 }}>
+                        {ev.title}
+                      </span>
+                      {height > 28 && ev.subtitle && (
+                        <span style={{ fontSize: '9px', color: 'rgba(255,255,255,0.75)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {ev.subtitle}
+                        </span>
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export function CalendarPage() {
@@ -345,6 +541,7 @@ export function CalendarPage() {
   const [month, setMonth] = useState(today.getMonth())
   const [selectedDay, setSelectedDay] = useState<string>(toDate(today.toISOString()))
   const [showNewMeeting, setShowNewMeeting] = useState(false)
+  const [viewMode, setViewMode] = useState<'month' | 'week'>('month')
 
   const border = isDark ? '#242422' : '#e4e0da'
   const text   = isDark ? '#e8e4dc' : '#1a1814'
@@ -449,6 +646,28 @@ export function CalendarPage() {
   const [sy, sm, sd] = selectedDay.split('-').map(Number)
   const selectedLabel = new Intl.DateTimeFormat('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date(sy, sm - 1, sd))
 
+  // ── Week navigation ─────────────────────────────────────────────────────────
+  const weekDays = useMemo(() => getWeekDays(selectedDay), [selectedDay])
+
+  function prevWeek() {
+    const d = new Date(selectedDay + 'T12:00:00')
+    d.setDate(d.getDate() - 7)
+    setSelectedDay(d.toISOString().slice(0, 10))
+  }
+  function nextWeek() {
+    const d = new Date(selectedDay + 'T12:00:00')
+    d.setDate(d.getDate() + 7)
+    setSelectedDay(d.toISOString().slice(0, 10))
+  }
+
+  const weekLabel = useMemo(() => {
+    if (!weekDays.length) return ''
+    const first = new Date(weekDays[0] + 'T12:00:00')
+    const last  = new Date(weekDays[6] + 'T12:00:00')
+    const fmt   = (d: Date) => new Intl.DateTimeFormat('pt-BR', { day: 'numeric', month: 'short' }).format(d)
+    return `${fmt(first)} – ${fmt(last)}`
+  }, [weekDays])
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
 
@@ -458,12 +677,43 @@ export function CalendarPage() {
         justifyContent: 'space-between', padding: '0 20px',
         borderBottom: `1px solid ${border}`, flexShrink: 0,
       }}>
-        <div>
-          <p style={{ fontSize: '13px', fontWeight: 700, color: text, letterSpacing: '-0.01em' }}>Calendário</p>
-          <p style={{ fontSize: '10px', color: muted, marginTop: '2px' }}>
-            {events.length} evento{events.length !== 1 ? 's' : ''} · {upcoming.length} nos próximos 30 dias
-          </p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div>
+            <p style={{ fontSize: '13px', fontWeight: 700, color: text, letterSpacing: '-0.01em' }}>Calendário</p>
+            <p style={{ fontSize: '10px', color: muted, marginTop: '2px' }}>
+              {events.length} evento{events.length !== 1 ? 's' : ''} · {upcoming.length} nos próximos 30 dias
+            </p>
+          </div>
+
+          {/* View toggle */}
+          <div style={{ display: 'flex', backgroundColor: isDark ? '#111110' : '#f0eeea', borderRadius: '7px', padding: '2px', gap: '1px' }}>
+            {(['month', 'week'] as const).map((mode) => (
+              <button key={mode} type="button" onClick={() => setViewMode(mode)}
+                style={{
+                  fontSize: '11px', fontWeight: viewMode === mode ? 700 : 500,
+                  color: viewMode === mode ? text : muted,
+                  backgroundColor: viewMode === mode ? (isDark ? '#1e1e1c' : '#fff') : 'transparent',
+                  border: viewMode === mode ? `1px solid ${border}` : '1px solid transparent',
+                  borderRadius: '5px', padding: '4px 12px', cursor: 'pointer', transition: 'all 0.12s ease',
+                }}
+              >{mode === 'month' ? 'Mês' : 'Semana'}</button>
+            ))}
+          </div>
+
+          {/* Week label when in week mode */}
+          {viewMode === 'week' && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <button type="button" onClick={prevWeek} style={{ background: 'none', border: `1px solid ${border}`, borderRadius: '5px', cursor: 'pointer', padding: '3px 6px', color: muted, display: 'flex' }}>
+                <ChevronLeft style={{ width: '13px', height: '13px' }} />
+              </button>
+              <span style={{ fontSize: '12px', fontWeight: 600, color: text, minWidth: '140px', textAlign: 'center' }}>{weekLabel}</span>
+              <button type="button" onClick={nextWeek} style={{ background: 'none', border: `1px solid ${border}`, borderRadius: '5px', cursor: 'pointer', padding: '3px 6px', color: muted, display: 'flex' }}>
+                <ChevronRight style={{ width: '13px', height: '13px' }} />
+              </button>
+            </div>
+          )}
         </div>
+
         <button
           type="button"
           onClick={() => setShowNewMeeting(true)}
@@ -481,7 +731,21 @@ export function CalendarPage() {
       {/* Body */}
       <div style={{ flex: 1, minHeight: 0, display: 'flex', overflow: 'hidden' }}>
 
+        {/* ── Week view ── */}
+        {viewMode === 'week' && (
+          <WeekView
+            weekDays={weekDays}
+            eventsByDate={eventsByDate}
+            meetings={meetings}
+            isDark={isDark}
+            todayStr={todayStr}
+            onDayClick={(d) => { setSelectedDay(d); setViewMode('month') }}
+            onMeetingClick={(dealId) => navigate(`/deal/${dealId}`)}
+          />
+        )}
+
         {/* ── Left: calendar grid ── */}
+        {viewMode === 'month' && <>
         <div style={{ flex: '0 0 auto', width: '380px', display: 'flex', flexDirection: 'column', padding: '16px', borderRight: `1px solid ${border}`, overflowY: 'auto' }}>
 
           {/* Month nav */}
@@ -627,6 +891,7 @@ export function CalendarPage() {
             )}
           </div>
         </div>
+        </>}
       </div>
 
       {showNewMeeting && (

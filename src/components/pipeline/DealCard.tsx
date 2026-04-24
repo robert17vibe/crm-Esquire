@@ -58,6 +58,17 @@ export function DealCard({ deal, isOverlay = false, dimmed = false, showScore = 
   const today       = new Date().toISOString().slice(0, 10)
   const isOverdue   = !isSpecial && !!deal.next_activity?.due_date && deal.next_activity.due_date < today
 
+  // SLA: lead stage + created >2h ago + no activity
+  const isSLABreach = !isSpecial && deal.stage_id === 'leads' && !deal.last_activity_at &&
+    (Date.now() - new Date(deal.created_at).getTime()) > 2 * 3600 * 1000
+
+  // Competitor mentioned in notes
+  const isCompetitorMentioned = !isSpecial && !!(deal.notes?.match(/concorrente|salesforce|pipedrive|hubspot|rdstation|moskit/i))
+
+  // Proposal stage with no activity for 5+ days
+  const isProposalOverdue = !isSpecial && deal.stage_id === 'proposal' &&
+    (() => { const ref = deal.last_activity_at ?? deal.created_at; return (Date.now() - new Date(ref).getTime()) > 5 * 86_400_000 })()
+
   // ── theme tokens ──
   const cardBg      = isWon  ? (isDark ? '#0c1a10' : '#f0faf4')
                     : isLost ? (isDark ? '#1a0e0e' : '#fdf4f4')
@@ -120,6 +131,24 @@ export function DealCard({ deal, isOverlay = false, dimmed = false, showScore = 
               fontSize: '8px', fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase',
               color: '#fff', backgroundColor: '#2c5545', borderRadius: '3px', padding: '1px 5px', flexShrink: 0,
             }}>NOVO</span>
+          )}
+          {isSLABreach && (
+            <span title="SLA: sem contato há mais de 2h" style={{
+              fontSize: '8px', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase',
+              color: '#fff', backgroundColor: '#b45309', borderRadius: '3px', padding: '1px 5px', flexShrink: 0,
+            }}>SLA</span>
+          )}
+          {isProposalOverdue && (
+            <span title="Proposta sem resposta há 5+ dias" style={{
+              fontSize: '8px', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase',
+              color: '#fff', backgroundColor: '#7c3aed', borderRadius: '3px', padding: '1px 5px', flexShrink: 0,
+            }}>PROP</span>
+          )}
+          {isCompetitorMentioned && (
+            <span title="Competidor mencionado nas notas" style={{
+              fontSize: '8px', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase',
+              color: '#b45309', backgroundColor: '#fef3c7', borderRadius: '3px', padding: '1px 5px', flexShrink: 0, border: '1px solid #f59e0b40',
+            }}>⚔</span>
           )}
           {tagStyle && tag && (
             <span style={{

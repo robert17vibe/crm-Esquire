@@ -12,9 +12,12 @@ import { useActivityStore } from '@/store/useActivityStore'
 import { useTeamStore } from '@/store/useTeamStore'
 import { useWebhookStore } from '@/store/useWebhookStore'
 import { useOperationalAlerts } from '@/hooks/useOperationalAlerts'
+import { useImpersonationStore } from '@/store/useImpersonationStore'
 
 export function AppLayout() {
   useOperationalAlerts()
+  const impersonation = useImpersonationStore((s) => s.impersonation)
+  const stopImpersonation = useImpersonationStore((s) => s.stop)
   const location     = useLocation()
   const [cmdOpen, setCmdOpen] = useState(false)
   const initDeals             = useDealStore((s) => s.initialize)
@@ -58,7 +61,29 @@ export function AppLayout() {
   }, [])
 
   return (
-    <div className="flex h-screen bg-surface-base" style={{ overflow: 'visible' }}>
+    <div className="flex h-screen bg-surface-base" style={{ overflow: 'visible', flexDirection: 'column' }}>
+      {/* Impersonation banner */}
+      {impersonation && (
+        <div style={{
+          height: '36px', minHeight: '36px', flexShrink: 0,
+          backgroundColor: '#92400e', display: 'flex', alignItems: 'center',
+          justifyContent: 'center', gap: '12px', zIndex: 50,
+        }}>
+          <span style={{ fontSize: '12px', fontWeight: 600, color: '#fef3c7' }}>
+            👁 Visualizando como <strong>{impersonation.ownerName}</strong>
+          </span>
+          <button
+            type="button"
+            onClick={stopImpersonation}
+            style={{
+              fontSize: '11px', fontWeight: 700, color: '#92400e',
+              backgroundColor: '#fef3c7', border: 'none', borderRadius: '4px',
+              padding: '2px 10px', cursor: 'pointer',
+            }}
+          >Sair</button>
+        </div>
+      )}
+      <div className="flex flex-1 overflow-hidden">
       <Sidebar />
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header />
@@ -73,6 +98,7 @@ export function AppLayout() {
 
       <ToastContainer />
       <CommandPalette open={cmdOpen} onClose={() => setCmdOpen(false)} />
+      </div>
     </div>
   )
 }

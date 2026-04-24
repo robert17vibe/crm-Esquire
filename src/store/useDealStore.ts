@@ -13,6 +13,29 @@ import type { NewLeadFormValues } from '@/lib/schemas/deal.schema'
 
 const DEALS_KEY = 'esq_deals_v2'
 
+function _runStaleAlerts(deals: Deal[]) {
+  const { addAlertIfNew } = useNotificationStore.getState()
+  const now  = Date.now()
+  const staleMs  = 21 * 86_400_000   // 21 days no activity
+  const slaMs    = 2  * 3_600_000    // 2h first contact SLA
+
+  for (const d of deals) {
+    if (['closed_won', 'closed_lost'].includes(d.stage_id)) continue
+    const label = d.company_name || d.title
+
+    // SLA breach: first stage, no activity, created >2h ago
+    if (d.stage_id === 'leads' && !d.last_activity_at && (now - new Date(d.created_at).getTime()) > slaMs) {
+      addAlertIfNew(d.id, label, 'sla_breach', 'Sem primeiro contato em 2h')
+    }
+
+    // Stale: no activity for 21+ days
+    const lastAct = d.last_activity_at ? new Date(d.last_activity_at).getTime() : new Date(d.created_at).getTime()
+    if (now - lastAct > staleMs) {
+      addAlertIfNew(d.id, label, 'overdue_activity', `${Math.floor((now - lastAct) / 86_400_000)}d sem atividade`)
+    }
+  }
+}
+
 function persistDeals(deals: Deal[]) {
   try { localStorage.setItem(DEALS_KEY, JSON.stringify(deals)) } catch { /* ignore */ }
 }
@@ -58,10 +81,10 @@ export const useDealStore = create<DealStore>((set, get) => ({
       const deals = await fetchDeals()
       set({ deals, isLoading: false })
       persistDeals(deals)
+      _runStaleAlerts(deals)
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Erro ao carregar deals'
       set({ isLoading: false, error: msg })
-      // keep localStorage fallback already in state
     }
   },
 

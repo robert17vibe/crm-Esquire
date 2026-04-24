@@ -1,10 +1,11 @@
 import { useState, useRef, useLayoutEffect, useEffect, useMemo } from 'react'
-import { NavLink, useLocation } from 'react-router-dom'
-import { LayoutDashboard, Kanban, Users, Mic, CalendarDays, CheckSquare, Settings, LogOut, Users2, Shield } from 'lucide-react'
+import { NavLink, useLocation, useNavigate } from 'react-router-dom'
+import { LayoutDashboard, Kanban, Users, Mic, CalendarDays, CheckSquare, Settings, LogOut, Users2, Shield, Bell } from 'lucide-react'
 import { useThemeStore } from '@/store/useThemeStore'
 import { useAuthStore } from '@/store/useAuthStore'
 import { useDealStore } from '@/store/useDealStore'
 import { useTaskStore } from '@/store/useTaskStore'
+import { useNotificationStore, type AppNotification } from '@/store/useNotificationStore'
 
 function hashColor(name: string): string {
   let h = 0
@@ -142,6 +143,114 @@ function SettingsItem({ activeItemBg, collapsed }: { activeItemBg: string; colla
   )
 }
 
+// ─── Notification Panel ───────────────────────────────────────────────────────
+
+const NOTIF_LABELS: Record<string, { label: string; color: string }> = {
+  new_deal:         { label: 'Novo Lead',    color: '#2c5545' },
+  overdue_activity: { label: 'Parado',       color: '#b45309' },
+  sla_breach:       { label: 'SLA',          color: '#dc2626' },
+}
+
+function timeAgo(iso: string): string {
+  const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 60000)
+  if (diff < 1)  return 'agora'
+  if (diff < 60) return `${diff}m`
+  if (diff < 1440) return `${Math.floor(diff / 60)}h`
+  return `${Math.floor(diff / 1440)}d`
+}
+
+function NotificationPanel({ onClose, collapsed }: { onClose: () => void; collapsed: boolean }) {
+  const notifications = useNotificationStore((s) => s.notifications)
+  const markRead      = useNotificationStore((s) => s.markRead)
+  const markAllRead   = useNotificationStore((s) => s.markAllRead)
+  const navigate      = useNavigate()
+  const panelRef      = useRef<HTMLDivElement>(null)
+
+  const unread = notifications.filter((n) => !n.read)
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) { if (e.key === 'Escape') onClose() }
+    function onClick(e: MouseEvent) { if (panelRef.current && !panelRef.current.contains(e.target as Node)) onClose() }
+    document.addEventListener('keydown', onKey)
+    document.addEventListener('mousedown', onClick)
+    return () => { document.removeEventListener('keydown', onKey); document.removeEventListener('mousedown', onClick) }
+  }, [onClose])
+
+  function handleClick(n: AppNotification) {
+    markRead(n.id)
+    navigate(`/deal/${n.dealId}`)
+    onClose()
+  }
+
+  const left = collapsed ? 56 : 200
+
+  return (
+    <div
+      ref={panelRef}
+      style={{
+        position: 'fixed', left: `${left + 8}px`, bottom: '60px', zIndex: 100,
+        width: '300px', maxHeight: '420px',
+        backgroundColor: '#161614', border: '1px solid #2a2a28',
+        borderRadius: '10px', overflow: 'hidden',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+        display: 'flex', flexDirection: 'column',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', borderBottom: '1px solid #242422', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
+          <Bell style={{ width: '12px', height: '12px', color: '#9a9a9a' }} />
+          <span style={{ fontSize: '12px', fontWeight: 700, color: '#e8e4dc' }}>Notificações</span>
+          {unread.length > 0 && (
+            <span style={{ fontSize: '9px', fontWeight: 700, color: '#fff', backgroundColor: '#dc2626', borderRadius: '99px', padding: '1px 5px' }}>{unread.length}</span>
+          )}
+        </div>
+        {unread.length > 0 && (
+          <button type="button" onClick={markAllRead}
+            style={{ fontSize: '10px', color: '#6b6560', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = '#e8e4dc')}
+            onMouseLeave={(e) => (e.currentTarget.style.color = '#6b6560')}
+          >Marcar todas como lidas</button>
+        )}
+      </div>
+
+      <div style={{ overflowY: 'auto', flex: 1 }}>
+        {notifications.length === 0 ? (
+          <div style={{ padding: '28px', textAlign: 'center', color: '#4a4a4a', fontSize: '12px' }}>
+            Nenhuma notificação
+          </div>
+        ) : (
+          notifications.slice(0, 30).map((n, i) => {
+            const cfg = NOTIF_LABELS[n.type] ?? { label: n.type, color: '#6b6560' }
+            return (
+              <button key={n.id} type="button" onClick={() => handleClick(n)}
+                style={{
+                  display: 'flex', alignItems: 'flex-start', gap: '9px', width: '100%', padding: '10px 14px',
+                  backgroundColor: n.read ? 'transparent' : '#1a1a18',
+                  borderBottom: i < notifications.length - 1 ? '1px solid #1e1e1c' : 'none',
+                  cursor: 'pointer', textAlign: 'left', border: 'none',
+                  transition: 'background-color 0.1s ease',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#222220')}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = n.read ? 'transparent' : '#1a1a18')}
+              >
+                <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: n.read ? 'transparent' : cfg.color, flexShrink: 0, marginTop: '5px' }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '2px' }}>
+                    <span style={{ fontSize: '9px', fontWeight: 700, color: cfg.color, backgroundColor: `${cfg.color}18`, borderRadius: '3px', padding: '1px 5px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{cfg.label}</span>
+                    <span style={{ fontSize: '10px', color: '#4a4a4a', marginLeft: 'auto', flexShrink: 0 }}>{timeAgo(n.createdAt)}</span>
+                  </div>
+                  <p style={{ fontSize: '11px', fontWeight: 600, color: '#e8e4dc', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n.dealName}</p>
+                  {n.meta && <p style={{ fontSize: '10px', color: '#6b6560', marginTop: '1px' }}>{n.meta}</p>}
+                </div>
+              </button>
+            )
+          })
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ─── Sidebar ──────────────────────────────────────────────────────────────────
 
 export function Sidebar() {
@@ -166,6 +275,10 @@ export function Sidebar() {
     tasks.filter((t) => !t.completed_at && !!t.due_date && t.due_date < today).length,
     [tasks, today],
   )
+
+  const notifications   = useNotificationStore((s) => s.notifications)
+  const unreadCount     = useMemo(() => notifications.filter((n) => !n.read).length, [notifications])
+  const [showNotif, setShowNotif] = useState(false)
 
   const displayName     = profile?.full_name || 'Robert Ferreira'
   const displayRole     = profile?.role === 'admin' ? 'ADMIN' : profile?.role === 'user' ? 'USER' : 'ADMIN'
@@ -231,6 +344,7 @@ export function Sidebar() {
   }, [location.pathname, collapsed])
 
   return (
+  <>
     <aside
       ref={asideRef}
       className="sidebar-responsive relative flex flex-col shrink-0"
@@ -368,6 +482,42 @@ export function Sidebar() {
       {/* Footer */}
       <div style={{ padding: collapsed ? '10px 8px 14px' : '10px 12px 14px', flexShrink: 0 }}>
 
+        {/* Bell */}
+        <div style={{ marginBottom: '6px', position: 'relative' }}>
+          <button
+            type="button"
+            onClick={() => setShowNotif((v) => !v)}
+            title={collapsed ? 'Notificações' : undefined}
+            style={{
+              display: 'flex', alignItems: 'center', height: '32px',
+              width: '100%', padding: collapsed ? '0' : '0 12px',
+              justifyContent: collapsed ? 'center' : 'flex-start',
+              borderRadius: '6px', gap: collapsed ? 0 : '8px',
+              fontSize: '11px', fontWeight: 500,
+              background: showNotif ? activeItemBg : 'none',
+              border: 'none', cursor: 'pointer',
+              color: showNotif ? '#f0ede5' : '#6b6b6b',
+              transition: 'background-color 0.15s ease, color 0.15s ease',
+              position: 'relative',
+            }}
+            onMouseEnter={(e) => { if (!showNotif) { e.currentTarget.style.backgroundColor = '#1a1a1a'; e.currentTarget.style.color = '#f0ede5' } }}
+            onMouseLeave={(e) => { if (!showNotif) { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#6b6b6b' } }}
+          >
+            <div style={{ position: 'relative', flexShrink: 0 }}>
+              <Bell style={{ width: '14px', height: '14px' }} />
+              {unreadCount > 0 && (
+                <span style={{
+                  position: 'absolute', top: '-4px', right: '-5px',
+                  fontSize: '7px', fontWeight: 800, color: '#fff',
+                  backgroundColor: '#dc2626', borderRadius: '99px',
+                  padding: '1px 3px', minWidth: '12px', textAlign: 'center', lineHeight: 1.4,
+                }}>{unreadCount > 9 ? '9+' : unreadCount}</span>
+              )}
+            </div>
+            {!collapsed && <span className="sidebar-label">Notificações</span>}
+          </button>
+        </div>
+
         <div style={{ marginBottom: '10px' }}>
           <SettingsItem activeItemBg={activeItemBg} collapsed={collapsed} />
         </div>
@@ -409,5 +559,10 @@ export function Sidebar() {
 
       </div>
     </aside>
+
+    {showNotif && (
+      <NotificationPanel onClose={() => setShowNotif(false)} collapsed={collapsed} />
+    )}
+  </>
   )
 }

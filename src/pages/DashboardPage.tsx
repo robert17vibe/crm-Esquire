@@ -16,6 +16,32 @@ import { STAGES } from '@/constants/pipeline'
 const KPI_ORDER_KEY     = 'esq_kpi_order'
 const DEFAULT_KPI_ORDER = ['pipeline', 'commit', 'coverage', 'winrate', 'ticket', 'cycle']
 
+const WIDGET_VIS_KEY = 'esq_widget_visibility'
+const ALL_WIDGETS = [
+  { id: 'kpis',     label: 'KPIs de Performance',    tab: 'operacao'   },
+  { id: 'funil',    label: 'Funil & Forecast',        tab: 'operacao'   },
+  { id: 'aging',    label: 'Aging & Evolução Mensal', tab: 'operacao'   },
+  { id: 'riscos',   label: 'Riscos & Próximas Ações', tab: 'operacao'   },
+  { id: 'inativos', label: 'Leads Sem Atividade',     tab: 'operacao'   },
+  { id: 'tarefas',  label: 'Próximas Tarefas',        tab: 'ambos'      },
+  { id: 'res_kpis', label: 'KPIs de Resultados',      tab: 'resultados' },
+  { id: 'ranking',  label: 'Performance & Histórico', tab: 'resultados' },
+  { id: 'conv',     label: 'Conversão & Ciclo',       tab: 'resultados' },
+] as const
+type WidgetId = typeof ALL_WIDGETS[number]['id']
+
+function defaultVisibility(): Set<WidgetId> {
+  return new Set(ALL_WIDGETS.map((w) => w.id) as WidgetId[])
+}
+
+function loadVisibility(): Set<WidgetId> {
+  try {
+    const raw = localStorage.getItem(WIDGET_VIS_KEY)
+    if (raw) return new Set(JSON.parse(raw) as WidgetId[])
+  } catch { /* ignore */ }
+  return defaultVisibility()
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function fmt(v: number) {
@@ -52,6 +78,7 @@ interface KpiCardProps {
   sub?: string
   icon: React.ComponentType<{ style?: React.CSSProperties }>
   accent: string
+  sparkline?: number[]
   isDark: boolean
   isDragging: boolean
   onDragStart: (e: React.DragEvent) => void
@@ -61,7 +88,7 @@ interface KpiCardProps {
 }
 
 function KpiCard({
-  label, value, sub, icon: Icon, accent, isDark,
+  label, value, sub, icon: Icon, accent, sparkline, isDark,
   isDragging, onDragStart, onDragOver, onDrop, onDragEnd,
 }: KpiCardProps) {
   const bg     = isDark ? '#161614' : '#ffffff'
@@ -80,11 +107,11 @@ function KpiCard({
       style={{
         backgroundColor: bg,
         border: `1px solid ${isDragging ? accent : border}`,
-        borderRadius: '8px', padding: '14px 16px',
+        borderRadius: '8px', padding: '14px 16px 0',
         display: 'flex', flexDirection: 'column', gap: '10px',
         cursor: 'grab', opacity: isDragging ? 0.45 : 1,
         transition: 'border-color 0.15s ease, opacity 0.15s ease',
-        userSelect: 'none',
+        userSelect: 'none', overflow: 'hidden',
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -95,13 +122,45 @@ function KpiCard({
           <Icon style={{ width: '12px', height: '12px', color: accent }} />
         </div>
       </div>
-      <div>
+      <div style={{ paddingBottom: sparkline ? '0' : '14px' }}>
         <p style={{ fontSize: '20px', fontWeight: 700, color: text, letterSpacing: '-0.02em', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
           {value}
         </p>
         {sub && <p style={{ fontSize: '10px', color: muted, marginTop: '4px', lineHeight: 1.3 }}>{sub}</p>}
       </div>
+      {sparkline && (
+        <div style={{ marginLeft: '-16px', marginRight: '-16px' }}>
+          <Sparkline data={sparkline} color={accent} />
+        </div>
+      )}
     </div>
+  )
+}
+
+function Sparkline({ data, color }: { data: number[]; color: string }) {
+  if (data.length < 2) return null
+  const max = Math.max(...data, 1)
+  const min = Math.min(...data, 0)
+  const range = max - min || 1
+  const W = 100, H = 22
+  const pts = data.map((v, i) => {
+    const x = (i / (data.length - 1)) * W
+    const y = H - 2 - ((v - min) / range) * (H - 6)
+    return `${x.toFixed(1)},${y.toFixed(1)}`
+  }).join(' ')
+  const fill = `${pts} ${W},${H} 0,${H}`
+  const gId = `sg${color.replace(/[^a-z0-9]/gi, '')}`
+  return (
+    <svg width="100%" height={H} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ display: 'block' }}>
+      <defs>
+        <linearGradient id={gId} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.18" />
+          <stop offset="100%" stopColor={color} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <polygon points={fill} fill={`url(#${gId})`} />
+      <polyline points={pts} fill="none" stroke={color} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
+    </svg>
   )
 }
 
@@ -160,6 +219,44 @@ export function DashboardPage() {
 
   // ── KPI drag-and-drop ─────────────────────────────────────────────────────
 
+  // ── Widget visibility ─────────────────────────────────────────────────────
+  const [visibleWidgets, setVisibleWidgets] = useState<Set<WidgetId>>(loadVisibility)
+  const [showWidgetModal, setShowWidgetModal] = useState(false)
+
+  function toggleWidget(id: WidgetId) {
+    setVisibleWidgets((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      localStorage.setItem(WIDGET_VIS_KEY, JSON.stringify([...next]))
+      return next
+    })
+  }
+
+  const vis = visibleWidgets
+
+  // ── Sparkline data (last 6 months) ────────────────────────────────────────
+  const last6Months = useMemo(() => {
+    const now = new Date()
+    return Array.from({ length: 6 }, (_, i) => {
+      const d = new Date(now.getFullYear(), now.getMonth() - 5 + i, 1)
+      return d.toISOString().slice(0, 7)
+    })
+  }, [])
+
+  const sparkPipeline = useMemo(() => last6Months.map((m) =>
+    deals.filter((d) => d.created_at.slice(0, 7) === m && d.value > 0).reduce((s, d) => s + d.value, 0)
+  ), [deals, last6Months])
+
+  const sparkWon = useMemo(() => last6Months.map((m) =>
+    deals.filter((d) => d.stage_id === 'closed_won' && d.updated_at.slice(0, 7) === m).length
+  ), [deals, last6Months])
+
+  const sparkCount = useMemo(() => last6Months.map((m) =>
+    deals.filter((d) => d.created_at.slice(0, 7) === m).length
+  ), [deals, last6Months])
+
+  // ── KPI drag-and-drop ─────────────────────────────────────────────────────
+
   const [kpiOrder, setKpiOrder] = useState<string[]>(() => {
     try {
       const saved = localStorage.getItem(KPI_ORDER_KEY)
@@ -175,15 +272,15 @@ export function DashboardPage() {
 
   const coverageAccent = coverage >= 100 ? '#2d9e6b' : coverage >= 70 ? '#b45309' : (isDark ? '#fc8181' : '#c53030')
 
-  const kpiDefs: Record<string, { label: string; value: string; sub?: string; icon: typeof TrendingUp; accent: string }> = useMemo(() => ({
-    pipeline: { label: 'Pipeline Total',    value: fmt(pipelineTotal), sub: `${valueDeals.length} deals ativos`, icon: TrendingUp, accent: '#2c5545' },
-    commit:   { label: 'Commit Trimestral', value: fmt(commitTotal),   sub: `${commitDeals.length} em fechamento`, icon: Briefcase, accent: '#4a7c8a' },
-    coverage: { label: 'Cobertura de Meta', value: `${coverage.toFixed(0)}%`, sub: `Meta Q: ${fmt(quarterlyGoal)}`, icon: Target, accent: coverageAccent },
-    winrate:  { label: 'Win Rate',          value: `${winRate}%`, sub: `${closedWon.length} ganhos · ${closedLost.length} perdidos`, icon: Award, accent: '#2d9e6b' },
-    ticket:   { label: 'Ticket Médio',      value: fmt(avgTicket), sub: 'média dos ativos com valor', icon: DollarSign, accent: '#8b6914' },
-    cycle:    { label: 'Ciclo Médio',       value: `${avgCycle}d`, sub: 'dias no estágio atual', icon: Clock, accent: '#78909c' },
+  const kpiDefs: Record<string, { label: string; value: string; sub?: string; icon: typeof TrendingUp; accent: string; sparkline: number[] }> = useMemo(() => ({
+    pipeline: { label: 'Pipeline Total',    value: fmt(pipelineTotal), sub: `${valueDeals.length} deals ativos`, icon: TrendingUp, accent: '#2c5545', sparkline: sparkPipeline },
+    commit:   { label: 'Commit Trimestral', value: fmt(commitTotal),   sub: `${commitDeals.length} em fechamento`, icon: Briefcase, accent: '#4a7c8a', sparkline: sparkPipeline },
+    coverage: { label: 'Cobertura de Meta', value: `${coverage.toFixed(0)}%`, sub: `Meta Q: ${fmt(quarterlyGoal)}`, icon: Target, accent: coverageAccent, sparkline: sparkPipeline },
+    winrate:  { label: 'Win Rate',          value: `${winRate}%`, sub: `${closedWon.length} ganhos · ${closedLost.length} perdidos`, icon: Award, accent: '#2d9e6b', sparkline: sparkWon },
+    ticket:   { label: 'Ticket Médio',      value: fmt(avgTicket), sub: 'média dos ativos com valor', icon: DollarSign, accent: '#8b6914', sparkline: sparkPipeline },
+    cycle:    { label: 'Ciclo Médio',       value: `${avgCycle}d`, sub: 'dias no estágio atual', icon: Clock, accent: '#78909c', sparkline: sparkCount },
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [pipelineTotal, commitTotal, coverage, winRate, avgTicket, avgCycle])
+  }), [pipelineTotal, commitTotal, coverage, winRate, avgTicket, avgCycle, sparkPipeline, sparkWon, sparkCount])
 
   function handleDragStart(id: string, idx: number, e: React.DragEvent) {
     dragIdx.current = idx; setDraggingId(id); e.dataTransfer.effectAllowed = 'move'
@@ -360,6 +457,7 @@ export function DashboardPage() {
   }
 
   return (
+    <>
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: pageBg }}>
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
@@ -389,15 +487,30 @@ export function DashboardPage() {
           </div>
         </div>
 
-        <span style={{
-          fontSize: '10px', fontWeight: 700, color: '#2c5545',
-          backgroundColor: isDark ? '#1a2e22' : '#e6f2ee',
-          border: `1px solid ${isDark ? '#2c5545' : '#b8d9ce'}`,
-          borderRadius: '4px', padding: '3px 10px',
-          letterSpacing: '0.06em', textTransform: 'uppercase',
-        }}>
-          Q2 · 2026
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button
+            type="button"
+            onClick={() => setShowWidgetModal(true)}
+            title="Gerenciar widgets"
+            style={{
+              width: '28px', height: '28px', borderRadius: '6px', border: `1px solid ${border}`,
+              backgroundColor: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center',
+              justifyContent: 'center', color: muted, fontSize: '16px', lineHeight: 1,
+              transition: 'all 0.15s ease',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#2c5545'; e.currentTarget.style.color = '#2c5545' }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = border; e.currentTarget.style.color = muted }}
+          >+</button>
+          <span style={{
+            fontSize: '10px', fontWeight: 700, color: '#2c5545',
+            backgroundColor: isDark ? '#1a2e22' : '#e6f2ee',
+            border: `1px solid ${isDark ? '#2c5545' : '#b8d9ce'}`,
+            borderRadius: '4px', padding: '3px 10px',
+            letterSpacing: '0.06em', textTransform: 'uppercase',
+          }}>
+            Q2 · 2026
+          </span>
+        </div>
       </div>
 
       {/* ── Content ────────────────────────────────────────────────────────── */}
@@ -407,7 +520,7 @@ export function DashboardPage() {
         {activeTab === 'operacao' && (
           <>
             {/* KPIs */}
-            <div>
+            {vis.has('kpis') && <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
                 <GripVertical style={{ width: '11px', height: '11px', color: muted }} />
                 <span style={{ fontSize: '10px', color: muted, fontWeight: 500 }}>Arraste os cards para reorganizar</span>
@@ -431,10 +544,10 @@ export function DashboardPage() {
                     })
                 }
               </div>
-            </div>
+            </div>}
 
             {/* Funil & Forecast */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: '12px' }}>
+            {vis.has('funil') && <div style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: '12px' }}>
               <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '8px', padding: '18px 20px' }}>
                 <p style={{ fontSize: '11px', fontWeight: 700, color: text, marginBottom: '14px' }}>Funil por Estágio</p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -516,10 +629,10 @@ export function DashboardPage() {
                   </div>
                 </div>
               </div>
-            </div>
+            </div>}
 
             {/* Aging & Evolução mensal */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            {vis.has('aging') && <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
               {/* Aging */}
               <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '8px', padding: '18px 20px' }}>
                 <p style={{ fontSize: '11px', fontWeight: 700, color: text, marginBottom: '12px' }}>Aging — Top 5 Paralisados</p>
@@ -572,10 +685,10 @@ export function DashboardPage() {
                   <span style={{ fontSize: '10px', fontWeight: 600, color: text, fontVariantNumeric: 'tabular-nums' }}>Total {fmt(monthlyPipeline.reduce((s, m) => s + m.value, 0))}</span>
                 </div>
               </div>
-            </div>
+            </div>}
 
             {/* Riscos & Próximas ações */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            {vis.has('riscos') && <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
               <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '8px', overflow: 'hidden' }}>
                 <div style={{ padding: '12px 18px', borderBottom: `1px solid ${border}`, display: 'flex', alignItems: 'center', gap: '7px' }}>
                   <AlertTriangle style={{ width: '12px', height: '12px', color: isDark ? '#fc8181' : '#c53030' }} />
@@ -646,10 +759,10 @@ export function DashboardPage() {
                   )
                 })}
               </div>
-            </div>
+            </div>}
 
             {/* Leads sem atividade recente */}
-            {inactiveDeals.length > 0 && (
+            {vis.has('inativos') && inactiveDeals.length > 0 && (
               <div style={{ backgroundColor: cardBg, border: `1px solid ${isDark ? '#4a2a1a' : '#fed7aa'}`, borderRadius: '8px', overflow: 'hidden' }}>
                 <div style={{ padding: '12px 18px', borderBottom: `1px solid ${border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -700,7 +813,7 @@ export function DashboardPage() {
         {activeTab === 'resultados' && (
           <>
             {/* KPIs de Resultados */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: '10px' }}>
+            {vis.has('res_kpis') && <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: '10px' }}>
               {[
                 {
                   label: 'Ganhos Totais',
@@ -744,10 +857,10 @@ export function DashboardPage() {
                   </div>
                 </div>
               ))}
-            </div>
+            </div>}
 
             {/* Ranking + Histórico de Won */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            {vis.has('ranking') && <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
 
               {/* Performance por Operador */}
               <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '8px', padding: '18px 20px' }}>
@@ -819,10 +932,10 @@ export function DashboardPage() {
                   </>
                 )}
               </div>
-            </div>
+            </div>}
 
             {/* Taxa de conversão + métricas de ciclo */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            {vis.has('conv') && <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
 
               {/* Distribuição do Pipeline Ativo */}
               <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '8px', padding: '18px 20px' }}>
@@ -886,15 +999,76 @@ export function DashboardPage() {
                   <span style={{ fontSize: '11px', fontWeight: 700, color: text }}>{avgCycle}d</span>
                 </div>
               </div>
-            </div>
+            </div>}
           </>
         )}
 
         {/* ── Próximas Tarefas ── */}
-        <TasksWidget isDark={isDark} border={border} text={text} muted={muted} cardBg={cardBg} navigate={navigate} />
+        {vis.has('tarefas') && <TasksWidget isDark={isDark} border={border} text={text} muted={muted} cardBg={cardBg} navigate={navigate} />}
 
       </div>
     </div>
+
+    {/* ── Widget modal ── */}
+    {showWidgetModal && (
+      <div
+        style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+        onClick={() => setShowWidgetModal(false)}
+      >
+        <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)' }} />
+        <div
+          style={{
+            position: 'relative', width: '340px', borderRadius: '12px',
+            backgroundColor: cardBg, border: `1px solid ${border}`,
+            padding: '20px', boxShadow: '0 16px 40px rgba(0,0,0,0.24)',
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+            <p style={{ fontSize: '13px', fontWeight: 700, color: text }}>Gerenciar Widgets</p>
+            <button type="button" onClick={() => setShowWidgetModal(false)}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: muted, fontSize: '18px', lineHeight: 1, padding: '2px 6px' }}>×</button>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            {ALL_WIDGETS.map((w) => {
+              const active = vis.has(w.id)
+              return (
+                <button key={w.id} type="button" onClick={() => toggleWidget(w.id)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 12px',
+                    borderRadius: '7px', border: `1px solid ${active ? '#2c5545' : border}`,
+                    backgroundColor: active ? (isDark ? '#0e1f17' : '#f0faf4') : 'transparent',
+                    cursor: 'pointer', transition: 'all 0.12s ease', textAlign: 'left',
+                  }}
+                >
+                  <div style={{
+                    width: '14px', height: '14px', borderRadius: '3px', flexShrink: 0,
+                    border: `2px solid ${active ? '#2c5545' : border}`,
+                    backgroundColor: active ? '#2c5545' : 'transparent',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    {active && <span style={{ color: '#fff', fontSize: '9px', fontWeight: 700 }}>✓</span>}
+                  </div>
+                  <span style={{ fontSize: '12px', fontWeight: 500, color: text }}>{w.label}</span>
+                  <span style={{ fontSize: '10px', color: muted, marginLeft: 'auto', textTransform: 'capitalize' }}>{w.tab}</span>
+                </button>
+              )
+            })}
+          </div>
+          <div style={{ marginTop: '14px', paddingTop: '12px', borderTop: `1px solid ${border}`, display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+            <button type="button" onClick={() => { setVisibleWidgets(defaultVisibility()); localStorage.removeItem(WIDGET_VIS_KEY) }}
+              style={{ fontSize: '11px', color: muted, background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px' }}>
+              Restaurar padrão
+            </button>
+            <button type="button" onClick={() => setShowWidgetModal(false)}
+              style={{ fontSize: '11px', fontWeight: 600, color: '#fff', backgroundColor: '#2c5545', border: 'none', borderRadius: '6px', padding: '6px 14px', cursor: 'pointer' }}>
+              Fechar
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   )
 }
 

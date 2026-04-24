@@ -20,6 +20,8 @@ import { useTeamStore } from '@/store/useTeamStore'
 import { useNotificationStore } from '@/store/useNotificationStore'
 import type { Deal, DealActivity, DealMeeting, NextActivity, Stakeholder, CompanySize, ArrRange, DealEvent } from '@/types/deal.types'
 import { UserAvatarRow, getInitials, getAvatarColor } from '@/components/ui/UserAvatar'
+import { RelatedDeals } from '@/components/deal/RelatedDeals'
+import { StakeholderMap } from '@/components/deal/StakeholderMap'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -964,6 +966,34 @@ export function DealDetailPage() {
         display: 'flex', flexDirection: 'column', gap: '0',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px', overflowX: 'auto', paddingBottom: '10px' }}>
+          {/* Lead temperature picker */}
+          {!['closed_won', 'closed_lost'].includes(deal.stage_id) && (() => {
+            const temps = [
+              { value: 'hot',  label: '🔥 Quente', color: '#ef4444' },
+              { value: 'warm', label: '🌡 Morno',  color: '#f59e0b' },
+              { value: 'cold', label: '🧊 Frio',   color: '#60a5fa' },
+            ] as const
+            const cur = temps.find((t) => t.value === deal.lead_temperature)
+            return (
+              <div style={{ position: 'relative', marginRight: '8px', flexShrink: 0 }}>
+                <select
+                  value={deal.lead_temperature ?? ''}
+                  onChange={(e) => patchDealFields(deal.id, { lead_temperature: e.target.value as typeof deal.lead_temperature || null })}
+                  style={{
+                    height: '30px', padding: '0 28px 0 8px', borderRadius: '6px',
+                    fontSize: '11px', fontWeight: 600, cursor: 'pointer', outline: 'none',
+                    backgroundColor: cur ? `${cur.color}15` : (isDark ? '#1e1e1c' : '#f0eeea'),
+                    color: cur?.color ?? muted,
+                    border: `1.5px solid ${cur ? `${cur.color}50` : border}`,
+                    appearance: 'none', WebkitAppearance: 'none',
+                  }}
+                >
+                  <option value="">— Temperatura</option>
+                  {temps.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+                </select>
+              </div>
+            )
+          })()}
           {STAGES.map((s, idx) => {
             const isActive = deal.stage_id === s.id
             const isPrev   = STAGES.findIndex((st) => st.id === deal.stage_id) > idx
@@ -1601,6 +1631,12 @@ export function DealDetailPage() {
                 <p style={{ fontSize: '11px', color: muted, fontStyle: 'italic' }}>Nenhum stakeholder mapeado</p>
               )}
             </div>
+
+            {/* Mapa de stakeholders */}
+            <StakeholderMap dealId={deal.id} isDark={isDark} />
+
+            {/* Deals relacionados */}
+            <RelatedDeals dealId={deal.id} isDark={isDark} />
 
             {/* Histórico de alterações */}
             <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '8px', overflow: 'hidden' }}>
