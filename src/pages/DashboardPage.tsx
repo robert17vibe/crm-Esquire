@@ -184,7 +184,8 @@ function KpiSkeleton({ isDark }: { isDark: boolean }) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export function DashboardPage() {
-  const deals    = useDealStore((s) => s.deals)
+  const deals      = useDealStore((s) => s.deals)
+  const staleCount = useDealStore((s) => s.staleCount)
   const isDark   = useThemeStore((s) => s.isDark)
   const navigate = useNavigate()
   const { quarterlyGoal } = useSettingsStore()
@@ -760,6 +761,24 @@ export function DashboardPage() {
                 })}
               </div>
             </div>}
+
+            {/* P6.4 — Leads Parados (>7 dias sem atividade) */}
+            {staleCount > 0 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', backgroundColor: isDark ? '#1a1200' : '#fffbeb', border: `1px solid ${isDark ? '#5a3e00' : '#fde68a'}`, borderRadius: '8px' }}>
+                <AlertTriangle style={{ width: '13px', height: '13px', color: '#b45309', flexShrink: 0 }} />
+                <p style={{ fontSize: '12px', fontWeight: 600, color: isDark ? '#fbbf24' : '#92400e' }}>
+                  Leads Parados
+                </p>
+                <span style={{ fontSize: '11px', fontWeight: 700, color: '#fff', backgroundColor: '#b45309', borderRadius: '99px', padding: '1px 7px' }}>{staleCount}</span>
+                <p style={{ fontSize: '11px', color: isDark ? '#d97706' : '#b45309', marginLeft: '2px' }}>
+                  {staleCount === 1 ? 'lead sem atividade há mais de 7 dias' : 'leads sem atividade há mais de 7 dias'}
+                </p>
+                <button type="button" onClick={() => navigate('/pipeline')}
+                  style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '3px', fontSize: '10px', fontWeight: 600, color: '#b45309', background: 'none', border: 'none', cursor: 'pointer' }}>
+                  Ver pipeline <ArrowRight style={{ width: '10px', height: '10px' }} />
+                </button>
+              </div>
+            )}
 
             {/* Leads sem atividade recente */}
             {vis.has('inativos') && inactiveDeals.length > 0 && (

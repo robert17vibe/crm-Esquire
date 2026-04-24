@@ -29,11 +29,9 @@ export function PipelinePage() {
   }, [searchParams])
 
   type SortMode  = 'manual' | 'score' | 'urgency'
-  type TempFilter = 'all' | 'hot' | 'warm' | 'cold'
 
   const [showNewModal, setShowNewModal]   = useState(false)
   const [sortMode, setSortMode]           = useState<SortMode>('manual')
-  const [tempFilter, setTempFilter]       = useState<TempFilter>('all')
   const [editingDeal, setEditingDeal]     = useState<Deal | null>(null)
   const [pendingNewDeal, setPendingNewDeal] = useState<Deal | null>(null)
   const [updatedDeal, setUpdatedDeal]       = useState<Deal | null>(null)
@@ -72,10 +70,6 @@ export function PipelinePage() {
       result = result.filter((d) => selectedOwners.includes(d.owner_id))
     }
 
-    if (tempFilter !== 'all') {
-      result = result.filter((d) => d.lead_temperature === tempFilter)
-    }
-
     const q = searchQuery.trim().toLowerCase()
     if (q) {
       result = result.filter((d) => {
@@ -98,20 +92,18 @@ export function PipelinePage() {
       result = [...result].sort((a, b) => evaluateDealScore(b) - evaluateDealScore(a))
     } else if (sortMode === 'urgency') {
       const today = new Date().toISOString().slice(0, 10)
-      const tempN = (d: Deal) => d.lead_temperature === 'hot' ? 3 : d.lead_temperature === 'warm' ? 2 : d.lead_temperature === 'cold' ? 1 : 0
       result = [...result].sort((a, b) => {
         const aOv = a.next_activity?.due_date && a.next_activity.due_date < today ? 1 : 0
         const bOv = b.next_activity?.due_date && b.next_activity.due_date < today ? 1 : 0
         if (bOv !== aOv) return bOv - aOv
-        if (tempN(b) !== tempN(a)) return tempN(b) - tempN(a)
         return b.days_in_stage - a.days_in_stage
       })
     }
 
     return result
-  }, [deals, selectedOwners, searchQuery, sortMode, tempFilter])
+  }, [deals, selectedOwners, searchQuery, sortMode])
 
-  const hasFilter = selectedOwners.length > 0 || !!searchQuery || tempFilter !== 'all'
+  const hasFilter = selectedOwners.length > 0 || !!searchQuery
 
   // ── Theme tokens ──────────────────────────────────────────────────────────
   const headerBorder     = isDark ? '#242424' : '#e8e6e1'
@@ -282,45 +274,21 @@ export function PipelinePage() {
         {/* Right: sort + temp filter + new lead */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
 
-          {/* Temperature quick filter */}
-          {([
-            { key: 'all',  label: 'Todos', emoji: '' },
-            { key: 'hot',  label: 'Quente', emoji: '🔥' },
-            { key: 'warm', label: 'Morno',  emoji: '🌡' },
-            { key: 'cold', label: 'Frio',   emoji: '🧊' },
-          ] as const).map(({ key, label, emoji }) => (
-            <button key={key} type="button"
-              onClick={() => setTempFilter(key)}
-              title={label}
-              style={{
-                height: '32px', padding: '0 9px', borderRadius: '6px', cursor: 'pointer',
-                fontSize: '11px', fontWeight: 600, flexShrink: 0,
-                backgroundColor: tempFilter === key ? (isDark ? '#1e1e1e' : '#ede9e2') : filterBg,
-                color: tempFilter === key ? (isDark ? '#e8e4dc' : '#1a1814') : filterText,
-                border: `1px solid ${tempFilter === key ? (isDark ? '#3a3a3a' : '#c8c4be') : filterBorder}`,
-                transition: 'all 0.15s ease',
-              }}>
-              {emoji || label}
-            </button>
-          ))}
-
-          <div style={{ width: '1px', height: '20px', backgroundColor: filterBorder, flexShrink: 0 }} />
-
-          {/* Sort mode */}
+          {/* Sort mode — 3-state cycle: manual → score → urgency → manual */}
           <button type="button"
-            onClick={() => setSortMode((m) => m === 'score' ? 'manual' : 'score')}
-            title="Ordenar por score de prioridade"
+            onClick={() => setSortMode((m) => m === 'manual' ? 'score' : m === 'score' ? 'urgency' : 'manual')}
+            title={sortMode === 'manual' ? 'Ordenar por score' : sortMode === 'score' ? 'Ordenar por urgência' : 'Voltar à ordem manual'}
             style={{
               display: 'flex', alignItems: 'center', gap: '4px',
               height: '32px', padding: '0 10px', borderRadius: '6px', cursor: 'pointer',
               fontSize: '11px', fontWeight: 600, flexShrink: 0,
-              backgroundColor: sortMode === 'score' ? (isDark ? '#1e1e1e' : '#ede9e2') : filterBg,
-              color: sortMode === 'score' ? (isDark ? '#e8e4dc' : '#1a1814') : filterText,
-              border: `1px solid ${sortMode === 'score' ? (isDark ? '#3a3a3a' : '#c8c4be') : filterBorder}`,
+              backgroundColor: sortMode !== 'manual' ? (isDark ? '#1e1e1e' : '#ede9e2') : filterBg,
+              color: sortMode !== 'manual' ? (isDark ? '#e8e4dc' : '#1a1814') : filterText,
+              border: `1px solid ${sortMode !== 'manual' ? (isDark ? '#3a3a3a' : '#c8c4be') : filterBorder}`,
               transition: 'all 0.15s ease',
             }}>
             <Zap style={{ width: '11px', height: '11px' }} />
-            Score
+            {sortMode === 'urgency' ? 'Urgência' : 'Score'}
           </button>
           <Tooltip.Provider delayDuration={400}>
             <Tooltip.Root>
@@ -359,7 +327,7 @@ export function PipelinePage() {
           <Search style={{ width: '28px', height: '28px', color: filterText }} />
           <p style={{ fontSize: '13px', fontWeight: 600, color: filterText }}>Nenhum deal encontrado</p>
           <p style={{ fontSize: '12px', color: filterText }}>Tente outros termos ou limpe os filtros</p>
-          <button type="button" onClick={() => { clearOwners(); setSearch(''); setTempFilter('all'); setSortMode('manual') }}
+          <button type="button" onClick={() => { clearOwners(); setSearch(''); setSortMode('manual') }}
             style={{ fontSize: '12px', fontWeight: 600, color: '#2c5545', background: 'none', border: 'none', cursor: 'pointer', marginTop: '4px' }}>
             Limpar filtros
           </button>

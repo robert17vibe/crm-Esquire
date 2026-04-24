@@ -32,11 +32,6 @@ export function evaluateDealScore(deal: Deal): number {
   // ── Probability (0-20 pts) ────────────────────────────────────────────────
   score += Math.round((deal.probability ?? 0) * 0.2)
 
-  // ── Temperature ───────────────────────────────────────────────────────────
-  if      (deal.lead_temperature === 'hot')  score += 12
-  else if (deal.lead_temperature === 'warm') score += 4
-  else if (deal.lead_temperature === 'cold') score -= 8
-
   // ── Stagnation ───────────────────────────────────────────────────────────
   if      (deal.days_in_stage > 60) score -= 18
   else if (deal.days_in_stage > 30) score -= 9

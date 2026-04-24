@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from 'react'
+import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, Mic, Activity, CalendarDays, Plus, X } from 'lucide-react'
 import { useMeetingStore } from '@/store/useMeetingStore'
@@ -6,6 +6,7 @@ import { useDealStore } from '@/store/useDealStore'
 import { useThemeStore } from '@/store/useThemeStore'
 import { useOwnerStore } from '@/store/useOwnerStore'
 import { useAuthStore } from '@/store/useAuthStore'
+import { supabase } from '@/lib/supabase'
 import type { Deal } from '@/types/deal.types'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -19,6 +20,21 @@ interface CalEvent {
   subtitle?: string
   dealId?: string
 }
+
+interface CalendarEvent {
+  id: string
+  title: string
+  description?: string | null
+  event_date: string       // 'YYYY-MM-DD'
+  start_time?: string | null  // 'HH:MM'
+  end_time?: string | null    // 'HH:MM'
+  event_type: 'call' | 'meeting' | 'task' | 'reminder'
+  deal_id?: string | null
+  created_at?: string
+  updated_at?: string
+}
+
+type ModalState = { open: boolean; date?: string; event?: CalendarEvent }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -125,18 +141,22 @@ function DayCell({
 
 // ─── Event list item ──────────────────────────────────────────────────────────
 
-function EventItem({ event, isDark, onDealClick }: { event: CalEvent; isDark: boolean; onDealClick: (id: string) => void }) {
+function EventItem({ event, isDark, onDealClick, onEdit }: { event: CalEvent; isDark: boolean; onDealClick: (id: string) => void; onEdit?: () => void }) {
   const border  = isDark ? '#242422' : '#e4e0da'
   const text    = isDark ? '#e8e4dc' : '#1a1814'
   const muted   = isDark ? '#6b6560' : '#8a857d'
   const cardBg  = isDark ? '#1a1a18' : '#f8f7f4'
 
   return (
-    <div style={{
-      display: 'flex', alignItems: 'flex-start', gap: '10px',
-      padding: '10px 12px', backgroundColor: cardBg,
-      borderRadius: '8px', border: `1px solid ${border}`,
-    }}>
+    <div
+      onClick={onEdit}
+      style={{
+        display: 'flex', alignItems: 'flex-start', gap: '10px',
+        padding: '10px 12px', backgroundColor: cardBg,
+        borderRadius: '8px', border: `1px solid ${border}`,
+        cursor: onEdit ? 'pointer' : 'default',
+      }}
+    >
       <div style={{
         width: '28px', height: '28px', borderRadius: '7px', flexShrink: 0,
         backgroundColor: `${event.color}18`,
@@ -332,6 +352,247 @@ function NewMeetingModal({ defaultDate, onClose, isDark }: { defaultDate: string
   )
 }
 
+// ─── Event Modal ─────────────────────────────────────────────────────────────
+
+const EVENT_TYPE_LABELS: Record<string, string> = {
+  call: 'Ligação',
+  meeting: 'Reunião',
+  task: 'Tarefa',
+  reminder: 'Lembrete',
+}
+
+const EVENT_TYPE_COLORS: Record<string, string> = {
+  call:     '#7c5c3a',
+  meeting:  '#2c5545',
+  task:     '#4a6b8a',
+  reminder: '#6b4a8a',
+}
+
+function EventModal({
+  state, onClose, isDark, deals, onSaved,
+}: {
+  state: ModalState
+  onClose: () => void
+  isDark: boolean
+  deals: Deal[]
+  onSaved: () => void
+}) {
+  const isEdit = !!state.event
+
+  const border  = isDark ? '#242422' : '#e4e0da'
+  const text    = isDark ? '#e8e4dc' : '#1a1814'
+  const muted   = isDark ? '#6b6560' : '#8a857d'
+  const inputBg = isDark ? '#111110' : '#f8f7f4'
+  const cardBg  = isDark ? '#161614' : '#ffffff'
+
+  const [title, setTitle]       = useState(state.event?.title ?? '')
+  const [description, setDesc]  = useState(state.event?.description ?? '')
+  const [eventDate, setDate]    = useState(state.event?.event_date ?? state.date ?? '')
+  const [startTime, setStart]   = useState(state.event?.start_time ?? '')
+  const [endTime, setEnd]       = useState(state.event?.end_time ?? '')
+  const [eventType, setType]    = useState<CalendarEvent['event_type']>(state.event?.event_type ?? 'meeting')
+  const [dealId, setDealId]     = useState(state.event?.deal_id ?? '')
+  const [saving, setSaving]     = useState(false)
+  const [deleting, setDeleting] = useState(false)
+
+  // Validation errors
+  const [errors, setErrors] = useState<{ title?: string; time?: string }>({})
+
+  // Close on Escape
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  function validate(): boolean {
+    const errs: { title?: string; time?: string } = {}
+    if (!title.trim() || title.trim().length < 3) {
+      errs.title = 'Título deve ter pelo menos 3 caracteres.'
+    }
+    if (startTime && endTime && endTime <= startTime) {
+      errs.time = 'Hora de término deve ser após o início.'
+    }
+    setErrors(errs)
+    return Object.keys(errs).length === 0
+  }
+
+  async function handleSave() {
+    if (!validate()) return
+    setSaving(true)
+    try {
+      const payload = {
+        title: title.trim(),
+        description: description.trim() || null,
+        event_date: eventDate,
+        start_time: startTime || null,
+        end_time: endTime || null,
+        event_type: eventType,
+        deal_id: dealId || null,
+      }
+      if (isEdit && state.event) {
+        await supabase.from('calendar_events').update(payload).eq('id', state.event.id)
+      } else {
+        await supabase.from('calendar_events').insert(payload)
+      }
+      onSaved()
+      onClose()
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function handleDelete() {
+    if (!state.event) return
+    if (!window.confirm('Excluir este evento?')) return
+    setDeleting(true)
+    try {
+      await supabase.from('calendar_events').delete().eq('id', state.event.id)
+      onSaved()
+      onClose()
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  const inputStyle: React.CSSProperties = {
+    height: '34px', padding: '0 10px', fontSize: '13px', fontWeight: 500,
+    backgroundColor: inputBg, border: `1px solid ${border}`, borderRadius: '6px',
+    color: text, outline: 'none', width: '100%', boxSizing: 'border-box',
+    fontFamily: 'inherit',
+  }
+
+  const labelStyle: React.CSSProperties = {
+    fontSize: '10px', fontWeight: 600, color: muted,
+    textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '5px',
+  }
+
+  const canSave = title.trim().length >= 3 && eventDate
+
+  return (
+    <div
+      style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.45)' }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div style={{
+        backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '12px',
+        padding: '24px', width: '100%', maxWidth: '440px',
+        display: 'flex', flexDirection: 'column', gap: '14px',
+        boxShadow: 'var(--shadow-overlay, 0 8px 32px rgba(0,0,0,0.28))',
+        maxHeight: '90vh', overflowY: 'auto',
+      }}>
+
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <p style={{ fontSize: '15px', fontWeight: 700, color: text }}>
+            {isEdit ? 'Editar Evento' : 'Novo Evento'}
+          </p>
+          <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: muted, padding: '4px', display: 'flex' }}>
+            <X style={{ width: '16px', height: '16px' }} />
+          </button>
+        </div>
+
+        {/* Title */}
+        <div>
+          <p style={labelStyle}>Título *</p>
+          <input
+            autoFocus type="text" placeholder="Ex: Ligação com cliente"
+            value={title} onChange={(e) => setTitle(e.target.value)}
+            style={inputStyle}
+          />
+          {errors.title && <p style={{ fontSize: '11px', color: '#ef4444', marginTop: '4px' }}>{errors.title}</p>}
+        </div>
+
+        {/* Description */}
+        <div>
+          <p style={labelStyle}>Descrição</p>
+          <textarea
+            placeholder="Notas opcionais..."
+            value={description}
+            onChange={(e) => setDesc(e.target.value)}
+            rows={3}
+            style={{
+              ...inputStyle, height: 'auto', padding: '8px 10px',
+              resize: 'vertical', lineHeight: '1.5',
+            }}
+          />
+        </div>
+
+        {/* Event type */}
+        <div>
+          <p style={labelStyle}>Tipo</p>
+          <select value={eventType} onChange={(e) => setType(e.target.value as CalendarEvent['event_type'])}
+            style={{ ...inputStyle, cursor: 'pointer' }}>
+            {Object.entries(EVENT_TYPE_LABELS).map(([v, l]) => (
+              <option key={v} value={v}>{l}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Date + Times */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
+          <div style={{ gridColumn: '1 / -1' }}>
+            <p style={labelStyle}>Data *</p>
+            <input type="date" value={eventDate} onChange={(e) => setDate(e.target.value)}
+              style={{ ...inputStyle, colorScheme: isDark ? 'dark' : 'light' }} />
+          </div>
+          <div>
+            <p style={labelStyle}>Início</p>
+            <input type="time" value={startTime} onChange={(e) => setStart(e.target.value)}
+              style={{ ...inputStyle, colorScheme: isDark ? 'dark' : 'light' }} />
+          </div>
+          <div>
+            <p style={labelStyle}>Término</p>
+            <input type="time" value={endTime} onChange={(e) => setEnd(e.target.value)}
+              style={{ ...inputStyle, colorScheme: isDark ? 'dark' : 'light' }} />
+          </div>
+        </div>
+        {errors.time && <p style={{ fontSize: '11px', color: '#ef4444', marginTop: '-8px' }}>{errors.time}</p>}
+
+        {/* Deal */}
+        <div>
+          <p style={labelStyle}>Lead (opcional)</p>
+          <select value={dealId} onChange={(e) => setDealId(e.target.value)}
+            style={{ ...inputStyle, cursor: 'pointer' }}>
+            <option value="">Nenhum</option>
+            {deals.filter((d) => !(d as Deal & { deleted_at?: string }).deleted_at).map((d) => (
+              <option key={d.id} value={d.id}>{d.title ?? d.company_name}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Actions */}
+        <div style={{ display: 'flex', gap: '8px', justifyContent: 'space-between', marginTop: '4px' }}>
+          {isEdit ? (
+            <button type="button" onClick={handleDelete} disabled={deleting}
+              style={{
+                fontSize: '12px', fontWeight: 600, padding: '6px 16px', borderRadius: '6px',
+                border: 'none', backgroundColor: '#ef444418', color: '#ef4444', cursor: deleting ? 'not-allowed' : 'pointer',
+              }}
+            >{deleting ? 'Excluindo...' : 'Excluir'}</button>
+          ) : <span />}
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button type="button" onClick={onClose}
+              style={{ fontSize: '12px', fontWeight: 600, color: muted, background: 'none', border: 'none', cursor: 'pointer', padding: '6px 12px' }}>
+              Cancelar
+            </button>
+            <button
+              type="button" disabled={saving || !canSave}
+              onClick={handleSave}
+              style={{
+                fontSize: '12px', fontWeight: 600, padding: '6px 16px', borderRadius: '6px', border: 'none',
+                backgroundColor: canSave ? (isDark ? '#f0ede5' : '#1a1814') : (isDark ? '#2a2a28' : '#e4e0da'),
+                color: canSave ? (isDark ? '#0f0e0c' : '#f0ede5') : muted,
+                cursor: canSave ? 'pointer' : 'not-allowed',
+              }}
+            >{saving ? 'Salvando...' : isEdit ? 'Salvar' : 'Criar Evento'}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Week helpers ─────────────────────────────────────────────────────────────
 
 const HOUR_START = 7   // 7am
@@ -367,7 +628,7 @@ interface WeekMeeting {
   startMin: number; durationMin: number; date: string
 }
 
-function WeekView({ weekDays, eventsByDate, meetings, isDark, onDayClick, todayStr, onMeetingClick }: {
+function WeekView({ weekDays, eventsByDate, meetings, isDark, onDayClick, todayStr, onMeetingClick, onNewEvent }: {
   weekDays: string[]
   eventsByDate: Map<string, CalEvent[]>
   meetings: import('@/types/deal.types').DealMeeting[]
@@ -375,12 +636,11 @@ function WeekView({ weekDays, eventsByDate, meetings, isDark, onDayClick, todayS
   todayStr: string
   onDayClick: (d: string) => void
   onMeetingClick: (dealId: string) => void
+  onNewEvent: (date: string) => void
 }) {
   const border  = isDark ? '#242422' : '#e4e0da'
   const text    = isDark ? '#e8e4dc' : '#1a1814'
   const muted   = isDark ? '#6b6560' : '#8a857d'
-  const trackBg = isDark ? '#0f0f0e' : '#f8f7f4'
-
   const totalH   = (HOUR_END - HOUR_START) * SLOT_H
   const hours    = Array.from({ length: HOUR_END - HOUR_START }, (_, i) => HOUR_START + i)
   const DAYS_SHORT = ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom']
@@ -415,16 +675,25 @@ function WeekView({ weekDays, eventsByDate, meetings, isDark, onDayClick, todayS
           const acts     = allDay[i]
           return (
             <div key={d} style={{ borderRight: i < 6 ? `1px solid ${border}` : 'none', padding: '6px 4px', minHeight: '36px' }}>
-              <button type="button" onClick={() => onDayClick(d)}
-                style={{
-                  background: 'none', border: 'none', cursor: 'pointer', padding: '2px 6px', borderRadius: '5px',
-                  display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '3px',
-                  backgroundColor: isToday ? '#2c5545' : 'transparent',
-                }}
-              >
-                <span style={{ fontSize: '10px', fontWeight: 600, color: isToday ? '#fff' : muted, textTransform: 'uppercase' }}>{DAYS_SHORT[i]}</span>
-                <span style={{ fontSize: '14px', fontWeight: 700, color: isToday ? '#fff' : text }}>{dd}</span>
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '3px' }}>
+                <button type="button" onClick={() => onDayClick(d)}
+                  style={{
+                    background: 'none', border: 'none', cursor: 'pointer', padding: '2px 6px', borderRadius: '5px',
+                    display: 'flex', alignItems: 'center', gap: '4px',
+                    backgroundColor: isToday ? '#2c5545' : 'transparent',
+                  }}
+                >
+                  <span style={{ fontSize: '10px', fontWeight: 600, color: isToday ? '#fff' : muted, textTransform: 'uppercase' }}>{DAYS_SHORT[i]}</span>
+                  <span style={{ fontSize: '14px', fontWeight: 700, color: isToday ? '#fff' : text }}>{dd}</span>
+                </button>
+                <button type="button" onClick={() => onNewEvent(d)} title="Novo evento"
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: muted, padding: '2px', display: 'flex', borderRadius: '4px' }}
+                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = isDark ? '#1e1e1c' : '#f0eeea')}
+                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                >
+                  <Plus style={{ width: '12px', height: '12px' }} />
+                </button>
+              </div>
               {acts.map((ev) => (
                 <div key={ev.id} title={ev.subtitle ?? ev.title}
                   style={{ fontSize: '9px', fontWeight: 600, color: '#fff', backgroundColor: ev.color, borderRadius: '3px', padding: '1px 5px', marginBottom: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -543,6 +812,28 @@ export function CalendarPage() {
   const [showNewMeeting, setShowNewMeeting] = useState(false)
   const [viewMode, setViewMode] = useState<'month' | 'week'>('month')
 
+  // ── Calendar Events (from Supabase calendar_events table) ──────────────────
+  const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([])
+  const [modalState, setModalState] = useState<ModalState | null>(null)
+
+  const loadEvents = useCallback(async () => {
+    const { data } = await supabase
+      .from('calendar_events')
+      .select('*')
+      .order('event_date', { ascending: true })
+    if (data) setCalendarEvents(data as CalendarEvent[])
+  }, [])
+
+  useEffect(() => { loadEvents() }, [loadEvents])
+
+  function openNewEvent(date: string) {
+    setModalState({ open: true, date })
+  }
+
+  function openEditEvent(event: CalendarEvent) {
+    setModalState({ open: true, event })
+  }
+
   const border = isDark ? '#242422' : '#e4e0da'
   const text   = isDark ? '#e8e4dc' : '#1a1814'
   const muted  = isDark ? '#6b6560' : '#8a857d'
@@ -576,8 +867,21 @@ export function CalendarPage() {
       })
     }
 
+    // calendar_events from Supabase
+    for (const ce of calendarEvents) {
+      list.push({
+        id: `ce-${ce.id}`,
+        date: ce.event_date,
+        title: ce.title,
+        type: 'activity',
+        color: EVENT_TYPE_COLORS[ce.event_type] ?? '#4a6b8a',
+        subtitle: ce.description ?? undefined,
+        dealId: ce.deal_id ?? undefined,
+      })
+    }
+
     return list
-  }, [meetings, deals])
+  }, [meetings, deals, calendarEvents])
 
   // ── Group events by date ────────────────────────────────────────────────────
   const eventsByDate = useMemo(() => {
@@ -714,18 +1018,32 @@ export function CalendarPage() {
           )}
         </div>
 
-        <button
-          type="button"
-          onClick={() => setShowNewMeeting(true)}
-          style={{
-            display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', fontWeight: 600,
-            color: isDark ? '#e8e4dc' : '#1a1814', backgroundColor: isDark ? '#1e1e1c' : '#f0eeea',
-            border: `1px solid ${border}`, borderRadius: '6px', padding: '5px 10px', cursor: 'pointer',
-          }}
-        >
-          <Plus style={{ width: '12px', height: '12px' }} />
-          Nova Reunião
-        </button>
+        <div style={{ display: 'flex', gap: '6px' }}>
+          <button
+            type="button"
+            onClick={() => openNewEvent(selectedDay)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', fontWeight: 600,
+              color: isDark ? '#e8e4dc' : '#1a1814', backgroundColor: isDark ? '#1e1e1c' : '#f0eeea',
+              border: `1px solid ${border}`, borderRadius: '6px', padding: '5px 10px', cursor: 'pointer',
+            }}
+          >
+            <Plus style={{ width: '12px', height: '12px' }} />
+            Novo Evento
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowNewMeeting(true)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', fontWeight: 600,
+              color: isDark ? '#e8e4dc' : '#1a1814', backgroundColor: isDark ? '#1e1e1c' : '#f0eeea',
+              border: `1px solid ${border}`, borderRadius: '6px', padding: '5px 10px', cursor: 'pointer',
+            }}
+          >
+            <Plus style={{ width: '12px', height: '12px' }} />
+            Nova Reunião
+          </button>
+        </div>
       </div>
 
       {/* Body */}
@@ -741,6 +1059,7 @@ export function CalendarPage() {
             todayStr={todayStr}
             onDayClick={(d) => { setSelectedDay(d); setViewMode('month') }}
             onMeetingClick={(dealId) => navigate(`/deal/${dealId}`)}
+            onNewEvent={openNewEvent}
           />
         )}
 
@@ -793,7 +1112,7 @@ export function CalendarPage() {
                   isToday={isToday}
                   isOtherMonth={isOther}
                   isDark={isDark}
-                  onClick={() => setSelectedDay(dateStr)}
+                  onClick={() => { setSelectedDay(dateStr); openNewEvent(dateStr) }}
                 />
               )
             })}
@@ -829,9 +1148,18 @@ export function CalendarPage() {
           <div style={{ padding: '12px 20px', flex: 1, overflowY: 'auto' }}>
             {selectedEvents.length > 0 ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '24px' }}>
-                {selectedEvents.map((ev) => (
-                  <EventItem key={ev.id} event={ev} isDark={isDark} onDealClick={(id) => navigate(`/deal/${id}`)} />
-                ))}
+                {selectedEvents.map((ev) => {
+                  // If it's a calendar_event (id starts with 'ce-'), enable edit
+                  const ceId = ev.id.startsWith('ce-') ? ev.id.slice(3) : null
+                  const ceRecord = ceId ? calendarEvents.find((c) => c.id === ceId) : null
+                  return (
+                    <EventItem
+                      key={ev.id} event={ev} isDark={isDark}
+                      onDealClick={(id) => navigate(`/deal/${id}`)}
+                      onEdit={ceRecord ? () => openEditEvent(ceRecord) : undefined}
+                    />
+                  )
+                })}
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '32px 0', gap: '8px', marginBottom: '24px' }}>
@@ -899,6 +1227,16 @@ export function CalendarPage() {
           defaultDate={selectedDay}
           onClose={() => setShowNewMeeting(false)}
           isDark={isDark}
+        />
+      )}
+
+      {modalState?.open && (
+        <EventModal
+          state={modalState}
+          onClose={() => setModalState(null)}
+          isDark={isDark}
+          deals={deals}
+          onSaved={loadEvents}
         />
       )}
     </div>

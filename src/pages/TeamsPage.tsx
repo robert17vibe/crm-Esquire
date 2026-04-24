@@ -1,8 +1,7 @@
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  Plus, Pencil, Trash2, Check, X, UserPlus, UserMinus, Users2,
-  TrendingUp, Activity, Settings, Eye,
+  Plus, Trash2, Check, X, UserPlus, UserMinus, Users2, Eye,
 } from 'lucide-react'
 import { useTeamStore } from '@/store/useTeamStore'
 import { useOwnerStore } from '@/store/useOwnerStore'
@@ -95,7 +94,7 @@ function GroupDetailModal({
   const pipeline  = useMemo(() => openDeals.reduce((s, d) => s + Number(d.value), 0), [openDeals])
   const winRate   = teamDeals.length > 0 ? wonDeals.length / teamDeals.length : 0
   const now       = Date.now()
-  const overdue   = openDeals.filter((d) => d.next_activity_at && new Date(d.next_activity_at).getTime() < now)
+  const overdue   = openDeals.filter((d) => d.next_activity?.due_date && new Date(d.next_activity.due_date).getTime() < now)
   const overdueRate = openDeals.length > 0 ? overdue.length / openDeals.length : 0
   const health    = computeHealth(winRate, overdueRate)
 
@@ -191,7 +190,7 @@ function GroupDetailModal({
                     <UserAvatarRow name={owner.name} initials={owner.initials} color={owner.avatar_color} size="sm" textColor={text} />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <p style={{ fontSize: '13px', fontWeight: 600, color: text }}>{owner.name}</p>
-                      <p style={{ fontSize: '11px', color: muted }}>{owner.email ?? ''}</p>
+                      <p style={{ fontSize: '11px', color: muted }}>{(owner as unknown as Record<string, string>).email ?? ''}</p>
                     </div>
                     {/* Role selector */}
                     <Can action="manage_teams">
@@ -538,7 +537,7 @@ export function TeamsPage() {
       const open   = td.filter((d) => !['closed_won', 'closed_lost'].includes(d.stage_id))
       const won    = td.filter((d) => d.stage_id === 'closed_won')
       const pipe   = open.reduce((s, d) => s + Number(d.value), 0)
-      const ov     = open.filter((d) => d.next_activity_at && new Date(d.next_activity_at).getTime() < now)
+      const ov     = open.filter((d) => d.next_activity?.due_date && new Date(d.next_activity.due_date).getTime() < now)
       const wr     = td.length > 0 ? won.length / td.length : 0
       const ovr    = open.length > 0 ? ov.length / open.length : 0
       return { team, pipeline: pipe, openCount: open.length, wonCount: won.length, overdueCount: ov.length, winRate: wr, health: computeHealth(wr, ovr) }

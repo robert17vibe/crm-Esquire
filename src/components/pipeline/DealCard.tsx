@@ -7,6 +7,7 @@ import { useThemeStore } from '@/store/useThemeStore'
 import { useNotificationStore } from '@/store/useNotificationStore'
 import { useTaskStore } from '@/store/useTaskStore'
 import { useToastStore } from '@/store/useToastStore'
+import { FileText } from 'lucide-react'
 import { getStageColor, getTagStyle, type StageId } from '@/constants/pipeline'
 import { evaluateDealScore, scoreColor, scoreBg } from '@/lib/dealScore'
 import type { Deal } from '@/types/deal.types'
@@ -16,12 +17,6 @@ function fmtCompact(v: number) {
     style: 'currency', currency: 'BRL', notation: 'compact', maximumFractionDigits: 1,
   }).format(v)
 }
-
-const TEMP_CFG = {
-  hot:  { dot: '#ef4444', label: 'Quente' },
-  warm: { dot: '#f59e0b', label: 'Morno'  },
-  cold: { dot: '#60a5fa', label: 'Frio'   },
-} as const
 
 function probColor(p: number) {
   if (p >= 70) return '#22c55e'
@@ -119,6 +114,7 @@ export function DealCard({ deal, isOverlay = false, dimmed = false, showScore = 
   const navigate      = useNavigate()
   const isDark        = useThemeStore((s) => s.isDark)
   const notifications = useNotificationStore((s) => s.notifications)
+  const taskCount     = useTaskStore((s) => s.tasks.filter((t) => t.deal_id === deal.id && !t.completed_at).length)
   const [showQuickAdd, setShowQuickAdd] = useState(false)
 
   const isNew = notifications.some((n) => n.dealId === deal.id && !n.read)
@@ -133,7 +129,6 @@ export function DealCard({ deal, isOverlay = false, dimmed = false, showScore = 
   const stageColor  = getStageColor(deal.stage_id)
   const tag         = deal.tags?.[0]
   const tagStyle    = tag ? getTagStyle(tag) : null
-  const temp        = deal.lead_temperature ? TEMP_CFG[deal.lead_temperature] : null
   const probability = Math.min(100, Math.max(0, deal.probability ?? 0))
   const score       = showScore && !isSpecial ? evaluateDealScore(deal) : null
   const value       = Number(deal.value ?? 0)
@@ -165,7 +160,7 @@ export function DealCard({ deal, isOverlay = false, dimmed = false, showScore = 
   const cardOpacity = isDragging ? 0.25 : dimmed ? 0.18 : isLost ? 0.7 : 1
 
   const cardStyle: React.CSSProperties = {
-    height: '118px',
+    height: '130px',
     borderRadius: '8px',
     backgroundColor: cardBg,
     border: isSpecial
@@ -250,14 +245,6 @@ export function DealCard({ deal, isOverlay = false, dimmed = false, showScore = 
               borderRadius: '4px', padding: '1px 5px', flexShrink: 0,
             }}>{score}</span>
           )}
-          {/* Temperature dot */}
-          {temp && (
-            <span title={temp.label} style={{
-              width: '7px', height: '7px', borderRadius: '50%',
-              backgroundColor: temp.dot, flexShrink: 0,
-              boxShadow: `0 0 0 2px ${temp.dot}30`,
-            }} />
-          )}
           {/* Overdue indicator */}
           {isOverdue && (
             <span title={`Vencido: ${deal.next_activity?.label}`} style={{
@@ -291,6 +278,28 @@ export function DealCard({ deal, isOverlay = false, dimmed = false, showScore = 
         }}>
           {deal.company_name}
         </p>
+
+        {/* Row 5: metadata footer */}
+        {(taskCount > 0 || (deal.notes && deal.notes.trim().length > 0) || (deal.tags && deal.tags.length > 1)) && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0, height: '14px' }}>
+            {taskCount > 0 && (
+              <span style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '9px', color: '#16a34a' }}>
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                  <path d="M2 5.5L4 7.5L8 3" stroke="#16a34a" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                {taskCount}
+              </span>
+            )}
+            {deal.notes && deal.notes.trim().length > 0 && (
+              <span style={{ display: 'flex', alignItems: 'center', color: textMuted }}>
+                <FileText size={10} />
+              </span>
+            )}
+            {deal.tags && deal.tags.length > 1 && (
+              <span style={{ fontSize: '9px', color: textMuted }}>+{deal.tags.length - 1}</span>
+            )}
+          </div>
+        )}
 
         {/* Row 4: value + probability + avatars */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0, height: '20px' }}>

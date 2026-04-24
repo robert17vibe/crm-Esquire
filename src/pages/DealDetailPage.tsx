@@ -382,134 +382,6 @@ function healthScore(deal: Deal): number {
   return Math.min(Math.max(score, 0), 100)
 }
 
-function TemperatureSlider({
-  value, onChange, isDark, border, cardBg,
-}: {
-  value: 'hot' | 'warm' | 'cold' | null
-  onChange: (v: 'hot' | 'warm' | 'cold' | null) => void
-  isDark: boolean
-  border: string
-  cardBg: string
-}) {
-  const muted    = isDark ? '#5a5652' : '#8a857d'
-  const trackRef = React.useRef<HTMLDivElement>(null)
-  const dragging = React.useRef(false)
-
-  // localPct drives the thumb during drag; syncs from value otherwise
-  const valueToPct = (v: typeof value) => v === 'cold' ? 8 : v === 'hot' ? 92 : 50
-  const [localPct, setLocalPct] = React.useState(() => valueToPct(value))
-
-  // Keep in sync when value changes externally
-  React.useEffect(() => {
-    if (!dragging.current) setLocalPct(valueToPct(value))
-  }, [value])
-
-  const cfg = {
-    hot:  { emoji: '🔥', label: 'Quente', color: '#ef4444' },
-    warm: { emoji: '🌡',  label: 'Morno',  color: '#f59e0b' },
-    cold: { emoji: '🧊', label: 'Frio',   color: '#60a5fa' },
-  } as const
-
-  const pctToValue = (pct: number): 'cold' | 'warm' | 'hot' =>
-    pct <= 33 ? 'cold' : pct <= 66 ? 'warm' : 'hot'
-
-  function pctFromPointer(e: React.PointerEvent) {
-    const rect = trackRef.current?.getBoundingClientRect()
-    if (!rect || rect.width === 0) return localPct
-    return Math.min(100, Math.max(0, ((e.clientX - rect.left) / rect.width) * 100))
-  }
-
-  function onPointerDown(e: React.PointerEvent<HTMLDivElement>) {
-    dragging.current = true
-    ;(e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId)
-    const pct = pctFromPointer(e)
-    setLocalPct(pct)
-  }
-
-  function onPointerMove(e: React.PointerEvent<HTMLDivElement>) {
-    if (!dragging.current) return
-    setLocalPct(pctFromPointer(e))
-  }
-
-  function onPointerUp(e: React.PointerEvent<HTMLDivElement>) {
-    if (!dragging.current) return
-    dragging.current = false
-    const pct = pctFromPointer(e)
-    setLocalPct(pct)
-    onChange(pctToValue(pct))
-  }
-
-  const current = value ? cfg[value] : null
-  const thumbColor   = cfg[pctToValue(localPct)]?.color ?? muted
-
-  return (
-    <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '8px', padding: '14px' }}>
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-        <p style={{ fontSize: '10px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-          Temperatura
-        </p>
-        {current
-          ? <span style={{ fontSize: '12px', fontWeight: 700, color: current.color }}>{current.emoji} {current.label}</span>
-          : <span style={{ fontSize: '11px', color: muted }}>Não definida</span>
-        }
-      </div>
-
-      {/* Slider track */}
-      <div
-        ref={trackRef}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        style={{
-          position: 'relative', height: '32px',
-          display: 'flex', alignItems: 'center',
-          cursor: 'ew-resize', userSelect: 'none', touchAction: 'none',
-        }}
-      >
-        {/* Gradient bar */}
-        <div style={{
-          position: 'absolute', left: 0, right: 0, height: '6px', borderRadius: '3px',
-          background: 'linear-gradient(to right, #60a5fa 0%, #93c5fd 30%, #fde68a 50%, #fb923c 70%, #ef4444 100%)',
-        }} />
-        {/* Zone dividers */}
-        <div style={{ position: 'absolute', left: '33%', top: '50%', transform: 'translate(-50%,-50%)', width: '1px', height: '12px', backgroundColor: 'rgba(255,255,255,0.5)', pointerEvents: 'none' }} />
-        <div style={{ position: 'absolute', left: '66%', top: '50%', transform: 'translate(-50%,-50%)', width: '1px', height: '12px', backgroundColor: 'rgba(255,255,255,0.5)', pointerEvents: 'none' }} />
-        {/* Thumb */}
-        <div style={{
-          position: 'absolute',
-          left: `${localPct}%`,
-          top: '50%',
-          transform: 'translate(-50%, -50%)',
-          width: '20px', height: '20px', borderRadius: '50%',
-          backgroundColor: isDark ? '#e4e4e7' : '#ffffff',
-          border: `2.5px solid ${thumbColor}`,
-          boxShadow: `0 2px 8px rgba(0,0,0,0.2), 0 0 0 3px ${thumbColor}28`,
-          pointerEvents: 'none',
-          transition: dragging.current ? 'none' : 'left 0.2s ease',
-        }} />
-      </div>
-
-      {/* Labels + clear */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
-        <span style={{ fontSize: '9px', color: '#60a5fa', fontWeight: 600 }}>Frio</span>
-        <span style={{ fontSize: '9px', color: '#f59e0b', fontWeight: 600 }}>Morno</span>
-        <span style={{ fontSize: '9px', color: '#ef4444', fontWeight: 600 }}>Quente</span>
-      </div>
-
-      {value && (
-        <button
-          type="button"
-          onClick={() => { setLocalPct(50); onChange(null) }}
-          style={{ marginTop: '8px', fontSize: '10px', color: muted, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
-        >
-          Limpar
-        </button>
-      )}
-    </div>
-  )
-}
-
 function HealthBar({ score, isDark }: { score: number; isDark: boolean }) {
   const color = score >= 70 ? '#2d9e6b' : score >= 40 ? '#b45309' : '#c53030'
   const label = score >= 70 ? 'Saudável' : score >= 40 ? 'Atenção' : 'Risco'
@@ -966,34 +838,6 @@ export function DealDetailPage() {
         display: 'flex', flexDirection: 'column', gap: '0',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px', overflowX: 'auto', paddingBottom: '10px' }}>
-          {/* Lead temperature picker */}
-          {!['closed_won', 'closed_lost'].includes(deal.stage_id) && (() => {
-            const temps = [
-              { value: 'hot',  label: '🔥 Quente', color: '#ef4444' },
-              { value: 'warm', label: '🌡 Morno',  color: '#f59e0b' },
-              { value: 'cold', label: '🧊 Frio',   color: '#60a5fa' },
-            ] as const
-            const cur = temps.find((t) => t.value === deal.lead_temperature)
-            return (
-              <div style={{ position: 'relative', marginRight: '8px', flexShrink: 0 }}>
-                <select
-                  value={deal.lead_temperature ?? ''}
-                  onChange={(e) => patchDealFields(deal.id, { lead_temperature: e.target.value as typeof deal.lead_temperature || null })}
-                  style={{
-                    height: '30px', padding: '0 28px 0 8px', borderRadius: '6px',
-                    fontSize: '11px', fontWeight: 600, cursor: 'pointer', outline: 'none',
-                    backgroundColor: cur ? `${cur.color}15` : (isDark ? '#1e1e1c' : '#f0eeea'),
-                    color: cur?.color ?? muted,
-                    border: `1.5px solid ${cur ? `${cur.color}50` : border}`,
-                    appearance: 'none', WebkitAppearance: 'none',
-                  }}
-                >
-                  <option value="">— Temperatura</option>
-                  {temps.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
-                </select>
-              </div>
-            )
-          })()}
           {STAGES.map((s, idx) => {
             const isActive = deal.stage_id === s.id
             const isPrev   = STAGES.findIndex((st) => st.id === deal.stage_id) > idx
@@ -1481,15 +1325,6 @@ export function DealDetailPage() {
           </div>
 
           <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-
-            {/* Temperatura slider */}
-            <TemperatureSlider
-              value={deal.lead_temperature ?? null}
-              onChange={(v) => saveField({ lead_temperature: v } as Parameters<typeof saveField>[0])}
-              isDark={isDark}
-              border={border}
-              cardBg={cardBg}
-            />
 
             {/* Lead health */}
             <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '8px', padding: '14px' }}>

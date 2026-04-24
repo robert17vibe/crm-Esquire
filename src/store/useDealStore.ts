@@ -59,6 +59,8 @@ interface DealStore {
   deals: Deal[]
   isLoading: boolean
   error: string | null
+  staleDeals: Deal[]
+  staleCount: number
   initialize: () => Promise<void>
   subscribeRealtime: () => () => void
   createDeal: (values: NewLeadFormValues) => Promise<Deal>
@@ -68,18 +70,39 @@ interface DealStore {
   setLossReason: (id: string, reason: string) => void
   setNextActivity: (id: string, nextActivity: NextActivity | null) => Promise<void>
   patchDealFields: (id: string, patch: Partial<Deal>) => Promise<void>
+  getNextRoundRobinOwner: (teamId: string) => Promise<string | null>
 }
 
-export const useDealStore = create<DealStore>((set, get) => ({
+function _computeStale(deals: Deal[]): Deal[] {
+  const now = Date.now()
+  const cutoffMs = 7 * 86_400_000
+  return deals.filter((d) => {
+    if (['closed_won', 'closed_lost'].includes(d.stage_id)) return false
+    const ref = d.last_activity_at
+      ? new Date(d.last_activity_at).getTime()
+      : new Date(d.created_at).getTime()
+    return now - ref > cutoffMs
+  })
+}
+
+export const useDealStore = create<DealStore>((set, get) => {
+  // Helper: set deals + recompute stale derived state
+  function setDeals(next: Deal[]) {
+    set({ deals: next, staleDeals: _computeStale(next), staleCount: _computeStale(next).length })
+  }
+
+  return ({
   deals: loadLocalDeals(),
   isLoading: false,
   error: null,
+  staleDeals: _computeStale(loadLocalDeals()),
+  staleCount: _computeStale(loadLocalDeals()).length,
 
   initialize: async () => {
     set({ isLoading: true, error: null })
     try {
       const deals = await fetchDeals()
-      set({ deals, isLoading: false })
+      set({ deals, isLoading: false, staleDeals: _computeStale(deals), staleCount: _computeStale(deals).length })
       persistDeals(deals)
       _runStaleAlerts(deals)
     } catch (err) {
@@ -93,37 +116,28 @@ export const useDealStore = create<DealStore>((set, get) => ({
       .channel('deals-realtime')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'deals' }, (payload) => {
         const deal = payload.new as Deal
-        set((s) => {
-          // Skip if we already have it (optimistic insert from this session)
-          if (s.deals.some((d) => d.id === deal.id)) return s
-          const next = [deal, ...s.deals]
-          persistDeals(next)
-          return { deals: next }
-        })
+        if (get().deals.some((d) => d.id === deal.id)) return
+        const next = [deal, ...get().deals]
+        persistDeals(next)
+        setDeals(next)
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'deals' }, (payload) => {
         const deal = payload.new as Deal & { deleted_at?: string | null }
         if (deal.deleted_at) {
-          set((s) => {
-            const next = s.deals.filter((d) => d.id !== deal.id)
-            persistDeals(next)
-            return { deals: next }
-          })
+          const next = get().deals.filter((d) => d.id !== deal.id)
+          persistDeals(next)
+          setDeals(next)
           return
         }
-        set((s) => {
-          const next = s.deals.map((d) => (d.id === deal.id ? deal : d))
-          persistDeals(next)
-          return { deals: next }
-        })
+        const next = get().deals.map((d) => (d.id === deal.id ? deal : d))
+        persistDeals(next)
+        setDeals(next)
       })
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'deals' }, (payload) => {
         const id = (payload.old as { id: string }).id
-        set((s) => {
-          const next = s.deals.filter((d) => d.id !== id)
-          persistDeals(next)
-          return { deals: next }
-        })
+        const next = get().deals.filter((d) => d.id !== id)
+        persistDeals(next)
+        setDeals(next)
       })
       .subscribe()
 
@@ -160,7 +174,7 @@ export const useDealStore = create<DealStore>((set, get) => ({
 
     // Optimistic insert
     const optimisticList = [optimistic, ...get().deals]
-    set({ deals: optimisticList })
+    setDeals(optimisticList)
     persistDeals(optimisticList)
 
     try {
@@ -168,7 +182,7 @@ export const useDealStore = create<DealStore>((set, get) => ({
       const { id: _id, ...payload } = optimistic
       const confirmed = await insertDeal(payload)
       const next = get().deals.map((d) => (d.id === optimistic.id ? confirmed : d))
-      set({ deals: next })
+      setDeals(next)
       persistDeals(next)
       useToastStore.getState().addToast(`Lead criado — ${values.company_name}`, 'success')
       useNotificationStore.getState().addNotification(confirmed.id, values.company_name)
@@ -177,7 +191,7 @@ export const useDealStore = create<DealStore>((set, get) => ({
     } catch {
       // Revert optimistic
       const reverted = get().deals.filter((d) => d.id !== optimistic.id)
-      set({ deals: reverted })
+      setDeals(reverted)
       persistDeals(reverted)
       useToastStore.getState().addToast('Erro ao criar lead — tente novamente', 'error')
       throw new Error('create failed')
@@ -211,19 +225,19 @@ export const useDealStore = create<DealStore>((set, get) => ({
 
     const prev = get().deals
     const optimisticList = prev.map((d) => (d.id === id ? updated : d))
-    set({ deals: optimisticList })
+    setDeals(optimisticList)
     persistDeals(optimisticList)
 
     try {
       const { id: _id, company_id: _cid, created_at: _ca, ...patch } = updated
       const confirmed = await patchDeal(id, patch)
       const next = get().deals.map((d) => (d.id === id ? confirmed : d))
-      set({ deals: next })
+      setDeals(next)
       persistDeals(next)
       useToastStore.getState().addToast(`Lead atualizado — ${values.company_name}`, 'success')
       return confirmed
     } catch {
-      set({ deals: prev })
+      setDeals(prev)
       persistDeals(prev)
       useToastStore.getState().addToast('Erro ao atualizar lead — tente novamente', 'error')
       throw new Error('update failed')
@@ -234,7 +248,7 @@ export const useDealStore = create<DealStore>((set, get) => ({
     const deal = get().deals.find((d) => d.id === id)
     const prev = get().deals
     const next = prev.filter((d) => d.id !== id)
-    set({ deals: next })
+    setDeals(next)
     persistDeals(next)
 
     try {
@@ -244,7 +258,7 @@ export const useDealStore = create<DealStore>((set, get) => ({
         useWebhookStore.getState().fire('deal.deleted', { id: deal.id, company_name: deal.company_name })
       }
     } catch {
-      set({ deals: prev })
+      setDeals(prev)
       persistDeals(prev)
       useToastStore.getState().addToast('Erro ao remover lead — tente novamente', 'error')
     }
@@ -256,7 +270,7 @@ export const useDealStore = create<DealStore>((set, get) => ({
     const next = prev.map((d) =>
       d.id === id ? { ...d, stage_id: stageId, probability: DEFAULT_PROBABILITIES[stageId] } : d,
     )
-    set({ deals: next })
+    setDeals(next)
     persistDeals(next)
 
     try {
@@ -267,7 +281,7 @@ export const useDealStore = create<DealStore>((set, get) => ({
         useWebhookStore.getState().fire('deal.stage_changed', { id: deal.id, company_name: deal.company_name, from_stage: deal.stage_id, to_stage: stageId })
       }
     } catch {
-      set({ deals: prev })
+      setDeals(prev)
       persistDeals(prev)
       useToastStore.getState().addToast('Erro ao mover lead — tente novamente', 'error')
     }
@@ -276,10 +290,10 @@ export const useDealStore = create<DealStore>((set, get) => ({
   setLossReason: (id, reason) => {
     const prev = get().deals
     const next = prev.map((d) => (d.id === id ? { ...d, loss_reason: reason } : d))
-    set({ deals: next })
+    setDeals(next)
     persistDeals(next)
     patchDeal(id, { loss_reason: reason }).catch(() => {
-      set({ deals: prev })
+      setDeals(prev)
       persistDeals(prev)
     })
   },
@@ -289,12 +303,12 @@ export const useDealStore = create<DealStore>((set, get) => ({
     const next = prev.map((d) =>
       d.id === id ? { ...d, next_activity: nextActivity === null ? undefined : nextActivity } : d,
     )
-    set({ deals: next })
+    setDeals(next)
     persistDeals(next)
     try {
       await patchDeal(id, { next_activity: nextActivity })
     } catch {
-      set({ deals: prev })
+      setDeals(prev)
       persistDeals(prev)
       useToastStore.getState().addToast('Erro ao salvar atividade — tente novamente', 'error')
     }
@@ -303,15 +317,39 @@ export const useDealStore = create<DealStore>((set, get) => ({
   patchDealFields: async (id, patch) => {
     const prev = get().deals
     const next = prev.map((d) => (d.id === id ? { ...d, ...patch } : d))
-    set({ deals: next })
+    setDeals(next)
     persistDeals(next)
     try {
       await patchDeal(id, patch)
       useToastStore.getState().addToast('Alteração guardada', 'success')
     } catch {
-      set({ deals: prev })
+      setDeals(prev)
       persistDeals(prev)
       useToastStore.getState().addToast('Erro ao salvar — tente novamente', 'error')
     }
   },
-}))
+
+  getNextRoundRobinOwner: async (teamId) => {
+    try {
+      const { data, error } = await supabase
+        .from('lead_assignment_rules')
+        .select('id, owner_ids, round_robin_index')
+        .eq('team_id', teamId)
+        .eq('active', true)
+        .single()
+      if (error || !data) return null
+      const ownerIds = data.owner_ids as string[]
+      if (!ownerIds.length) return null
+      const idx = data.round_robin_index % ownerIds.length
+      const ownerId = ownerIds[idx]
+      await supabase
+        .from('lead_assignment_rules')
+        .update({ round_robin_index: idx + 1 })
+        .eq('id', data.id)
+      return ownerId
+    } catch {
+      return null
+    }
+  },
+  })
+})
