@@ -25,7 +25,10 @@
       "Bash(powershell *)",
       "mcp__claude_ai_Supabase__execute_sql",
       "Read(//tmp/**)",
-      "Bash(git commit *)"
+      "Bash(git commit *)",
+      "Bash(npx vercel *)",
+      "Bash(npx supabase *)",
+      "Bash(git checkout *)"
     ]
   }
 }

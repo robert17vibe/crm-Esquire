@@ -164,7 +164,7 @@ export const useDealStore = create<DealStore>((set, get) => {
       contact_email: values.contact_email,
       contact_phone: values.contact_phone,
       contact_linkedin: values.contact_linkedin || undefined,
-      company_name: values.company_name,
+      company_name: values.company_name || values.contact_name,
       company_sector: values.company_sector,
       company_size: values.company_size,
       lead_source: values.lead_source,
@@ -184,8 +184,9 @@ export const useDealStore = create<DealStore>((set, get) => {
       const next = get().deals.map((d) => (d.id === optimistic.id ? confirmed : d))
       setDeals(next)
       persistDeals(next)
-      useToastStore.getState().addToast(`Lead criado — ${values.company_name}`, 'success')
-      useNotificationStore.getState().addNotification(confirmed.id, values.company_name)
+      const displayName = values.company_name ?? values.contact_name
+      useToastStore.getState().addToast(`Lead criado — ${displayName}`, 'success')
+      useNotificationStore.getState().addNotification(confirmed.id, displayName)
       useWebhookStore.getState().fire('deal.created', { id: confirmed.id, title: confirmed.title, company_name: confirmed.company_name, stage_id: confirmed.stage_id, owner_id: confirmed.owner_id, value: confirmed.value })
       return confirmed
     } catch {
@@ -204,7 +205,7 @@ export const useDealStore = create<DealStore>((set, get) => {
     const existing = get().deals.find((d) => d.id === id)
     const updated: Deal = {
       ...(existing ?? ({} as Deal)),
-      title: `${values.company_name} — ${values.contact_name}`,
+      title: `${values.company_name ?? values.contact_name} — ${values.contact_name}`,
       stage_id: values.stage_id,
       value: values.value ?? existing?.value ?? 0,
       probability: values.probability ?? existing?.probability ?? 10,
@@ -216,7 +217,7 @@ export const useDealStore = create<DealStore>((set, get) => {
       contact_email: values.contact_email,
       contact_phone: values.contact_phone,
       contact_linkedin: values.contact_linkedin || undefined,
-      company_name: values.company_name,
+      company_name: values.company_name || values.contact_name,
       company_sector: values.company_sector,
       company_size: values.company_size,
       lead_source: values.lead_source,

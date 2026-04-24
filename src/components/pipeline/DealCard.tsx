@@ -12,11 +12,6 @@ import { getStageColor, getTagStyle, type StageId } from '@/constants/pipeline'
 import { evaluateDealScore, scoreColor, scoreBg } from '@/lib/dealScore'
 import type { Deal } from '@/types/deal.types'
 
-function fmtCompact(v: number) {
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency', currency: 'BRL', notation: 'compact', maximumFractionDigits: 1,
-  }).format(v)
-}
 
 function probColor(p: number) {
   if (p >= 70) return '#22c55e'
@@ -131,7 +126,6 @@ export function DealCard({ deal, isOverlay = false, dimmed = false, showScore = 
   const tagStyle    = tag ? getTagStyle(tag) : null
   const probability = Math.min(100, Math.max(0, deal.probability ?? 0))
   const score       = showScore && !isSpecial ? evaluateDealScore(deal) : null
-  const value       = Number(deal.value ?? 0)
   const today       = new Date().toISOString().slice(0, 10)
   const isOverdue   = !isSpecial && !!deal.next_activity?.due_date && deal.next_activity.due_date < today
 
@@ -147,36 +141,29 @@ export function DealCard({ deal, isOverlay = false, dimmed = false, showScore = 
     (() => { const ref = deal.last_activity_at ?? deal.created_at; return (Date.now() - new Date(ref).getTime()) > 5 * 86_400_000 })()
 
   // ── theme tokens ──
-  const cardBg      = isWon  ? (isDark ? '#0c1a10' : '#f0faf4')
-                    : isLost ? (isDark ? '#1a0e0e' : '#fdf4f4')
-                    :          (isDark ? '#18181b' : '#ffffff')
-  const cardBorder  = isOverdue          ? (isDark ? '#7f1d1d55' : '#fca5a555')
-                    : deal.days_in_stage > 30 ? (isDark ? '#44403c55' : '#d6d3d155')
-                    :                      (isDark ? '#27272a'   : '#e4e4e7')
-  const textPrimary = isDark ? '#f4f4f5' : '#18181b'
-  const textMuted   = isDark ? '#52525b' : '#a1a1aa'
-  const trackBg     = isDark ? '#27272a' : '#f4f4f5'
+  const cardBg     = isWon  ? (isDark ? '#0a1f0e' : '#f0faf4')
+                   : isLost ? (isDark ? '#1a0c0c' : '#fdf4f4')
+                   :          'var(--surface-card)'
+  const cardBorder = isOverdue            ? (isDark ? 'rgba(220,38,38,0.3)'  : 'rgba(252,165,165,0.6)')
+                   : deal.days_in_stage > 30 ? (isDark ? 'rgba(120,113,108,0.3)' : 'rgba(214,211,209,0.8)')
+                   :                           'var(--line)'
+  const textPrimary = 'var(--ink-base)'
+  const textMuted   = 'var(--ink-muted)'
+  const trackBg     = 'var(--surface-raised)'
 
-  const cardOpacity = isDragging ? 0.25 : dimmed ? 0.18 : isLost ? 0.7 : 1
+  const cardOpacity = isDragging ? 0.2 : dimmed ? 0.15 : isLost ? 0.65 : 1
 
   const cardStyle: React.CSSProperties = {
-    height: '130px',
-    borderRadius: '8px',
+    borderRadius: 'var(--radius-lg)',
     backgroundColor: cardBg,
-    border: isSpecial
-      ? `1px solid ${cardBorder}`
-      : `1px solid ${cardBorder}`,
+    border: `1px solid ${cardBorder}`,
     ...(isSpecial && { borderLeft: `3px solid ${stageColor}` }),
     overflow: 'hidden',
     display: 'flex',
     flexDirection: 'column',
-    boxShadow: isOverlay
-      ? '0 16px 40px rgba(0,0,0,0.28), 0 4px 12px rgba(0,0,0,0.12)'
-      : isDark
-        ? '0 1px 3px rgba(0,0,0,0.4)'
-        : '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
+    boxShadow: isOverlay ? '0 20px 48px rgba(0,0,0,0.3), 0 6px 16px rgba(0,0,0,0.15)' : 'none',
     ...(isOverlay
-      ? { transform: 'rotate(2deg)', opacity: 1 }
+      ? { transform: 'rotate(1.5deg)', opacity: 1 }
       : { transform: CSS.Transform.toString(transform), transition, opacity: cardOpacity }),
   }
 
@@ -200,72 +187,68 @@ export function DealCard({ deal, isOverlay = false, dimmed = false, showScore = 
         <div style={{ height: '3px', flexShrink: 0, background: stageColor }} />
       )}
 
-      <div style={{ flex: 1, padding: '9px 11px 9px', display: 'flex', flexDirection: 'column', overflow: 'hidden', gap: '4px' }}>
+      <div style={{ flex: 1, padding: '12px 14px', display: 'flex', flexDirection: 'column', overflow: 'hidden', gap: '5px' }}>
 
-        {/* Row 1: tag + badges */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexShrink: 0, minHeight: '16px' }}>
+        {/* Row 1: badges + score + days */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0, minHeight: '16px' }}>
           {isNew && (
             <span style={{
-              fontSize: '8px', fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase',
-              color: '#fff', backgroundColor: '#2c5545', borderRadius: '3px', padding: '1px 5px', flexShrink: 0,
+              fontSize: '8px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase',
+              color: '#fff', backgroundColor: 'var(--brand)', borderRadius: 'var(--radius-full)', padding: '1px 6px', flexShrink: 0,
             }}>NOVO</span>
           )}
           {isSLABreach && (
             <span title="SLA: sem contato há mais de 2h" style={{
-              fontSize: '8px', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase',
-              color: '#fff', backgroundColor: '#b45309', borderRadius: '3px', padding: '1px 5px', flexShrink: 0,
+              fontSize: '8px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase',
+              color: '#fff', backgroundColor: '#b45309', borderRadius: 'var(--radius-full)', padding: '1px 6px', flexShrink: 0,
             }}>SLA</span>
           )}
           {isProposalOverdue && (
             <span title="Proposta sem resposta há 5+ dias" style={{
-              fontSize: '8px', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase',
-              color: '#fff', backgroundColor: '#7c3aed', borderRadius: '3px', padding: '1px 5px', flexShrink: 0,
+              fontSize: '8px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase',
+              color: '#fff', backgroundColor: '#7c3aed', borderRadius: 'var(--radius-full)', padding: '1px 6px', flexShrink: 0,
             }}>PROP</span>
           )}
           {isCompetitorMentioned && (
-            <span title="Competidor mencionado nas notas" style={{
-              fontSize: '8px', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase',
-              color: '#b45309', backgroundColor: '#fef3c7', borderRadius: '3px', padding: '1px 5px', flexShrink: 0, border: '1px solid #f59e0b40',
+            <span title="Competidor mencionado" style={{
+              fontSize: '8px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase',
+              color: '#b45309', backgroundColor: isDark ? 'rgba(180,83,9,0.15)' : '#fef3c7',
+              borderRadius: 'var(--radius-full)', padding: '1px 6px', flexShrink: 0,
             }}>⚔</span>
           )}
           {tagStyle && tag && (
             <span style={{
-              fontSize: '9px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase',
-              color: isDark ? tagStyle.bg : tagStyle.text ?? tagStyle.bg,
-              backgroundColor: `${tagStyle.bg}18`, borderRadius: '3px', padding: '1px 5px', flexShrink: 0,
+              fontSize: '8px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase',
+              color: tagStyle.bg, backgroundColor: `${tagStyle.bg}18`,
+              borderRadius: 'var(--radius-full)', padding: '1px 6px', flexShrink: 0,
             }}>{tag}</span>
           )}
           <div style={{ flex: 1 }} />
-          {/* Score badge */}
           {score !== null && (
             <span style={{
-              fontSize: '9px', fontWeight: 800, letterSpacing: '0.04em',
-              color: scoreColor(score),
-              backgroundColor: scoreBg(score, isDark),
-              borderRadius: '4px', padding: '1px 5px', flexShrink: 0,
+              fontSize: '9px', fontWeight: 700,
+              color: scoreColor(score), backgroundColor: scoreBg(score, isDark),
+              borderRadius: 'var(--radius-full)', padding: '1px 6px', flexShrink: 0,
             }}>{score}</span>
           )}
-          {/* Overdue indicator */}
           {isOverdue && (
             <span title={`Vencido: ${deal.next_activity?.label}`} style={{
-              width: '5px', height: '5px', borderRadius: '50%',
+              width: '6px', height: '6px', borderRadius: '50%',
               backgroundColor: '#ef4444', flexShrink: 0,
-              animation: 'none',
             }} />
           )}
           <span style={{
-            fontSize: '10px', fontWeight: 500, color: deal.days_in_stage > 30 ? '#a78060' : textMuted,
+            fontSize: '10px', fontWeight: 500,
+            color: deal.days_in_stage > 30 ? '#b45309' : textMuted,
             fontVariantNumeric: 'tabular-nums', flexShrink: 0,
-          }}>
-            {deal.days_in_stage}d
-          </span>
+          }}>{deal.days_in_stage}d</span>
         </div>
 
         {/* Row 2: title */}
         <p className="line-clamp-2" style={{
-          fontSize: '13px', fontWeight: 600, color: textPrimary,
-          lineHeight: 1.3, flex: 1, overflow: 'hidden',
-          letterSpacing: '-0.01em',
+          fontSize: '13.5px', fontWeight: 600, color: textPrimary,
+          lineHeight: 1.35, flex: 1, overflow: 'hidden',
+          letterSpacing: '-0.015em',
           textDecoration: isLost ? 'line-through' : 'none',
           textDecorationColor: textMuted,
         }}>
@@ -273,76 +256,31 @@ export function DealCard({ deal, isOverlay = false, dimmed = false, showScore = 
         </p>
 
         {/* Row 3: company */}
-        <p className="truncate" style={{
-          fontSize: '11px', fontWeight: 400, color: textMuted, flexShrink: 0,
-        }}>
+        <p className="truncate" style={{ fontSize: '11px', fontWeight: 400, color: textMuted, flexShrink: 0 }}>
           {deal.company_name}
         </p>
 
-        {/* Row 5: metadata footer */}
-        {(taskCount > 0 || (deal.notes && deal.notes.trim().length > 0) || (deal.tags && deal.tags.length > 1)) && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0, height: '14px' }}>
-            {taskCount > 0 && (
-              <span style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '9px', color: '#16a34a' }}>
-                <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                  <path d="M2 5.5L4 7.5L8 3" stroke="#16a34a" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-                {taskCount}
-              </span>
-            )}
-            {deal.notes && deal.notes.trim().length > 0 && (
-              <span style={{ display: 'flex', alignItems: 'center', color: textMuted }}>
-                <FileText size={10} />
-              </span>
-            )}
-            {deal.tags && deal.tags.length > 1 && (
-              <span style={{ fontSize: '9px', color: textMuted }}>+{deal.tags.length - 1}</span>
-            )}
-          </div>
-        )}
+        {/* Divider */}
+        <div style={{ height: '1px', background: 'var(--line)', flexShrink: 0, marginTop: '1px' }} />
 
-        {/* Row 4: value + probability + avatars */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0, height: '20px' }}>
-
-          {/* Value */}
-          {value > 0 && (
-            <span style={{
-              fontSize: '12px', fontWeight: 700,
-              color: isWon ? '#16a34a' : isDark ? '#a1a1aa' : '#52525b',
-              fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em', flexShrink: 0,
-            }}>
-              {fmtCompact(value)}
-            </span>
-          )}
-
-          {/* Probability bar */}
+        {/* Row 4: prob bar + avatars */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '7px', flexShrink: 0 }}>
           {!isSpecial && probability > 0 && (
-            <div style={{ flex: 1, height: '3px', borderRadius: '2px', backgroundColor: trackBg, overflow: 'hidden', minWidth: '24px' }}>
-              <div style={{
-                height: '100%', width: `${probability}%`,
-                backgroundColor: probColor(probability),
-                borderRadius: '2px',
-              }} />
+            <div style={{ flex: 1, height: '5px', borderRadius: '999px', backgroundColor: trackBg, overflow: 'hidden', minWidth: '20px' }}>
+              <div style={{ height: '100%', width: `${probability}%`, backgroundColor: probColor(probability), borderRadius: '999px', transition: 'width 0.4s ease' }} />
             </div>
           )}
-
-          {/* Lost reason */}
           {isLost && deal.loss_reason && (
-            <span className="truncate" style={{ fontSize: '10px', color: textMuted, fontStyle: 'italic', flex: 1 }}>
-              {deal.loss_reason}
-            </span>
+            <span className="truncate" style={{ fontSize: '10px', color: textMuted, fontStyle: 'italic', flex: 1 }}>{deal.loss_reason}</span>
           )}
-
           <div style={{ flex: 1 }} />
-
-          {/* Stakeholder avatars */}
           {stakeholders.length > 0 && (
             <div style={{ display: 'flex', alignItems: 'center' }}>
               {stakeholders.map((s, i) => (
                 <div key={s.name} title={s.name} style={{
-                  width: '18px', height: '18px', borderRadius: '50%',
-                  backgroundColor: s.color, border: `2px solid ${cardBg}`,
-                  marginLeft: i === 0 ? 0 : '-5px',
+                  width: '20px', height: '20px', borderRadius: '50%',
+                  backgroundColor: s.color, border: '2px solid var(--surface-card)',
+                  marginLeft: i === 0 ? 0 : '-6px',
                   fontSize: '7px', fontWeight: 700, color: '#fff',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   zIndex: 3 - i, position: 'relative', flexShrink: 0,
@@ -350,9 +288,9 @@ export function DealCard({ deal, isOverlay = false, dimmed = false, showScore = 
               ))}
               {extraCount > 0 && (
                 <div style={{
-                  width: '18px', height: '18px', borderRadius: '50%',
-                  backgroundColor: trackBg, border: `2px solid ${cardBg}`,
-                  marginLeft: '-5px', fontSize: '7px', fontWeight: 600, color: textMuted,
+                  width: '20px', height: '20px', borderRadius: '50%',
+                  backgroundColor: trackBg, border: '2px solid var(--surface-card)',
+                  marginLeft: '-6px', fontSize: '7px', fontWeight: 600, color: textMuted,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   position: 'relative', flexShrink: 0,
                 }}>+{extraCount}</div>
@@ -360,6 +298,26 @@ export function DealCard({ deal, isOverlay = false, dimmed = false, showScore = 
             </div>
           )}
         </div>
+
+        {/* Row 5: metadata — tasks / notes / extra tags */}
+        {(taskCount > 0 || (deal.notes && deal.notes.trim().length > 0) || (deal.tags && deal.tags.length > 1)) && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+            {taskCount > 0 && (
+              <span style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '9px', color: '#16a34a', fontWeight: 600 }}>
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                  <path d="M2 5.5L4 7.5L8 3" stroke="#16a34a" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                {taskCount}
+              </span>
+            )}
+            {deal.notes && deal.notes.trim().length > 0 && (
+              <span style={{ display: 'flex', alignItems: 'center', color: textMuted }}><FileText size={10} /></span>
+            )}
+            {deal.tags && deal.tags.length > 1 && (
+              <span style={{ fontSize: '9px', color: textMuted }}>+{deal.tags.length - 1} tags</span>
+            )}
+          </div>
+        )}
 
       </div>
 

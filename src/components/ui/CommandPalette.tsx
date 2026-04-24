@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Search, LayoutDashboard, Kanban, Users, Mic, CalendarDays, Settings, Building2, ArrowRight } from 'lucide-react'
+import { Search, LayoutDashboard, Kanban, Users, Mic, CalendarDays, Settings, Building2, ArrowRight, Plus, CheckSquare, Calendar } from 'lucide-react'
 import { useDealStore } from '@/store/useDealStore'
 import { useThemeStore } from '@/store/useThemeStore'
 import { getStageColor } from '@/constants/pipeline'
@@ -11,9 +11,10 @@ interface CmdItem {
   id: string
   label: string
   sublabel?: string
-  type: 'page' | 'deal'
+  type: 'page' | 'deal' | 'create'
   action: () => void
   color?: string
+  shortcut?: string
 }
 
 // ─── Static page items ────────────────────────────────────────────────────────
@@ -38,13 +39,24 @@ const PAGE_ICONS: Record<string, React.ComponentType<{ style?: React.CSSProperti
 
 // ─── Result row ───────────────────────────────────────────────────────────────
 
+const CREATE_ICONS: Record<string, React.ComponentType<{ style?: React.CSSProperties }>> = {
+  'c-deal':     Plus,
+  'c-task':     CheckSquare,
+  'c-calendar': Calendar,
+  'c-email':    Plus,
+}
+
 function ResultRow({ item, active, isDark, onSelect }: {
   item: CmdItem; active: boolean; isDark: boolean; onSelect: () => void
 }) {
-  const bg    = active ? (isDark ? '#1e2d27' : '#e8f2ee') : 'transparent'
+  const bg    = active ? (isDark ? `${item.color ?? '#2c5545'}18` : `${item.color ?? '#2c5545'}10`) : 'transparent'
   const text  = isDark ? '#e8e4dc' : '#1a1814'
   const muted = isDark ? '#6b6560' : '#8a857d'
-  const Icon  = item.type === 'page' ? PAGE_ICONS[item.id] : Building2
+  const codeBg = isDark ? '#1e1e1c' : '#f0eeea'
+  let Icon: React.ComponentType<{ style?: React.CSSProperties }> | undefined
+  if (item.type === 'page') Icon = PAGE_ICONS[item.id]
+  else if (item.type === 'create') Icon = CREATE_ICONS[item.id]
+  else Icon = Building2
 
   return (
     <button
@@ -52,16 +64,14 @@ function ResultRow({ item, active, isDark, onSelect }: {
       onClick={onSelect}
       style={{
         width: '100%', display: 'flex', alignItems: 'center', gap: '10px',
-        padding: '9px 14px', borderRadius: '6px',
+        padding: '9px 14px', borderRadius: '8px',
         backgroundColor: bg, border: 'none', cursor: 'pointer', textAlign: 'left',
         transition: 'background-color 0.1s ease',
       }}
     >
       <div style={{
-        width: '28px', height: '28px', borderRadius: '7px', flexShrink: 0,
-        backgroundColor: active
-          ? `${item.color ?? '#2c5545'}22`
-          : (isDark ? '#1e1e1c' : '#f0eeea'),
+        width: '30px', height: '30px', borderRadius: '8px', flexShrink: 0,
+        backgroundColor: active ? `${item.color ?? '#2c5545'}22` : (isDark ? '#1e1e1c' : '#f0eeea'),
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         border: active ? `1px solid ${item.color ?? '#2c5545'}40` : '1px solid transparent',
         transition: 'all 0.1s ease',
@@ -69,7 +79,7 @@ function ResultRow({ item, active, isDark, onSelect }: {
         {Icon && <Icon style={{ width: '13px', height: '13px', color: active ? (item.color ?? '#2c5545') : muted }} />}
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <p style={{ fontSize: '13px', fontWeight: 600, color: text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <p style={{ fontSize: '13px', fontWeight: item.type === 'create' ? 600 : 500, color: text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {item.label}
         </p>
         {item.sublabel && (
@@ -78,7 +88,12 @@ function ResultRow({ item, active, isDark, onSelect }: {
           </p>
         )}
       </div>
-      {active && <ArrowRight style={{ width: '13px', height: '13px', color: item.color ?? '#2c5545', flexShrink: 0 }} />}
+      {item.shortcut && (
+        <kbd style={{ fontSize: '10px', fontWeight: 600, color: muted, backgroundColor: codeBg, border: `1px solid ${isDark ? '#2a2a28' : '#d4d0ca'}`, borderRadius: '4px', padding: '1px 6px', fontFamily: 'monospace', flexShrink: 0 }}>
+          {item.shortcut}
+        </kbd>
+      )}
+      {active && !item.shortcut && <ArrowRight style={{ width: '13px', height: '13px', color: item.color ?? '#2c5545', flexShrink: 0 }} />}
     </button>
   )
 }
@@ -88,9 +103,11 @@ function ResultRow({ item, active, isDark, onSelect }: {
 interface CommandPaletteProps {
   open: boolean
   onClose: () => void
+  onCreateDeal?: () => void
+  onCreateTask?: () => void
 }
 
-export function CommandPalette({ open, onClose }: CommandPaletteProps) {
+export function CommandPalette({ open, onClose, onCreateDeal, onCreateTask }: CommandPaletteProps) {
   const navigate  = useNavigate()
   const isDark    = useThemeStore((s) => s.isDark)
   const deals     = useDealStore((s) => s.deals)
@@ -113,6 +130,13 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
   }, [open])
 
   // Build items list
+  const createItems = useMemo<CmdItem[]>(() => [
+    { id: 'c-deal',     label: 'Novo lead',    sublabel: 'Criar um novo lead no pipeline', type: 'create', shortcut: 'nd', color: '#2c5545', action: () => { onCreateDeal?.(); onClose() } },
+    { id: 'c-task',     label: 'Nova tarefa',  sublabel: 'Criar uma tarefa de follow-up',   type: 'create', shortcut: 'nt', color: '#7c3aed', action: () => { onCreateTask?.(); navigate('/tarefas'); onClose() } },
+    { id: 'c-calendar', label: 'Nova reunião', sublabel: 'Agendar reunião no calendário',   type: 'create', shortcut: 'nm', color: '#0369a1', action: () => { navigate('/calendar'); onClose() } },
+    { id: 'c-email',    label: 'Novo email',   sublabel: 'Escrever um email no CRM',        type: 'create', shortcut: 'ne', color: '#b45309', action: () => { navigate('/email'); onClose() } },
+  ], [onCreateDeal, onCreateTask, navigate, onClose])
+
   const pageItems  = useMemo(() => PAGE_ITEMS(navigate), [navigate])
   const dealItems  = useMemo<CmdItem[]>(() =>
     deals
@@ -130,12 +154,12 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
 
   const allItems = useMemo(() => {
     const q = query.trim().toLowerCase()
-    if (!q) return [...pageItems, ...dealItems.slice(0, 5)]
-    const filtered = [...pageItems, ...dealItems].filter((item) =>
+    if (!q) return [...createItems, ...pageItems, ...dealItems.slice(0, 5)]
+    const filtered = [...createItems, ...pageItems, ...dealItems].filter((item) =>
       item.label.toLowerCase().includes(q) || item.sublabel?.toLowerCase().includes(q)
     )
-    return filtered.slice(0, 12)
-  }, [query, pageItems, dealItems])
+    return filtered.slice(0, 14)
+  }, [query, createItems, pageItems, dealItems])
 
   // Keyboard navigation
   useEffect(() => {
@@ -179,7 +203,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
     >
       <div
         style={{
-          width: '540px', maxWidth: 'calc(100vw - 32px)',
+          width: '600px', maxWidth: 'calc(100vw - 32px)',
           backgroundColor: bg,
           border: `1px solid ${border}`,
           borderRadius: '12px',
@@ -198,7 +222,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Buscar deals, páginas..."
+            placeholder="Buscar ou digitar comando (n = novo, g = ir para)..."
             style={{
               flex: 1, background: 'none', border: 'none', outline: 'none',
               fontSize: '14px', fontWeight: 500, color: inputTx, fontFamily: 'inherit',
@@ -221,16 +245,24 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
             </div>
           ) : (
             <>
-              {/* Section label */}
-              {!query && (
-                <p style={{ fontSize: '9px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.1em', padding: '4px 14px 6px' }}>
-                  Páginas
-                </p>
-              )}
               {allItems.map((item, i) => {
-                const showDealHeader = !query && i === pageItems.length && dealItems.length > 0
+                const isFirst = i === 0
+                const prevItem = allItems[i - 1]
+                const showCreateHeader = !query && isFirst && item.type === 'create'
+                const showPageHeader = !query && item.type === 'page' && prevItem?.type === 'create'
+                const showDealHeader = !query && item.type === 'deal' && prevItem?.type === 'page'
                 return (
                   <div key={item.id}>
+                    {showCreateHeader && (
+                      <p style={{ fontSize: '9px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.1em', padding: '4px 14px 6px' }}>
+                        Criar
+                      </p>
+                    )}
+                    {showPageHeader && (
+                      <p style={{ fontSize: '9px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.1em', padding: '8px 14px 4px' }}>
+                        Ir para
+                      </p>
+                    )}
                     {showDealHeader && (
                       <p style={{ fontSize: '9px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.1em', padding: '8px 14px 4px' }}>
                         Deals recentes
@@ -240,7 +272,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
                       item={item}
                       active={activeIndex === i}
                       isDark={isDark}
-                      onSelect={() => { item.action(); onClose() }}
+                      onSelect={() => { item.action() }}
                     />
                   </div>
                 )

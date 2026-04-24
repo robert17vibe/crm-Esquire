@@ -9,6 +9,8 @@ interface MeetingStore {
   isLoading: boolean
   initialize: () => Promise<void>
   addMeeting: (payload: Omit<DealMeeting, 'id'>) => Promise<DealMeeting>
+  updateMeeting: (id: string, patch: Partial<Omit<DealMeeting, 'id'>>) => Promise<void>
+  deleteMeeting: (id: string) => Promise<void>
   subscribeRealtime: () => () => void
 }
 
@@ -41,6 +43,24 @@ export const useMeetingStore = create<MeetingStore>((set) => ({
     } catch {
       set((s) => ({ meetings: s.meetings.filter((m) => m.id !== optimistic.id) }))
       throw new Error('addMeeting failed')
+    }
+  },
+
+  updateMeeting: async (id, patch) => {
+    set((s) => ({ meetings: s.meetings.map((m) => m.id === id ? { ...m, ...patch } : m) }))
+    try {
+      await supabase.from('deal_meetings').update(patch).eq('id', id)
+    } catch {
+      // optimistic update stays; realtime will correct if needed
+    }
+  },
+
+  deleteMeeting: async (id) => {
+    set((s) => ({ meetings: s.meetings.filter((m) => m.id !== id) }))
+    try {
+      await supabase.from('deal_meetings').delete().eq('id', id)
+    } catch {
+      // already removed optimistically
     }
   },
 

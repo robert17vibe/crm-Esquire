@@ -2,7 +2,8 @@ import { useState, useCallback, useRef, useEffect } from 'react'
 import {
   DndContext,
   DragOverlay,
-  closestCorners,
+  pointerWithin,
+  closestCenter,
   PointerSensor,
   KeyboardSensor,
   useSensor,
@@ -32,6 +33,7 @@ interface KanbanBoardProps {
   onLossReasonConfirmed?: (dealId: string, reason: string) => void
   showScore?: boolean
   dimmedIds?: Set<string>
+  onAddDeal?: (stageId: StageId) => void
 }
 
 function groupByStage(deals: Deal[]): GroupedDeals {
@@ -61,6 +63,7 @@ export function KanbanBoard({
   onLossReasonConfirmed,
   showScore,
   dimmedIds,
+  onAddDeal,
 }: KanbanBoardProps) {
   const [grouped, setGrouped] = useState<GroupedDeals>(() => groupByStage(initialDeals))
   const [activeId, setActiveId] = useState<string | null>(null)
@@ -293,7 +296,7 @@ export function KanbanBoard({
     <>
       <DndContext
         sensors={sensors}
-        collisionDetection={closestCorners}
+        collisionDetection={(args) => pointerWithin(args).length ? pointerWithin(args) : closestCenter(args)}
         onDragStart={onDragStart}
         onDragOver={onDragOver}
         onDragEnd={onDragEnd}
@@ -307,6 +310,7 @@ export function KanbanBoard({
               onMoveDeal={onMoveDeal}
               showScore={showScore}
               dimmedIds={dimmedIds}
+              onAddDeal={onAddDeal}
             />
           ))}
         </div>

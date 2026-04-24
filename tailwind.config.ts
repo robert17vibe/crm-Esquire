@@ -7,18 +7,29 @@ const config: Config = {
   theme: {
     extend: {
       borderRadius: {
-        lg: 'var(--radius)',
-        md: 'calc(var(--radius) - 2px)',
-        sm: 'calc(var(--radius) - 4px)',
+        xs:   'var(--radius-xs)',
+        sm:   'var(--radius-sm)',
+        md:   'var(--radius-md)',
+        lg:   'var(--radius-lg)',
+        xl:   'var(--radius-xl)',
+        full: 'var(--radius-full)',
+      },
+      fontFamily: {
+        sans: ['Inter', 'system-ui', 'sans-serif'],
+        mono: ['JetBrains Mono', 'ui-monospace', 'monospace'],
       },
       colors: {
         // ── Design tokens (CSS-variable backed) ──────────────────────────────
         surface: {
           base:     'var(--surface-base)',
           card:     'var(--surface-card)',
+          raised:   'var(--surface-raised)',
+          overlay:  'var(--surface-overlay)',
+          input:    'var(--surface-input)',
           col:      'var(--surface-col)',
           'col-over': 'var(--surface-col-over)',
           sidebar:  'var(--surface-sidebar)',
+          hover:    'var(--surface-hover)',
         },
         ink: {
           base:  'var(--ink-base)',
@@ -27,10 +38,10 @@ const config: Config = {
         },
         brand: {
           DEFAULT: 'var(--brand)',
+          light:   'var(--brand-light)',
           hover:   'var(--brand-hover)',
         },
-        // Border color with opacity modifier support: border-line/50 works
-        line: 'rgb(var(--line-rgb) / <alpha-value>)',
+        line: 'var(--line)',
 
         // ── shadcn/ui compat ──────────────────────────────────────────────────
         background: 'var(--surface-base)',
@@ -63,8 +74,8 @@ const config: Config = {
           DEFAULT:    '#ef4444',
           foreground: '#ffffff',
         },
-        border: 'rgb(var(--line-rgb))',
-        input:  'rgb(var(--line-rgb))',
+        border: 'var(--line)',
+        input:  'var(--line)',
         ring:   'var(--brand)',
       },
     },

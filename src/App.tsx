@@ -26,6 +26,7 @@ const LandingPage         = lazy(() => import('@/pages/LandingPage').then((m) =>
 const LoginPage        = lazy(() => import('@/pages/LoginPage').then((m) => ({ default: m.LoginPage })))
 const ForgotPasswordPage = lazy(() => import('@/pages/ForgotPasswordPage').then((m) => ({ default: m.ForgotPasswordPage })))
 const ResetPasswordPage  = lazy(() => import('@/pages/ResetPasswordPage').then((m) => ({ default: m.ResetPasswordPage })))
+const EmailPage          = lazy(() => import('@/pages/EmailPage').then((m) => ({ default: m.EmailPage })))
 
 export default function App() {
   const isDark       = useThemeStore((s) => s.isDark)
@@ -85,6 +86,7 @@ export default function App() {
         <Route path="/clients"   element={<ClientsPage />} />
         <Route path="/meetings"  element={<MeetingsPage />} />
         <Route path="/calendar"  element={<CalendarPage />} />
+        <Route path="/email"     element={<EmailPage />} />
         <Route path="/tarefas"   element={<TasksPage />} />
         <Route path="/settings"  element={<SettingsPage />} />
         <Route path="/deal/:id"  element={<DealDetailPage />} />

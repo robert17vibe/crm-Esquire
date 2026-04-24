@@ -14,8 +14,8 @@ const COMPANY_SIZES = ['1-50', '51-200', '201-1000', '1000+'] as const
 const LEAD_SOURCES  = ['Indicação', 'Inbound', 'Outbound', 'Evento'] as const
 
 export const newLeadSchema = z.object({
-  contact_name:     z.string().min(2, 'Nome obrigatório'),
-  company_name:     z.string().min(1, 'Empresa obrigatória'),
+  contact_name:     z.string().min(1, 'Nome obrigatório'),
+  company_name:     z.string().optional().or(z.literal('')),
   contact_email:    z.string().email('Email inválido').optional().or(z.literal('')),
   contact_phone:    z.string().optional(),
   contact_title:    z.string().optional(),

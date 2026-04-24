@@ -8,6 +8,7 @@ import { STAGES } from '@/constants/pipeline'
 import { newLeadSchema, type NewLeadFormValues } from '@/lib/schemas/deal.schema'
 import { useDealStore } from '@/store/useDealStore'
 import { useOwnerStore } from '@/store/useOwnerStore'
+import { useToastStore } from '@/store/useToastStore'
 import type { Deal } from '@/types/deal.types'
 
 // ─── Design tokens — warm neutral, alinhado com design system ─────────────────
@@ -202,6 +203,7 @@ export function NewLeadModal({ open, onClose, onCreated }: Props) {
   const deals               = useDealStore((s) => s.deals)
   const owners              = useOwnerStore((s) => s.owners)
   const getRoundRobinOwner  = useOwnerStore((s) => s.getRoundRobinOwner)
+  const addToast            = useToastStore((s) => s.addToast)
   const [autoAssign, setAutoAssign] = useState(true)
 
   const activeDealsByOwner = useMemo(() => {
@@ -241,6 +243,12 @@ export function NewLeadModal({ open, onClose, onCreated }: Props) {
     const deal = await createDeal(values)
     onCreated(deal)
     reset()
+    const isMinimal = !values.company_name && !values.contact_email && !values.value
+    if (isMinimal) {
+      addToast('Lead criado! Complete as informações para melhores resultados.', 'info', 5000)
+    } else {
+      addToast('Lead criado com sucesso!', 'success')
+    }
   }
 
   return (
@@ -283,7 +291,7 @@ export function NewLeadModal({ open, onClose, onCreated }: Props) {
                 className="text-[#8a857d] dark:text-[#6b6560]"
                 style={{ fontSize: '12px', marginTop: '3px' }}
               >
-                Preencha os dados do novo lead
+                Só o nome é obrigatório — complete o resto depois
               </Dialog.Description>
             </div>
 
@@ -320,15 +328,14 @@ export function NewLeadModal({ open, onClose, onCreated }: Props) {
                 <FError msg={errors.contact_name?.message} />
               </div>
               <div>
-                <FLabel htmlFor="company_name" required>Empresa</FLabel>
-                <Input id="company_name" type="text" placeholder="Acme Corp" hasError={!!errors.company_name} {...register('company_name')} />
-                <FError msg={errors.company_name?.message} />
+                <FLabel htmlFor="company_name">Empresa</FLabel>
+                <Input id="company_name" type="text" placeholder="Acme Corp (opcional)" {...register('company_name')} />
               </div>
             </Row>
 
             <Row>
               <div>
-                <FLabel htmlFor="contact_email" required>Email</FLabel>
+                <FLabel htmlFor="contact_email">Email</FLabel>
                 <Input id="contact_email" type="email" placeholder="joao@empresa.com" hasError={!!errors.contact_email} {...register('contact_email')} />
                 <FError msg={errors.contact_email?.message} />
               </div>
