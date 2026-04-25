@@ -644,7 +644,7 @@ function NewMeetingModal({ defaultDate, onClose, isDark }: { defaultDate: string
     try {
       await addMeeting({ deal_id: dealId, title: title.trim(), scheduled_at: `${date}T${time}:00`, duration_minutes: Number(duration) || 60, attendees, owner })
       if (evType === 'meeting' || evType === 'task') {
-        createTask({ title: title.trim(), deal_id: dealId, due_date: date, task_type: evType === 'meeting' ? 'meeting' : 'task', priority: 'medium' }).catch(() => {})
+        createTask({ title: title.trim(), deal_id: dealId, due_date: date, task_type: evType === 'meeting' ? 'meeting' : 'other', priority: 'medium' }).catch(() => {})
       }
       onClose()
     } finally { setSaving(false) }

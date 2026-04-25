@@ -37,8 +37,6 @@ export function ClientsPage() {
   const trackBg = isDark ? '#1e1e1c' : '#eeece8'
   const inputBg = isDark ? '#111111' : '#f5f4f1'
   const inputBorder = isDark ? '#2a2a2a' : '#e0ddd8'
-  const expandBg = isDark ? '#111110' : '#f5f4f0'
-
   const companies = useMemo(() => {
     const map = new Map<string, {
       name: string

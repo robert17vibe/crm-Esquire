@@ -8,7 +8,7 @@ import { useNotificationStore } from '@/store/useNotificationStore'
 import { useTaskStore } from '@/store/useTaskStore'
 import { useToastStore } from '@/store/useToastStore'
 import { FileText } from 'lucide-react'
-import { getStageColor, getTagStyle, type StageId } from '@/constants/pipeline'
+import { getStageColor, type StageId } from '@/constants/pipeline'
 import { evaluateDealScore, scoreColor, scoreBg } from '@/lib/dealScore'
 import type { Deal } from '@/types/deal.types'
 
@@ -123,8 +123,6 @@ export function DealCard({ deal, isOverlay = false, dimmed = false, showScore = 
   const isSpecial = isWon || isLost
 
   const stageColor  = getStageColor(deal.stage_id)
-  const tag         = deal.tags?.[0]
-  const tagStyle    = tag ? getTagStyle(tag) : null
   const probability = Math.min(100, Math.max(0, deal.probability ?? 0))
   const score       = showScore && !isSpecial ? evaluateDealScore(deal) : null
   const today       = new Date().toISOString().slice(0, 10)
