@@ -205,7 +205,7 @@ export const useDealStore = create<DealStore>((set, get) => {
     const existing = get().deals.find((d) => d.id === id)
     const updated: Deal = {
       ...(existing ?? ({} as Deal)),
-      title: `${values.company_name ?? values.contact_name} — ${values.contact_name}`,
+      title: values.company_name ? `${values.company_name} — ${values.contact_name}` : values.contact_name,
       stage_id: values.stage_id,
       value: values.value ?? existing?.value ?? 0,
       probability: values.probability ?? existing?.probability ?? 10,
@@ -255,7 +255,7 @@ export const useDealStore = create<DealStore>((set, get) => {
     try {
       await removeDeal(id)
       if (deal) {
-        useToastStore.getState().addToast(`Lead removido — ${deal.company_name}`, 'error')
+        useToastStore.getState().addToast(`Lead removido — ${deal.company_name}`, 'success')
         useWebhookStore.getState().fire('deal.deleted', { id: deal.id, company_name: deal.company_name })
       }
     } catch {

@@ -500,7 +500,7 @@ export function DashboardPage() {
   const stageConversion = useMemo(() => {
     const total = deals.length
     return STAGES.filter((s) => !s.is_closed).map((stage) => {
-      const count = deals.filter((d) => d.stage_id === stage.id || ['closed_won', 'closed_lost'].includes(d.stage_id) ? false : d.stage_id === stage.id).length
+      const count = deals.filter((d) => d.stage_id === stage.id && !['closed_won', 'closed_lost'].includes(d.stage_id)).length
       const pct   = total > 0 ? Math.round((activeDeals.filter((d) => d.stage_id === stage.id).length / Math.max(activeDeals.length, 1)) * 100) : 0
       return { stage, count, pct }
     })
@@ -725,8 +725,8 @@ export function DashboardPage() {
                         <p style={{ fontSize: '13px', fontWeight: 700, color: agingColor }}>{deal.days_in_stage}d</p>
                         <p style={{ fontSize: '10px', color: muted }}>{stage?.label}</p>
                       </div>
-                      <div style={{ width: '24px', height: '24px', borderRadius: '50%', backgroundColor: deal.owner.avatar_color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '7px', fontWeight: 700, flexShrink: 0 }}>
-                        {deal.owner.initials}
+                      <div style={{ width: '24px', height: '24px', borderRadius: '50%', backgroundColor: deal.owner?.avatar_color ?? '#888', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '7px', fontWeight: 700, flexShrink: 0 }}>
+                        {deal.owner?.initials ?? '?'}
                       </div>
                     </button>
                   )
@@ -811,8 +811,8 @@ export function DashboardPage() {
                     onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = trackBg)}
                     onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
                   >
-                    <div style={{ width: '26px', height: '26px', borderRadius: '6px', backgroundColor: `${deal.owner.avatar_color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      <Icon style={{ width: '11px', height: '11px', color: deal.owner.avatar_color }} />
+                    <div style={{ width: '26px', height: '26px', borderRadius: '6px', backgroundColor: `${deal.owner?.avatar_color ?? '#888'}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <Icon style={{ width: '11px', height: '11px', color: deal.owner?.avatar_color ?? '#888' }} />
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <p style={{ fontSize: '12px', fontWeight: 600, color: text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{deal.company_name}</p>
@@ -820,8 +820,8 @@ export function DashboardPage() {
                     </div>
                     <div style={{ textAlign: 'right', flexShrink: 0 }}>
                       <p style={{ fontSize: '10px', fontWeight: 600, color: dateColor }}>{urgent ? `${Math.abs(diff)}d atrás` : today ? 'Hoje' : diff === 1 ? 'Amanhã' : fmtDate(activity.due_date)}</p>
-                      <div style={{ width: '16px', height: '16px', borderRadius: '50%', backgroundColor: deal.owner.avatar_color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '6px', fontWeight: 700, marginTop: '3px', marginLeft: 'auto' }}>
-                        {deal.owner.initials}
+                      <div style={{ width: '16px', height: '16px', borderRadius: '50%', backgroundColor: deal.owner?.avatar_color ?? '#888', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '6px', fontWeight: 700, marginTop: '3px', marginLeft: 'auto' }}>
+                        {deal.owner?.initials ?? '?'}
                       </div>
                     </div>
                   </button>
@@ -868,8 +868,8 @@ export function DashboardPage() {
                         </span>
                       </div>
                     </div>
-                    <div style={{ width: '22px', height: '22px', borderRadius: '50%', backgroundColor: deal.owner.avatar_color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '7px', fontWeight: 700, flexShrink: 0 }} title={deal.owner.name}>
-                      {deal.owner.initials}
+                    <div style={{ width: '22px', height: '22px', borderRadius: '50%', backgroundColor: deal.owner?.avatar_color ?? '#888', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '7px', fontWeight: 700, flexShrink: 0 }} title={deal.owner?.name}>
+                      {deal.owner?.initials ?? '?'}
                     </div>
                   </button>
                 )

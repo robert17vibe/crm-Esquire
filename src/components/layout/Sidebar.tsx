@@ -199,7 +199,7 @@ function NotificationPanel({ onClose, bottom }: { onClose: () => void; bottom: n
                   cursor: 'pointer', textAlign: 'left', border: 'none',
                   transition: 'background-color 0.1s ease',
                 }}
-                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--surface-col)')}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--surface-raised)')}
                 onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = n.read ? 'transparent' : 'var(--surface-raised)')}>
                 <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: n.read ? 'transparent' : cfg.color, flexShrink: 0, marginTop: '5px' }} />
                 <div style={{ flex: 1, minWidth: 0 }}>

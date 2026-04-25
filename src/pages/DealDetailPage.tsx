@@ -451,7 +451,7 @@ function NotesSection({ dealId, owner, isDark, border, text, muted }: {
     try {
       await addActivity(dealId, { type: 'note', subject: note.trim(), owner })
       setNote('')
-    } finally { setSaving(false) }
+    } catch { /* note preserved on error */ } finally { setSaving(false) }
   }
 
   return (
@@ -588,7 +588,6 @@ export function DealDetailPage() {
   )
 
   const [activeTab, setActiveTab] = useState<'overview' | 'activity' | 'notes' | 'proposal' | 'tasks'>('overview')
-  const [_showStageMenu, _setShowStageMenu] = useState(false)
   const [pendingLossStage, setPendingLossStage] = useState(false)
   const [lossReasonDraft, setLossReasonDraft]   = useState('')
 
@@ -1423,9 +1422,10 @@ export function DealDetailPage() {
                       onKeyDown={async (e) => {
                         if (e.key === 'Enter' && quickTaskTitle.trim()) {
                           setSavingQuickTask(true)
-                          await createTask({ title: quickTaskTitle.trim(), deal_id: deal.id, due_date: quickTaskDate || undefined, priority: 'medium', task_type: 'other' })
-                          setSavingQuickTask(false)
-                          setQuickTaskTitle(''); setQuickTaskDate(''); setShowQuickTask(false)
+                          try {
+                            await createTask({ title: quickTaskTitle.trim(), deal_id: deal.id, due_date: quickTaskDate || undefined, priority: 'medium', task_type: 'other' })
+                            setQuickTaskTitle(''); setQuickTaskDate(''); setShowQuickTask(false)
+                          } finally { setSavingQuickTask(false) }
                         }
                         if (e.key === 'Escape') setShowQuickTask(false)
                       }}
@@ -1448,9 +1448,10 @@ export function DealDetailPage() {
                         onClick={async () => {
                           if (!quickTaskTitle.trim()) return
                           setSavingQuickTask(true)
-                          await createTask({ title: quickTaskTitle.trim(), deal_id: deal.id, due_date: quickTaskDate || undefined, priority: 'medium', task_type: 'other' })
-                          setSavingQuickTask(false)
-                          setQuickTaskTitle(''); setQuickTaskDate(''); setShowQuickTask(false)
+                          try {
+                            await createTask({ title: quickTaskTitle.trim(), deal_id: deal.id, due_date: quickTaskDate || undefined, priority: 'medium', task_type: 'other' })
+                            setQuickTaskTitle(''); setQuickTaskDate(''); setShowQuickTask(false)
+                          } finally { setSavingQuickTask(false) }
                         }}
                         style={{ height: '24px', padding: '0 10px', borderRadius: '4px', fontSize: '10px', fontWeight: 600, cursor: 'pointer', backgroundColor: '#2c5545', color: '#fff', border: 'none', marginLeft: 'auto', opacity: quickTaskTitle.trim() ? 1 : 0.5 }}
                       >{savingQuickTask ? '...' : 'Criar tarefa'}</button>
@@ -1523,9 +1524,10 @@ export function DealDetailPage() {
                       onKeyDown={async (e) => {
                         if (e.key === 'Enter' && quickTaskTitle.trim()) {
                           setSavingQuickTask(true)
-                          await createTask({ title: quickTaskTitle.trim(), deal_id: deal.id, due_date: quickTaskDate || undefined, priority: 'medium', task_type: 'other' })
-                          setSavingQuickTask(false)
-                          setQuickTaskTitle(''); setQuickTaskDate(''); setShowQuickTask(false)
+                          try {
+                            await createTask({ title: quickTaskTitle.trim(), deal_id: deal.id, due_date: quickTaskDate || undefined, priority: 'medium', task_type: 'other' })
+                            setQuickTaskTitle(''); setQuickTaskDate(''); setShowQuickTask(false)
+                          } finally { setSavingQuickTask(false) }
                         }
                         if (e.key === 'Escape') setShowQuickTask(false)
                       }}
@@ -1546,9 +1548,10 @@ export function DealDetailPage() {
                         onClick={async () => {
                           if (!quickTaskTitle.trim()) return
                           setSavingQuickTask(true)
-                          await createTask({ title: quickTaskTitle.trim(), deal_id: deal.id, due_date: quickTaskDate || undefined, priority: 'medium', task_type: 'other' })
-                          setSavingQuickTask(false)
-                          setQuickTaskTitle(''); setQuickTaskDate(''); setShowQuickTask(false)
+                          try {
+                            await createTask({ title: quickTaskTitle.trim(), deal_id: deal.id, due_date: quickTaskDate || undefined, priority: 'medium', task_type: 'other' })
+                            setQuickTaskTitle(''); setQuickTaskDate(''); setShowQuickTask(false)
+                          } finally { setSavingQuickTask(false) }
                         }}
                         style={{ height: '24px', padding: '0 10px', borderRadius: 'var(--radius-sm)', fontSize: '10px', fontWeight: 600, cursor: 'pointer', backgroundColor: 'var(--brand)', color: '#fff', border: 'none', marginLeft: 'auto', opacity: quickTaskTitle.trim() ? 1 : 0.5 }}>
                         {savingQuickTask ? '...' : 'Criar'}
