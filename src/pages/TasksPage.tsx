@@ -35,6 +35,8 @@ const TYPE_ICONS: Record<TaskType, React.ComponentType<{ style?: React.CSSProper
 
 
 type TaskFilter = 'all' | 'pending' | 'done'
+type PriorityFilter = 'all' | TaskPriority
+type TypeFilter = 'all' | TaskType
 
 // ─── Task row ─────────────────────────────────────────────────────────────────
 
@@ -322,8 +324,10 @@ export function TasksPage() {
   const deals    = useDealStore((s) => s.deals)
   const navigate = useNavigate()
 
-  const [showForm, setShowForm] = useState(false)
-  const [filter, setFilter]     = useState<TaskFilter>('pending')
+  const [showForm, setShowForm]         = useState(false)
+  const [filter, setFilter]             = useState<TaskFilter>('pending')
+  const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>('all')
+  const [typeFilter, setTypeFilter]     = useState<TypeFilter>('all')
 
   useEffect(() => { fetch() }, [fetch])
 
@@ -345,9 +349,13 @@ export function TasksPage() {
     [deals],
   )
 
+  const applySubFilters = (list: Task[]) => list
+    .filter((t) => priorityFilter === 'all' || t.priority === priorityFilter)
+    .filter((t) => typeFilter === 'all' || t.task_type === typeFilter)
+
   const grouped = useMemo(() => {
-    const pending   = tasks.filter((t) => !t.completed_at)
-    const done      = tasks.filter((t) => !!t.completed_at)
+    const pending = applySubFilters(tasks.filter((t) => !t.completed_at))
+    const done    = applySubFilters(tasks.filter((t) => !!t.completed_at))
 
     return {
       overdue: pending.filter((t) => t.due_date && t.due_date < today),
@@ -355,9 +363,10 @@ export function TasksPage() {
       week:    pending.filter((t) => t.due_date && t.due_date > today && t.due_date <= week),
       future:  pending.filter((t) => t.due_date && t.due_date > week),
       no_date: pending.filter((t) => !t.due_date),
-      done:    done.slice(0, 20),
+      done:    done,
     }
-  }, [tasks, today, week])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tasks, today, week, priorityFilter, typeFilter])
 
   const pendingCount = grouped.overdue.length + grouped.today.length + grouped.week.length + grouped.future.length + grouped.no_date.length
   const overdueCount = grouped.overdue.length
@@ -365,13 +374,22 @@ export function TasksPage() {
   const visibleGroups: Array<{ key: keyof typeof grouped; label: string; color: string; icon: React.ComponentType<{ style?: React.CSSProperties }> }> =
     filter === 'done'
       ? [{ key: 'done', label: 'Concluídas', color: '#2d9e6b', icon: Check }]
-      : [
-          { key: 'overdue', label: 'Atrasadas',      color: '#dc2626',  icon: AlertTriangle },
-          { key: 'today',   label: 'Hoje',           color: '#b45309',  icon: Clock         },
-          { key: 'week',    label: 'Esta semana',    color: '#2c5545',  icon: Calendar      },
-          { key: 'future',  label: 'Futuras',        color: muted,      icon: Calendar      },
-          { key: 'no_date', label: 'Sem prazo',      color: muted,      icon: CheckSquare   },
-        ]
+      : filter === 'all'
+        ? [
+            { key: 'overdue', label: 'Atrasadas',      color: '#dc2626',  icon: AlertTriangle },
+            { key: 'today',   label: 'Hoje',           color: '#b45309',  icon: Clock         },
+            { key: 'week',    label: 'Esta semana',    color: '#2c5545',  icon: Calendar      },
+            { key: 'future',  label: 'Futuras',        color: muted,      icon: Calendar      },
+            { key: 'no_date', label: 'Sem prazo',      color: muted,      icon: CheckSquare   },
+            { key: 'done',    label: 'Concluídas',     color: '#2d9e6b',  icon: Check         },
+          ]
+        : [
+            { key: 'overdue', label: 'Atrasadas',      color: '#dc2626',  icon: AlertTriangle },
+            { key: 'today',   label: 'Hoje',           color: '#b45309',  icon: Clock         },
+            { key: 'week',    label: 'Esta semana',    color: '#2c5545',  icon: Calendar      },
+            { key: 'future',  label: 'Futuras',        color: muted,      icon: Calendar      },
+            { key: 'no_date', label: 'Sem prazo',      color: muted,      icon: CheckSquare   },
+          ]
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: pageBg }}>
@@ -392,12 +410,49 @@ export function TasksPage() {
           </p>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          {/* Priority filter */}
+          <select
+            value={priorityFilter}
+            onChange={(e) => setPriorityFilter(e.target.value as PriorityFilter)}
+            style={{
+              height: '30px', padding: '0 8px', fontSize: '11px', fontWeight: 500,
+              backgroundColor: inputBg, border: `1px solid ${border}`,
+              borderRadius: '6px', color: priorityFilter !== 'all' ? PRIORITY_CFG[priorityFilter as TaskPriority]?.color : muted,
+              outline: 'none', cursor: 'pointer',
+            }}
+          >
+            <option value="all">Prioridade</option>
+            <option value="high">🔴 Alta</option>
+            <option value="medium">🟡 Média</option>
+            <option value="low">🔵 Baixa</option>
+          </select>
+
+          {/* Type filter */}
+          <select
+            value={typeFilter}
+            onChange={(e) => setTypeFilter(e.target.value as TypeFilter)}
+            style={{
+              height: '30px', padding: '0 8px', fontSize: '11px', fontWeight: 500,
+              backgroundColor: inputBg, border: `1px solid ${border}`,
+              borderRadius: '6px', color: typeFilter !== 'all' ? '#2c5545' : muted,
+              outline: 'none', cursor: 'pointer',
+            }}
+          >
+            <option value="all">Tipo</option>
+            <option value="call">📞 Ligação</option>
+            <option value="email">✉️ Email</option>
+            <option value="meeting">📹 Reunião</option>
+            <option value="follow_up">👥 Follow-up</option>
+            <option value="other">📋 Outro</option>
+          </select>
+
           {/* Filter tabs */}
           <div style={{ display: 'flex', border: `1px solid ${border}`, borderRadius: '7px', overflow: 'hidden', backgroundColor: cardBg }}>
             {([
               { key: 'pending' as TaskFilter, label: 'Pendentes' },
               { key: 'done'    as TaskFilter, label: 'Concluídas' },
+              { key: 'all'     as TaskFilter, label: 'Todos' },
             ]).map(({ key, label }) => (
               <button
                 key={key}

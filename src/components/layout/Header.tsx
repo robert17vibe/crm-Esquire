@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react'
-import { Bell, Moon, Sun, Settings, LogOut, User, AlertTriangle, Clock } from 'lucide-react'
+import { Bell, Moon, Sun, Settings, LogOut, User, AlertTriangle, Clock, Search } from 'lucide-react'
 import type { NotificationType } from '@/store/useNotificationStore'
 import { useNavigate } from 'react-router-dom'
 import { useThemeStore } from '@/store/useThemeStore'
@@ -256,7 +256,7 @@ function UserMenu({ onClose, isDark }: { onClose: () => void; isDark: boolean })
 
 // ─── Header ───────────────────────────────────────────────────────────────────
 
-export function Header() {
+export function Header({ onOpenSearch }: { onOpenSearch?: () => void }) {
   const { isDark, toggle } = useThemeStore()
   const profile  = useAuthStore((s) => s.profile)
   const notifications = useNotificationStore((s) => s.notifications)
@@ -274,8 +274,39 @@ export function Header() {
   const displayInitials = displayName.split(' ').map((p) => p[0]).slice(0, 2).join('').toUpperCase()
 
   return (
-    <header className="flex h-13 items-center justify-between border-b border-line/60 bg-surface-base px-5 shrink-0">
-      <div />
+    <header className="flex h-14 items-center border-b border-line/60 bg-surface-base px-5 shrink-0" style={{ position: 'relative' }}>
+      {/* Empty left spacer */}
+      <div style={{ flex: 1 }} />
+
+      {/* Global search trigger — centered absolutely */}
+      <button
+        type="button"
+        onClick={onOpenSearch}
+        style={{
+          display: 'flex', alignItems: 'center', gap: '10px',
+          height: '36px', width: '420px',
+          padding: '0 14px',
+          backgroundColor: isDark ? '#111110' : '#f0ede8',
+          border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.09)'}`,
+          borderRadius: '12px', cursor: 'text',
+          transition: 'border-color 0.15s ease, background-color 0.15s ease',
+          position: 'absolute', left: '50%', transform: 'translateX(-50%)',
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.borderColor = isDark ? 'rgba(255,255,255,0.16)' : 'rgba(0,0,0,0.16)' }}
+        onMouseLeave={(e) => { e.currentTarget.style.borderColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.09)' }}
+      >
+        <Search style={{ width: '14px', height: '14px', color: isDark ? '#4a4a46' : '#a0998c', flexShrink: 0 }} />
+        <span style={{ flex: 1, textAlign: 'left', fontSize: '13px', color: isDark ? '#4a4a46' : '#a0998c', fontWeight: 500 }}>
+          Buscar leads, páginas, comandos...
+        </span>
+        <kbd style={{
+          fontSize: '10px', fontWeight: 600, fontFamily: 'monospace',
+          color: isDark ? '#3a3a36' : '#c4bfb8',
+          backgroundColor: isDark ? '#1a1a18' : '#e8e5e0',
+          border: `1px solid ${isDark ? '#2a2a28' : '#d4d0ca'}`,
+          borderRadius: '4px', padding: '2px 6px', whiteSpace: 'nowrap',
+        }}>⌘K</kbd>
+      </button>
 
       <div className="flex items-center gap-1.5">
         {/* Dark/light toggle */}

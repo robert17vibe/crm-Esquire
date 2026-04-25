@@ -106,6 +106,8 @@ export interface DealActivity {
 
 // ─── Meeting (Plaud Note integration) ────────────────────────────────────────
 
+export type MeetingStatus = 'agendada' | 'confirmada' | 'realizada' | 'reagendada' | 'cancelada'
+
 export interface DealMeeting {
   id: string
   deal_id: string
@@ -113,6 +115,8 @@ export interface DealMeeting {
   scheduled_at: string
   duration_minutes: number
   attendees: string[]
+  status?: MeetingStatus
+  meeting_link?: string | null
   plaud_note_id?: string
   transcript_excerpt?: string
   ai_summary?: string

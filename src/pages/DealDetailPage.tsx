@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react'
+﻿import React, { useState, useEffect, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import type { LucideIcon } from 'lucide-react'
 import {
   ArrowLeft, Mail, Phone, Linkedin, Globe,
-  Building2, Users, Target, MapPin,
+  Building2, Users, MapPin,
   Zap, Clock, Video, CheckSquare, FileText,
   Mic, ChevronDown, Plus, X, Pencil,
 } from 'lucide-react'
@@ -11,7 +11,6 @@ import { useDealStore } from '@/store/useDealStore'
 import { useThemeStore } from '@/store/useThemeStore'
 import { useActivityStore } from '@/store/useActivityStore'
 import { useMeetingStore } from '@/store/useMeetingStore'
-import { useAppStore } from '@/store/useAppStore'
 import { useTaskStore } from '@/store/useTaskStore'
 import { STAGES } from '@/constants/pipeline'
 import { supabase } from '@/lib/supabase'
@@ -97,22 +96,6 @@ const ARR_OPTIONS: { value: ArrRange; label: string }[] = [
 
 // ─── Building blocks ──────────────────────────────────────────────────────────
 
-function Field({ label, icon: Icon, children, muted, text }: {
-  label: string; icon?: LucideIcon; children: React.ReactNode; muted: string; text: string
-}) {
-  return (
-    <div style={{ marginBottom: '10px' }}>
-      <p style={{ fontSize: '10px', fontWeight: 600, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '3px' }}>
-        {label}
-      </p>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-        {Icon && <Icon style={{ width: '13px', height: '13px', color: muted, flexShrink: 0 }} />}
-        <span style={{ fontSize: '13px', fontWeight: 500, color: text }}>{children}</span>
-      </div>
-    </div>
-  )
-}
-
 function LinkField({ label, icon: Icon, href, external, children, muted }: {
   label: string; icon: LucideIcon; href: string; external?: boolean; children: React.ReactNode; muted: string
 }) {
@@ -130,17 +113,6 @@ function LinkField({ label, icon: Icon, href, external, children, muted }: {
         <Icon style={{ width: '13px', height: '13px', color: muted, flexShrink: 0 }} />
         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{children}</span>
       </a>
-    </div>
-  )
-}
-
-function SectionHead({ title, border, muted }: { title: string; border: string; muted: string }) {
-  return (
-    <div style={{ paddingTop: '14px', marginBottom: '10px' }}>
-      <div style={{ height: '1px', backgroundColor: border, marginBottom: '12px' }} />
-      <p style={{ fontSize: '10px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-        {title}
-      </p>
     </div>
   )
 }
@@ -597,33 +569,6 @@ function ProposalTab({ deal, isDark, border, text, muted, inputBg }: {
   )
 }
 
-// ─── Resize handle ────────────────────────────────────────────────────────────
-
-function ResizeHandle({
-  onMouseDown,
-  isDark,
-}: {
-  onMouseDown: (e: React.MouseEvent) => void
-  isDark: boolean
-}) {
-  const [hovered, setHovered] = useState(false)
-  return (
-    <div
-      onMouseDown={onMouseDown}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        width: '4px', flexShrink: 0, cursor: 'col-resize',
-        backgroundColor: hovered
-          ? (isDark ? 'rgba(58,56,52,0.3)' : 'rgba(196,191,184,0.3)')
-          : 'transparent',
-        transition: 'background-color 0.15s ease',
-        zIndex: 1,
-      }}
-    />
-  )
-}
-
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export function DealDetailPage() {
@@ -642,17 +587,14 @@ export function DealDetailPage() {
     [allMeetings, id],
   )
 
-  const leftColWidth    = useAppStore((s) => s.leftColWidth)
-  const rightColWidth   = useAppStore((s) => s.rightColWidth)
-  const setLeftColWidth  = useAppStore((s) => s.setLeftColWidth)
-  const setRightColWidth = useAppStore((s) => s.setRightColWidth)
-
-  const [activeTab, setActiveTab] = useState<'dados' | 'historico' | 'notas' | 'proposta'>('dados')
+  const [activeTab, setActiveTab] = useState<'overview' | 'activity' | 'notes' | 'proposal' | 'tasks'>('overview')
   const [_showStageMenu, _setShowStageMenu] = useState(false)
   const [pendingLossStage, setPendingLossStage] = useState(false)
   const [lossReasonDraft, setLossReasonDraft]   = useState('')
 
-  const createTask = useTaskStore((s) => s.create)
+  const createTask  = useTaskStore((s) => s.create)
+  const allTasks    = useTaskStore((s) => s.tasks)
+  const dealTasks   = useMemo(() => allTasks.filter((t) => t.deal_id === id), [allTasks, id])
   const [showAddActivity, setShowAddActivity] = useState(false)
   const [showQuickTask, setShowQuickTask] = useState(false)
   const [quickTaskTitle, setQuickTaskTitle] = useState('')
@@ -758,25 +700,6 @@ export function DealDetailPage() {
     }
   }
 
-  const startResizeLeft = useCallback((e: React.MouseEvent) => {
-    e.preventDefault()
-    const startX = e.clientX
-    const startW = leftColWidth
-    const onMove = (ev: MouseEvent) => setLeftColWidth(startW + (ev.clientX - startX))
-    const onUp   = () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp) }
-    document.addEventListener('mousemove', onMove)
-    document.addEventListener('mouseup', onUp)
-  }, [leftColWidth, setLeftColWidth])
-
-  const startResizeRight = useCallback((e: React.MouseEvent) => {
-    e.preventDefault()
-    const startX = e.clientX
-    const startW = rightColWidth
-    const onMove = (ev: MouseEvent) => setRightColWidth(startW - (ev.clientX - startX))
-    const onUp   = () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp) }
-    document.addEventListener('mousemove', onMove)
-    document.addEventListener('mouseup', onUp)
-  }, [rightColWidth, setRightColWidth])
 
   if (!deal) {
     return (
@@ -803,41 +726,79 @@ export function DealDetailPage() {
 
   const score = healthScore(deal)
 
-  const pageBg  = isDark ? '#0d0c0a' : '#f5f4f0'
-  const cardBg  = isDark ? '#161614' : '#ffffff'
-  const sideBg  = isDark ? '#111110' : '#faf9f6'
   const border  = isDark ? '#242422' : '#e4e0da'
   const text    = isDark ? '#e8e4dc' : '#1a1814'
   const muted   = isDark ? '#6b6560' : '#8a857d'
   const inputBg = isDark ? '#111110' : '#f8f7f4'
 
+  const currentStage = STAGES.find((s) => s.id === deal.stage_id)
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: pageBg }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: 'var(--surface-base)' }}>
 
       {/* ── Page header ── */}
       <div style={{
-        height: '48px', minHeight: '48px', display: 'flex', alignItems: 'center',
-        padding: '0 20px', borderBottom: `1px solid ${border}`, flexShrink: 0, gap: '8px',
+        height: '52px', minHeight: '52px', display: 'flex', alignItems: 'center',
+        padding: '0 20px', borderBottom: '1px solid var(--line)', flexShrink: 0, gap: '8px',
       }}>
         <button type="button" onClick={() => navigate('/pipeline')} style={{
           display: 'flex', alignItems: 'center', gap: '4px',
-          fontSize: '13px', color: muted, background: 'none', border: 'none', cursor: 'pointer', flexShrink: 0,
+          fontSize: '12px', color: 'var(--ink-muted)', background: 'none', border: 'none', cursor: 'pointer', flexShrink: 0,
         }}>
-          <ArrowLeft style={{ width: '14px', height: '14px' }} />
-          Pipeline
+          <ArrowLeft style={{ width: '13px', height: '13px' }} />
+          Jornada
         </button>
-        <span style={{ fontSize: '13px', color: border, flexShrink: 0 }}>/</span>
-        <p style={{ fontSize: '14px', fontWeight: 600, color: text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>
+        <span style={{ fontSize: '13px', color: 'var(--line)', flexShrink: 0 }}>/</span>
+        <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--ink-base)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>
           {deal.title}
         </p>
+        {/* Action buttons */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+          <a href={`mailto:${deal.contact_email ?? ''}`}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '5px',
+              height: '30px', padding: '0 12px', borderRadius: 'var(--radius-sm)',
+              border: '1px solid var(--line)', backgroundColor: 'transparent',
+              fontSize: '12px', fontWeight: 500, color: 'var(--ink-muted)', textDecoration: 'none',
+              cursor: deal.contact_email ? 'pointer' : 'default',
+              opacity: deal.contact_email ? 1 : 0.4,
+            }}>
+            <Mail style={{ width: '12px', height: '12px' }} />
+            Email
+          </a>
+          <button type="button"
+            onClick={() => moveDeal(deal.id, 'closed_won')}
+            disabled={deal.stage_id === 'closed_won'}
+            style={{
+              height: '30px', padding: '0 14px', borderRadius: 'var(--radius-sm)',
+              border: 'none', backgroundColor: deal.stage_id === 'closed_won' ? '#2d9e6b22' : '#2d9e6b',
+              fontSize: '12px', fontWeight: 600,
+              color: deal.stage_id === 'closed_won' ? '#2d9e6b' : '#fff',
+              cursor: deal.stage_id === 'closed_won' ? 'default' : 'pointer',
+            }}>
+            {deal.stage_id === 'closed_won' ? '✓ Ganho' : 'Marcar Ganho'}
+          </button>
+          <button type="button"
+            onClick={() => { setPendingLossStage(true); setLossReasonDraft('') }}
+            disabled={deal.stage_id === 'closed_lost'}
+            style={{
+              height: '30px', padding: '0 14px', borderRadius: 'var(--radius-sm)',
+              border: '1px solid var(--line)', backgroundColor: 'transparent',
+              fontSize: '12px', fontWeight: 500, color: deal.stage_id === 'closed_lost' ? '#c53030' : 'var(--ink-muted)',
+              cursor: deal.stage_id === 'closed_lost' ? 'default' : 'pointer',
+            }}>
+            {deal.stage_id === 'closed_lost' ? '✗ Perdido' : 'Marcar Perdido'}
+          </button>
+        </div>
       </div>
 
       {/* ── Stage selector strip ── */}
       <div style={{
-        flexShrink: 0, padding: '10px 20px 0',
+        flexShrink: 0, padding: '8px 20px 0',
         display: 'flex', flexDirection: 'column', gap: '0',
+        borderBottom: '1px solid var(--line)',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', overflowX: 'auto', paddingBottom: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '3px', overflowX: 'auto', paddingBottom: '8px' }}>
           {STAGES.map((s, idx) => {
             const isActive = deal.stage_id === s.id
             const isPrev   = STAGES.findIndex((st) => st.id === deal.stage_id) > idx
@@ -855,16 +816,16 @@ export function DealDetailPage() {
                 }}
                 style={{
                   display: 'flex', alignItems: 'center', gap: '5px',
-                  height: '30px', padding: '0 12px', borderRadius: '6px', whiteSpace: 'nowrap',
+                  height: '28px', padding: '0 11px', borderRadius: 'var(--radius-sm)', whiteSpace: 'nowrap',
                   fontSize: '11px', fontWeight: isActive ? 700 : 500,
-                  color: isActive ? s.color : isPrev ? (isDark ? '#5a5855' : '#aaa9a6') : (isDark ? '#8a8785' : '#6b6560'),
+                  color: isActive ? s.color : isPrev ? 'var(--ink-faint)' : 'var(--ink-muted)',
                   backgroundColor: isActive ? `${s.color}18` : 'transparent',
-                  border: isActive ? `1.5px solid ${s.color}50` : `1.5px solid transparent`,
+                  border: isActive ? `1.5px solid ${s.color}50` : '1.5px solid transparent',
                   cursor: s.id === deal.stage_id ? 'default' : 'pointer',
                   transition: 'all 0.15s ease',
                   flexShrink: 0,
                 }}
-                onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.backgroundColor = isDark ? '#1e1e1c' : '#f0eeea' }}
+                onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.backgroundColor = 'var(--surface-raised)' }}
                 onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.backgroundColor = 'transparent' }}
               >
                 {isActive && <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: s.color, flexShrink: 0 }} />}
@@ -879,7 +840,7 @@ export function DealDetailPage() {
           <div style={{
             backgroundColor: isDark ? '#1a1210' : '#fff5f5',
             border: `1px solid ${isDark ? '#4a2020' : '#fecaca'}`,
-            borderRadius: '8px', padding: '12px 14px', marginBottom: '10px',
+            borderRadius: 'var(--radius-md)', padding: '12px 14px', marginBottom: '10px',
             display: 'flex', flexDirection: 'column', gap: '8px',
           }}>
             <p style={{ fontSize: '11px', fontWeight: 700, color: '#c53030', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
@@ -889,7 +850,7 @@ export function DealDetailPage() {
               {['Preço', 'Concorrência', 'Timing', 'Sem budget', 'Sem fit', 'Sem resposta', 'Outro'].map((r) => (
                 <button key={r} type="button" onClick={() => setLossReasonDraft(r)}
                   style={{
-                    fontSize: '11px', fontWeight: 600, padding: '4px 10px', borderRadius: '5px', cursor: 'pointer',
+                    fontSize: '11px', fontWeight: 600, padding: '4px 10px', borderRadius: 'var(--radius-sm)', cursor: 'pointer',
                     border: `1px solid ${lossReasonDraft === r ? '#c53030' : (isDark ? '#3a2a2a' : '#fecaca')}`,
                     backgroundColor: lossReasonDraft === r ? '#c5303018' : 'transparent',
                     color: lossReasonDraft === r ? '#c53030' : (isDark ? '#9a7070' : '#b45309'),
@@ -898,7 +859,7 @@ export function DealDetailPage() {
             </div>
             <input type="text" value={lossReasonDraft} onChange={(e) => setLossReasonDraft(e.target.value)}
               placeholder="Ou descreva o motivo..."
-              style={{ height: '32px', padding: '0 10px', fontSize: '12px', backgroundColor: isDark ? '#110e0e' : '#fef2f2', border: `1px solid ${isDark ? '#4a2020' : '#fecaca'}`, borderRadius: '5px', color: text, outline: 'none' }} />
+              style={{ height: '32px', padding: '0 10px', fontSize: '12px', backgroundColor: inputBg, border: `1px solid ${isDark ? '#4a2020' : '#fecaca'}`, borderRadius: 'var(--radius-sm)', color: text, outline: 'none' }} />
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
               <button type="button" onClick={() => setPendingLossStage(false)}
                 style={{ fontSize: '12px', fontWeight: 600, color: muted, background: 'none', border: 'none', cursor: 'pointer', padding: '5px 10px' }}>
@@ -912,8 +873,8 @@ export function DealDetailPage() {
                   setLossReasonDraft('')
                 }}
                 style={{
-                  fontSize: '12px', fontWeight: 600, padding: '5px 14px', borderRadius: '6px', border: 'none', cursor: lossReasonDraft.trim() ? 'pointer' : 'not-allowed',
-                  backgroundColor: lossReasonDraft.trim() ? '#c53030' : (isDark ? '#2a2a28' : '#e4e0da'),
+                  fontSize: '12px', fontWeight: 600, padding: '5px 14px', borderRadius: 'var(--radius-sm)', border: 'none', cursor: lossReasonDraft.trim() ? 'pointer' : 'not-allowed',
+                  backgroundColor: lossReasonDraft.trim() ? '#c53030' : 'var(--surface-raised)',
                   color: lossReasonDraft.trim() ? '#fff' : muted,
                 }}>
                 Confirmar perda
@@ -921,42 +882,168 @@ export function DealDetailPage() {
             </div>
           </div>
         )}
-        <div style={{ height: '1px', backgroundColor: border }} />
       </div>
 
-      {/* ── 3-column body ── */}
+      {/* ── 2-column body ── */}
       <div style={{
         flex: 1, minHeight: 0, display: 'flex',
-        margin: '16px', gap: '0',
-        border: `1px solid ${border}`, borderRadius: '10px', overflow: 'hidden',
+        padding: '16px', gap: '16px', overflow: 'hidden',
       }}>
 
-        {/* ── Left: deal info ── */}
+        {/* ── Left panel: 300px fixed ── */}
         <aside style={{
-          width: `${leftColWidth}px`, minWidth: `${leftColWidth}px`, flexShrink: 0,
-          backgroundColor: sideBg, overflowY: 'auto',
+          width: '300px', minWidth: '300px', flexShrink: 0,
+          overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px',
         }}>
-          <div style={{ padding: '16px 14px' }}>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
+          {/* ── Identity card ── */}
+          <div className="card" style={{ padding: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
               <div style={{
-                width: '36px', height: '36px', borderRadius: '50%', backgroundColor: avatarColor, flexShrink: 0,
+                width: '44px', height: '44px', borderRadius: 'var(--radius-full)', backgroundColor: avatarColor, flexShrink: 0,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                color: '#fff', fontSize: '13px', fontWeight: 700,
+                color: '#fff', fontSize: '15px', fontWeight: 700,
               }}>
                 {initials}
               </div>
-              <div style={{ minWidth: 0 }}>
-                <p style={{ fontSize: '13px', fontWeight: 700, color: text, lineHeight: 1.25, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {contactName}
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <p style={{ fontSize: '14px', fontWeight: 700, color: text, lineHeight: 1.25, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {deal.title}
                 </p>
-                <p style={{ fontSize: '11px', fontWeight: 500, color: '#2c5545', marginTop: '1px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {deal.company_name}
+                <p style={{ fontSize: '12px', fontWeight: 500, color: 'var(--brand)', marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {deal.company_name ?? contactName}
                 </p>
               </div>
             </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+              {currentStage && (
+                <span style={{ fontSize: '10px', fontWeight: 700, color: currentStage.color, backgroundColor: `${currentStage.color}18`, borderRadius: 'var(--radius-full)', padding: '2px 8px', border: `1px solid ${currentStage.color}30` }}>
+                  {currentStage.label}
+                </span>
+              )}
+              <span style={{ fontSize: '13px', fontWeight: 700, color: text, fontVariantNumeric: 'tabular-nums' }}>
+                {formatCurrency(deal.value)}
+              </span>
+              <span style={{ fontSize: '12px', color: muted }}>·</span>
+              <span style={{ fontSize: '12px', color: muted }}>{deal.probability}%</span>
+            </div>
+          </div>
 
-            <div style={{ height: '1px', backgroundColor: border, marginBottom: '12px' }} />
+          {/* ── Informações card ── */}
+          <div className="card" style={{ padding: '14px 16px' }}>
+            <p className="section-header" style={{ marginBottom: '12px' }}>Informações</p>
+
+            {/* Owner */}
+            <div style={{ marginBottom: '12px' }}>
+              <p style={{ fontSize: '10px', fontWeight: 600, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '6px' }}>Responsável</p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ width: '28px', height: '28px', borderRadius: 'var(--radius-full)', backgroundColor: owner.avatar_color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '10px', fontWeight: 700, flexShrink: 0 }}>{owner.initials}</div>
+                <span style={{ fontSize: '13px', fontWeight: 600, color: text }}>{owner.name}</span>
+              </div>
+            </div>
+
+            {/* Expected close */}
+            {deal.expected_close && (
+              <div style={{ marginBottom: '10px' }}>
+                <p style={{ fontSize: '10px', fontWeight: 600, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '3px' }}>Previsão de fecho</p>
+                <p style={{ fontSize: '13px', fontWeight: 500, color: text }}>{formatDate(deal.expected_close)}</p>
+              </div>
+            )}
+
+            {/* Company info */}
+            {deal.company_sector && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                <Building2 style={{ width: '12px', height: '12px', color: muted, flexShrink: 0 }} />
+                <span style={{ fontSize: '12px', color: text }}>{deal.company_sector}</span>
+              </div>
+            )}
+            {deal.company_size && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                <Users style={{ width: '12px', height: '12px', color: muted, flexShrink: 0 }} />
+                <span style={{ fontSize: '12px', color: muted }}>{SIZE_LABELS[deal.company_size] ?? deal.company_size}</span>
+              </div>
+            )}
+            {deal.lead_source && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                <MapPin style={{ width: '12px', height: '12px', color: muted, flexShrink: 0 }} />
+                <span style={{ fontSize: '12px', color: muted }}>{deal.lead_source}</span>
+              </div>
+            )}
+            {deal.last_activity_at && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                <Clock style={{ width: '12px', height: '12px', color: muted, flexShrink: 0 }} />
+                <span style={{ fontSize: '12px', color: muted }}>Última ativ. {relativeDate(deal.last_activity_at)}</span>
+              </div>
+            )}
+
+            {/* Edit fields */}
+            <div style={{ height: '1px', backgroundColor: 'var(--line)', margin: '10px 0' }} />
+            <div style={{ marginBottom: '8px' }}>
+              <p style={{ fontSize: '10px', fontWeight: 600, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '3px' }}>Setor</p>
+              {editingField === 'company_sector' ? (
+                <input autoFocus type="text" value={editDraft} onChange={(e) => setEditDraft(e.target.value)}
+                  onBlur={() => saveField({ company_sector: editDraft.trim() || undefined })}
+                  onKeyDown={(e) => { if (e.key === 'Enter') saveField({ company_sector: editDraft.trim() || undefined }); if (e.key === 'Escape') cancelEdit() }}
+                  style={{ width: '100%', height: '28px', padding: '0 8px', fontSize: '12px', backgroundColor: inputBg, border: `1px solid var(--line)`, borderRadius: 'var(--radius-sm)', color: text, outline: 'none', boxSizing: 'border-box' }} />
+              ) : (
+                <div style={{ cursor: 'pointer' }} onClick={() => startEdit('company_sector', deal.company_sector ?? '')} title="Clique para editar">
+                  <span style={{ fontSize: '12px', fontWeight: 500, color: deal.company_sector ? text : muted, fontStyle: deal.company_sector ? 'normal' : 'italic', borderBottom: `1px dashed var(--line)` }}>
+                    {deal.company_sector ?? 'Adicionar setor...'}
+                  </span>
+                </div>
+              )}
+            </div>
+            <div style={{ marginBottom: '8px' }}>
+              <p style={{ fontSize: '10px', fontWeight: 600, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '3px' }}>Tamanho</p>
+              <select value={deal.company_size ?? ''} onChange={(e) => saveField({ company_size: (e.target.value as CompanySize) || undefined })}
+                style={{ fontSize: '12px', fontWeight: 500, color: deal.company_size ? text : muted, backgroundColor: inputBg, border: `1px solid var(--line)`, borderRadius: 'var(--radius-sm)', padding: '2px 6px', cursor: 'pointer', outline: 'none', width: '100%' }}>
+                <option value="">Selecionar...</option>
+                {SIZE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </div>
+            <div style={{ marginBottom: '8px' }}>
+              <p style={{ fontSize: '10px', fontWeight: 600, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '3px' }}>ARR Estimado</p>
+              <select value={deal.company_arr_range ?? ''} onChange={(e) => saveField({ company_arr_range: (e.target.value as ArrRange) || undefined })}
+                style={{ fontSize: '12px', fontWeight: 500, color: deal.company_arr_range ? text : muted, backgroundColor: inputBg, border: `1px solid var(--line)`, borderRadius: 'var(--radius-sm)', padding: '2px 6px', cursor: 'pointer', outline: 'none', width: '100%' }}>
+                <option value="">Selecionar...</option>
+                {ARR_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </div>
+            {teams.length > 0 && (
+              <div>
+                <p style={{ fontSize: '10px', fontWeight: 600, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '3px' }}>Time</p>
+                <select value={(deal as Deal & { team_id?: string }).team_id ?? ''} onChange={(e) => saveField({ team_id: e.target.value || undefined } as Partial<Deal>)}
+                  style={{ fontSize: '12px', color: (deal as Deal & { team_id?: string }).team_id ? text : muted, backgroundColor: inputBg, border: `1px solid var(--line)`, borderRadius: 'var(--radius-sm)', padding: '2px 6px', cursor: 'pointer', outline: 'none', width: '100%' }}>
+                  <option value="">Sem time</option>
+                  {teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                </select>
+              </div>
+            )}
+          </div>
+
+          {/* ── Próxima atividade card ── */}
+          <div className="card" style={{ padding: '14px 16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+              <p className="section-header">Próxima Atividade</p>
+              {!editingNextAct && (
+                <div style={{ display: 'flex', gap: '2px' }}>
+                  <button type="button" title="Editar" onClick={() => {
+                    setNextActType(deal.next_activity?.type ?? 'call')
+                    setNextActLabel(deal.next_activity?.label ?? '')
+                    setNextActDate(deal.next_activity?.due_date ?? '')
+                    setEditingNextAct(true)
+                  }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: muted, padding: '2px 4px', borderRadius: '3px' }}>
+                    <Pencil style={{ width: '10px', height: '10px' }} />
+                  </button>
+                  {deal.next_activity && (
+                    <button type="button" title="Remover" onClick={() => setNextActivity(deal.id, null)}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: muted, padding: '2px 4px', borderRadius: '3px' }}>
+                      <X style={{ width: '10px', height: '10px' }} />
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
 
             {/* ── Próxima atividade (editable) ── */}
             <div style={{ marginBottom: '10px' }}>
@@ -1060,41 +1147,124 @@ export function DealDetailPage() {
               )}
             </div>
           </div>
+
+          {/* ── Contatos card ── */}
+          <div className="card" style={{ padding: '14px 16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+              <p className="section-header">Contatos ({deal.stakeholders?.length ?? 0})</p>
+              <button type="button" onClick={() => { setShowAddStakeholder((v) => !v); if (!showAddStakeholder) loadProfiles() }}
+                style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '10px', fontWeight: 600, color: showAddStakeholder ? muted : 'var(--brand)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px' }}>
+                {showAddStakeholder ? <><X style={{ width: '10px', height: '10px' }} />Fechar</> : <><Plus style={{ width: '10px', height: '10px' }} />Adicionar</>}
+              </button>
+            </div>
+            {showAddStakeholder && (
+              <div style={{ marginBottom: '10px', padding: '8px', backgroundColor: 'var(--surface-raised)', borderRadius: 'var(--radius-md)', border: '1px solid var(--line)' }}>
+                {loadingProfiles ? (
+                  <p style={{ fontSize: '11px', color: muted, textAlign: 'center', padding: '4px 0' }}>Carregando...</p>
+                ) : profiles.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '4px 0' }}>
+                    <p style={{ fontSize: '11px', color: muted, fontStyle: 'italic', marginBottom: '6px' }}>Nenhum perfil encontrado</p>
+                    <button type="button" onClick={() => loadProfiles(true)} style={{ fontSize: '10px', fontWeight: 600, color: 'var(--brand)', background: 'none', border: 'none', cursor: 'pointer' }}>Tentar novamente</button>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '160px', overflowY: 'auto' }}>
+                    {profiles
+                      .map((p) => ({ ...p, displayName: p.full_name || p.email.split('@')[0] }))
+                      .filter((p) => !(deal.stakeholders ?? []).some((s) => s.name === p.displayName))
+                      .map((p) => (
+                        <button key={p.id} type="button" onClick={() => addStakeholder(p)}
+                          style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '5px 6px', borderRadius: 'var(--radius-sm)', border: 'none', backgroundColor: 'transparent', cursor: 'pointer', textAlign: 'left', width: '100%' }}
+                          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--surface-overlay)')}
+                          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}>
+                          <UserAvatarRow name={p.displayName} initials={getInitials(p.displayName)} color={p.avatar_color || getAvatarColor(p.id)} size="xs" textColor={text} />
+                        </button>
+                      ))}
+                  </div>
+                )}
+              </div>
+            )}
+            {(deal.stakeholders ?? []).length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '7px' }}>
+                {deal.stakeholders!.map((s, i) => (
+                  <div key={`${s.name}-${i}`} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div style={{ width: '24px', height: '24px', borderRadius: 'var(--radius-full)', backgroundColor: s.color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '7px', fontWeight: 700, flexShrink: 0 }}>{s.initials}</div>
+                    <span style={{ fontSize: '12px', fontWeight: 500, color: text, flex: 1 }}>{s.name}</span>
+                    <button type="button" title="Remover" onClick={() => removeStakeholder(i)}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: muted, padding: '2px', borderRadius: '3px', lineHeight: 1, flexShrink: 0 }}
+                      onMouseEnter={(e) => (e.currentTarget.style.color = '#c53030')}
+                      onMouseLeave={(e) => (e.currentTarget.style.color = muted)}>
+                      <X style={{ width: '11px', height: '11px' }} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p style={{ fontSize: '11px', color: muted, fontStyle: 'italic' }}>Nenhum contato mapeado</p>
+            )}
+          </div>
+
+          {/* ── Saúde card ── */}
+          <div className="card" style={{ padding: '14px 16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '12px' }}>
+              <Zap style={{ width: '13px', height: '13px', color: 'var(--brand)' }} />
+              <p className="section-header">Aurea AI · Saúde</p>
+            </div>
+            <HealthBar score={score} isDark={isDark} />
+            <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              {[
+                { label: 'Probabilidade', value: `${deal.probability}%`, ok: deal.probability >= 50 },
+                { label: 'Última atividade', value: deal.last_activity_at ? relativeDate(deal.last_activity_at) : '—', ok: deal.last_activity_at ? (Date.now() - new Date(deal.last_activity_at).getTime()) / 86_400_000 <= 14 : false },
+                { label: 'Contatos', value: `${deal.stakeholders?.length ?? 0} mapeados`, ok: (deal.stakeholders?.length ?? 0) >= 2 },
+                { label: 'Tempo na etapa', value: `${deal.days_in_stage}d`, ok: deal.days_in_stage <= 60 },
+              ].map(({ label, value: v, ok }) => (
+                <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '11px', color: muted }}>{label}</span>
+                  <span style={{ fontSize: '11px', fontWeight: 600, color: ok ? '#2d9e6b' : isDark ? '#fc8181' : '#c53030' }}>{v}</span>
+                </div>
+              ))}
+            </div>
+            {(deal.days_in_stage > 60 || !deal.next_activity) && (
+              <div style={{ marginTop: '12px', padding: '10px 12px', backgroundColor: isDark ? '#2d151522' : '#fff5f5', border: `1px solid ${isDark ? '#4a1f1f' : '#fecaca'}`, borderRadius: 'var(--radius-md)' }}>
+                {deal.days_in_stage > 90 && <p style={{ fontSize: '11px', color: isDark ? '#fc8181' : '#c53030' }}>⚠ Estagnado há {deal.days_in_stage} dias</p>}
+                {deal.days_in_stage > 60 && deal.days_in_stage <= 90 && <p style={{ fontSize: '11px', color: '#b45309' }}>⚠ {deal.days_in_stage} dias nesta etapa</p>}
+                {!deal.next_activity && <p style={{ fontSize: '11px', color: isDark ? '#fc8181' : '#c53030' }}>⚠ Sem próxima atividade</p>}
+              </div>
+            )}
+          </div>
+
+          {/* ── Related deals & stakeholder map ── */}
+          <StakeholderMap dealId={deal.id} isDark={isDark} />
+          <RelatedDeals dealId={deal.id} isDark={isDark} />
+
         </aside>
 
-        {/* ── Resize handle left ── */}
-        <ResizeHandle onMouseDown={startResizeLeft} isDark={isDark} />
-
-        {/* ── Center: tabbed ── */}
-        <div style={{ flex: 1, minWidth: 0, backgroundColor: cardBg, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        {/* ── Right panel: flex ── */}
+        <div style={{ flex: 1, minWidth: 0, backgroundColor: 'var(--surface-card)', border: '1px solid var(--line)', borderRadius: 'var(--radius-lg)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
           {/* Tab bar */}
-          <div style={{ padding: '0 24px', borderBottom: `1px solid ${border}`, flexShrink: 0, display: 'flex', alignItems: 'center', gap: '2px', height: '48px' }}>
+          <div style={{ padding: '0 20px', borderBottom: '1px solid var(--line)', flexShrink: 0, display: 'flex', alignItems: 'center', gap: '2px', height: '48px' }}>
             {([
-              { id: 'dados',     label: 'Dados' },
-              { id: 'historico', label: 'Histórico' },
-              { id: 'notas',     label: 'Notas' },
-              { id: 'proposta',  label: 'Proposta' },
+              { id: 'overview',  label: 'Visão geral' },
+              { id: 'activity',  label: 'Histórico' },
+              { id: 'notes',     label: 'Notas' },
+              { id: 'proposal',  label: 'Propostas' },
+              { id: 'tasks',     label: 'Tarefas' },
             ] as const).map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setActiveTab(tab.id)}
+              <button key={tab.id} type="button" onClick={() => setActiveTab(tab.id)}
                 style={{
                   height: '100%', padding: '0 14px', fontSize: '13px', fontWeight: activeTab === tab.id ? 600 : 500,
                   color: activeTab === tab.id ? text : muted,
                   backgroundColor: 'transparent', border: 'none', cursor: 'pointer',
                   borderBottom: activeTab === tab.id ? `2px solid ${text}` : '2px solid transparent',
                   transition: 'color 0.15s, border-color 0.15s',
-                  marginBottom: '-1px',
+                  marginBottom: '-1px', whiteSpace: 'nowrap',
                 }}
                 onMouseEnter={(e) => { if (activeTab !== tab.id) e.currentTarget.style.color = text }}
-                onMouseLeave={(e) => { if (activeTab !== tab.id) e.currentTarget.style.color = muted }}
-              >
+                onMouseLeave={(e) => { if (activeTab !== tab.id) e.currentTarget.style.color = muted }}>
                 {tab.label}
               </button>
             ))}
-            {activeTab === 'historico' && (
+            {activeTab === 'activity' && (
               <div style={{ marginLeft: 'auto', display: 'flex', gap: '6px', flexShrink: 0 }}>
                 <button
                   type="button"
@@ -1131,88 +1301,113 @@ export function DealDetailPage() {
           {/* Tab content */}
           <div style={{ flex: 1, overflowY: 'auto' }}>
 
-            {/* ── Dados tab ── */}
-            {activeTab === 'dados' && (
+            {/* ── Visão geral tab ── */}
+            {activeTab === 'overview' && (
               <div style={{ padding: '20px 24px' }}>
-
-                {/* Contato */}
-                <SectionHead title="Contato" border={border} muted={muted} />
-                {deal.contact_email && <LinkField label="Email" icon={Mail} href={`mailto:${deal.contact_email}`} muted={muted}>{deal.contact_email}</LinkField>}
-                {deal.contact_phone && <LinkField label="Telefone" icon={Phone} href={`tel:${deal.contact_phone}`} muted={muted}>{deal.contact_phone}</LinkField>}
-                {deal.contact_linkedin && <LinkField label="LinkedIn" icon={Linkedin} href={deal.contact_linkedin} external muted={muted}>Ver perfil ↗</LinkField>}
-                {deal.company_website && <LinkField label="Site" icon={Globe} href={deal.company_website} external muted={muted}>{deal.company_website.replace(/^https?:\/\//, '')} ↗</LinkField>}
-
-                {/* Empresa */}
-                <SectionHead title="Empresa" border={border} muted={muted} />
-                <div style={{ marginBottom: '10px' }}>
-                  <p style={{ fontSize: '10px', fontWeight: 600, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '3px' }}>Setor</p>
-                  {editingField === 'company_sector' ? (
-                    <input autoFocus type="text" value={editDraft} onChange={(e) => setEditDraft(e.target.value)}
-                      onBlur={() => saveField({ company_sector: editDraft.trim() || undefined })}
-                      onKeyDown={(e) => { if (e.key === 'Enter') saveField({ company_sector: editDraft.trim() || undefined }); if (e.key === 'Escape') cancelEdit() }}
-                      placeholder="Ex: Energia, Finanças..."
-                      style={{ width: '100%', height: '28px', padding: '0 8px', fontSize: '12px', fontWeight: 500, backgroundColor: inputBg, border: `1px solid ${border}`, borderRadius: '5px', color: text, outline: 'none' }} />
-                  ) : (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }} onClick={() => startEdit('company_sector', deal.company_sector ?? '')} title="Clique para editar">
-                      <Building2 style={{ width: '13px', height: '13px', color: muted, flexShrink: 0 }} />
-                      <span style={{ fontSize: '13px', fontWeight: 500, color: deal.company_sector ? text : muted, fontStyle: deal.company_sector ? 'normal' : 'italic', borderBottom: `1px dashed ${border}` }}>
-                        {deal.company_sector ?? 'Adicionar setor...'}
-                      </span>
-                    </div>
-                  )}
-                </div>
-                <div style={{ marginBottom: '10px' }}>
-                  <p style={{ fontSize: '10px', fontWeight: 600, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '3px' }}>Tamanho</p>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <Users style={{ width: '13px', height: '13px', color: muted, flexShrink: 0 }} />
-                    <select value={deal.company_size ?? ''} onChange={(e) => saveField({ company_size: (e.target.value as CompanySize) || undefined })}
-                      style={{ fontSize: '12px', fontWeight: 500, color: deal.company_size ? text : muted, backgroundColor: inputBg, border: `1px solid ${border}`, borderRadius: '5px', padding: '2px 6px', cursor: 'pointer', outline: 'none', flex: 1 }}>
-                      <option value="">Selecionar...</option>
-                      {SIZE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                    </select>
+                {/* KPI cards */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '24px' }}>
+                  <div className="card" style={{ padding: '16px 18px' }}>
+                    <p className="section-header" style={{ marginBottom: '6px' }}>Valor</p>
+                    <p style={{ fontSize: '22px', fontWeight: 700, color: '#2d9e6b', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em' }}>{formatCurrency(deal.value)}</p>
                   </div>
-                </div>
-                <div style={{ marginBottom: '10px' }}>
-                  <p style={{ fontSize: '10px', fontWeight: 600, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '3px' }}>ARR Estimado</p>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <Target style={{ width: '13px', height: '13px', color: muted, flexShrink: 0 }} />
-                    <select value={deal.company_arr_range ?? ''} onChange={(e) => saveField({ company_arr_range: (e.target.value as ArrRange) || undefined })}
-                      style={{ fontSize: '12px', fontWeight: 500, color: deal.company_arr_range ? text : muted, backgroundColor: inputBg, border: `1px solid ${border}`, borderRadius: '5px', padding: '2px 6px', cursor: 'pointer', outline: 'none', flex: 1 }}>
-                      <option value="">Selecionar...</option>
-                      {ARR_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                    </select>
+                  <div className="card" style={{ padding: '16px 18px' }}>
+                    <p className="section-header" style={{ marginBottom: '6px' }}>Previsão</p>
+                    <p style={{ fontSize: '22px', fontWeight: 700, color: text, letterSpacing: '-0.02em' }}>{deal.expected_close ? formatDate(deal.expected_close) : '—'}</p>
                   </div>
                 </div>
 
-                {/* Lead */}
-                <SectionHead title="Lead" border={border} muted={muted} />
-                <div style={{ marginBottom: '10px' }}>
-                  <p style={{ fontSize: '10px', fontWeight: 600, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '4px' }}>Proprietário</p>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <div style={{ width: '22px', height: '22px', borderRadius: '50%', backgroundColor: owner.avatar_color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '8px', fontWeight: 700, flexShrink: 0 }}>{owner.initials}</div>
-                    <span style={{ fontSize: '13px', fontWeight: 500, color: text }}>{owner.name}</span>
-                  </div>
-                </div>
-                {deal.lead_source && <Field label="Origem" icon={MapPin} muted={muted} text={text}>{deal.lead_source}</Field>}
-                {teams.length > 0 && (
-                  <div style={{ marginBottom: '10px' }}>
-                    <p style={{ fontSize: '10px', fontWeight: 600, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '3px' }}>Time</p>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <Users style={{ width: '13px', height: '13px', color: muted, flexShrink: 0 }} />
-                      <select value={(deal as Deal & { team_id?: string }).team_id ?? ''} onChange={(e) => saveField({ team_id: e.target.value || undefined } as Partial<Deal>)}
-                        style={{ fontSize: '12px', fontWeight: 500, color: (deal as Deal & { team_id?: string }).team_id ? text : muted, backgroundColor: inputBg, border: `1px solid ${border}`, borderRadius: '5px', padding: '2px 6px', cursor: 'pointer', outline: 'none', flex: 1 }}>
-                        <option value="">Sem time</option>
-                        {teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-                      </select>
+                {/* Contato links */}
+                {(deal.contact_email || deal.contact_phone || deal.contact_linkedin || deal.company_website) && (
+                  <div style={{ marginBottom: '24px' }}>
+                    <p className="section-header" style={{ marginBottom: '12px' }}>Contacto</p>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      {deal.contact_email && <LinkField label="Email" icon={Mail} href={`mailto:${deal.contact_email}`} muted={muted}>{deal.contact_email}</LinkField>}
+                      {deal.contact_phone && <LinkField label="Telefone" icon={Phone} href={`tel:${deal.contact_phone}`} muted={muted}>{deal.contact_phone}</LinkField>}
+                      {deal.contact_linkedin && <LinkField label="LinkedIn" icon={Linkedin} href={deal.contact_linkedin} external muted={muted}>Ver perfil ↗</LinkField>}
+                      {deal.company_website && <LinkField label="Site" icon={Globe} href={deal.company_website} external muted={muted}>{deal.company_website.replace(/^https?:\/\//, '')} ↗</LinkField>}
                     </div>
                   </div>
                 )}
-                {deal.last_activity_at && <Field label="Última atividade" icon={Clock} muted={muted} text={text}>{relativeDate(deal.last_activity_at)}</Field>}
+
+                {/* Recent activity feed */}
+                <p className="section-header" style={{ marginBottom: '12px' }}>Atividade Recente</p>
+                {(() => {
+                  const timeline = buildTimeline(activities, meetings).slice(0, 5)
+                  if (timeline.length === 0) return <p style={{ fontSize: '12px', color: muted, fontStyle: 'italic' }}>Nenhuma atividade ainda</p>
+                  return (
+                    <div>
+                      {timeline.map((entry) => (
+                        <div key={entry.kind === 'activity' ? entry.activity.id : entry.meeting.id}>
+                          {entry.kind === 'activity'
+                            ? <ActivityEntry activity={entry.activity} meeting={entry.meeting} isDark={isDark} />
+                            : <StandaloneMeetingEntry meeting={entry.meeting} isDark={isDark} />
+                          }
+                        </div>
+                      ))}
+                      {buildTimeline(activities, meetings).length > 5 && (
+                        <button type="button" onClick={() => setActiveTab('activity')} style={{ fontSize: '12px', fontWeight: 600, color: 'var(--brand)', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0' }}>
+                          Ver toda atividade →
+                        </button>
+                      )}
+                    </div>
+                  )
+                })()}
+
+                {/* Audit log */}
+                <div style={{ marginTop: '24px' }}>
+                  <button type="button" onClick={() => { setShowHistory((v) => !v); if (!showHistory && dealEvents.length === 0) loadEvents() }}
+                    style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'none', border: 'none', cursor: 'pointer', padding: '0 0 8px 0', width: '100%', textAlign: 'left' }}>
+                    <p className="section-header">Histórico de alterações</p>
+                    <ChevronDown style={{ width: '11px', height: '11px', color: muted, transform: showHistory ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s', marginLeft: 'auto' }} />
+                  </button>
+                  {showHistory && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {loadingEvents ? (
+                        <p style={{ fontSize: '11px', color: muted }}>Carregando...</p>
+                      ) : dealEvents.length === 0 ? (
+                        <p style={{ fontSize: '11px', color: muted, fontStyle: 'italic' }}>Nenhuma alteração registrada</p>
+                      ) : dealEvents.map((ev) => {
+                        const fieldLabel = ev.field_name ? (FIELD_LABELS[ev.field_name] ?? ev.field_name) : 'Campo'
+                        const isStage = ev.event_type === 'stage_change'
+                        function fmtVal(v: unknown, field?: string): string {
+                          if (v == null) return '—'
+                          if (field === 'stage_id') return STAGES.find((s) => s.id === String(v))?.label ?? String(v)
+                          if (field === 'value') return formatCurrency(Number(v))
+                          if (field === 'probability') return `${v}%`
+                          if (field === 'expected_close') return formatDate(String(v))
+                          if (field === 'company_size') return SIZE_LABELS[String(v)] ?? String(v)
+                          if (field === 'company_arr_range') return ARR_LABELS[String(v)] ?? String(v)
+                          if (field === 'stakeholders' || field === 'next_activity') {
+                            if (Array.isArray(v)) return `${v.length} item${v.length !== 1 ? 's' : ''}`
+                            if (typeof v === 'object') return 'actualizado'
+                            return String(v)
+                          }
+                          return String(v)
+                        }
+                        const oldStr = fmtVal(ev.old_value, ev.field_name)
+                        const newStr = fmtVal(ev.new_value, ev.field_name)
+                        return (
+                          <div key={ev.id} style={{ display: 'flex', flexDirection: 'column', gap: '3px', padding: '8px 10px', backgroundColor: 'var(--surface-raised)', borderRadius: 'var(--radius-md)' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                              <span style={{ fontSize: '10px', fontWeight: 700, color: isStage ? 'var(--brand)' : muted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{isStage ? '↗ Etapa' : fieldLabel}</span>
+                              <span style={{ fontSize: '9px', color: muted }}>{relativeDate(ev.created_at.slice(0, 10))}</span>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: text, flexWrap: 'wrap' }}>
+                              <span style={{ color: isDark ? '#fc8181' : '#c53030', textDecoration: 'line-through' }}>{oldStr}</span>
+                              <span style={{ color: muted }}>→</span>
+                              <span style={{ color: '#2d9e6b', fontWeight: 600 }}>{newStr}</span>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
-            {/* ── Histórico tab ── */}
-            {activeTab === 'historico' && (
+            {/* ── Atividade tab ── */}
+            {activeTab === 'activity' && (
               <div style={{ padding: '20px 24px' }}>
                 {showQuickTask && (
                   <div style={{
@@ -1303,236 +1498,81 @@ export function DealDetailPage() {
             )}
 
             {/* ── Notas tab ── */}
-            {activeTab === 'notas' && (
+            {activeTab === 'notes' && (
               <NotesSection dealId={deal.id} owner={owner} isDark={isDark} border={border} text={text} muted={muted} />
             )}
 
-            {/* ── Proposta tab ── */}
-            {activeTab === 'proposta' && (
+            {/* ── Propostas tab ── */}
+            {activeTab === 'proposal' && (
               <ProposalTab deal={deal} isDark={isDark} border={border} text={text} muted={muted} inputBg={inputBg} />
             )}
 
-          </div>
-        </div>
-
-        {/* ── Resize handle right ── */}
-        <ResizeHandle onMouseDown={startResizeRight} isDark={isDark} />
-
-        {/* ── Right: insights ── */}
-        <div style={{ width: `${rightColWidth}px`, minWidth: `${rightColWidth}px`, flexShrink: 0, backgroundColor: sideBg, overflowY: 'auto' }}>
-          <div style={{ padding: '18px 18px 12px', borderBottom: `1px solid ${border}` }}>
-            <p style={{ fontSize: '14px', fontWeight: 700, color: text }}>Insights</p>
-          </div>
-
-          <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-
-            {/* Lead health */}
-            <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '8px', padding: '14px' }}>
-              <p style={{ fontSize: '10px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>
-                Saúde do Lead
-              </p>
-              <HealthBar score={score} isDark={isDark} />
-              <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                {[
-                  { label: 'Probabilidade', value: `${deal.probability}%`, ok: deal.probability >= 50 },
-                  { label: 'Última atividade', value: deal.last_activity_at ? relativeDate(deal.last_activity_at) : '—', ok: deal.last_activity_at ? (Date.now() - new Date(deal.last_activity_at).getTime()) / 86_400_000 <= 14 : false },
-                  { label: 'Stakeholders', value: `${deal.stakeholders?.length ?? 0} mapeados`, ok: (deal.stakeholders?.length ?? 0) >= 2 },
-                  { label: 'Tempo na etapa', value: `${deal.days_in_stage}d`, ok: deal.days_in_stage <= 60 },
-                ].map(({ label, value: v, ok }) => (
-                  <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '11px', color: muted }}>{label}</span>
-                    <span style={{ fontSize: '11px', fontWeight: 600, color: ok ? '#2d9e6b' : isDark ? '#fc8181' : '#c53030' }}>{v}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Plaud meeting summary */}
-            {meetings.filter((m) => m.plaud_note_id).length > 0 && (() => {
-              const last = meetings.filter((m) => m.plaud_note_id).sort((a, b) => b.scheduled_at.localeCompare(a.scheduled_at))[0]
-              return (
-                <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '8px', padding: '14px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px' }}>
-                    <Mic style={{ width: '13px', height: '13px', color: '#2c5545' }} />
-                    <p style={{ fontSize: '10px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                      Última Reunião Plaud
-                    </p>
-                  </div>
-                  <p style={{ fontSize: '12px', fontWeight: 600, color: text, marginBottom: '4px' }}>{last.title}</p>
-                  <p style={{ fontSize: '10px', color: muted, marginBottom: '8px' }}>{formatDate(last.scheduled_at)} · {last.duration_minutes}min</p>
-                  {last.action_items && last.action_items.length > 0 && (
-                    <div>
-                      <p style={{ fontSize: '10px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '6px' }}>Ações pendentes</p>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                        {last.action_items.slice(0, 3).map((item, i) => (
-                          <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
-                            <span style={{ width: '14px', height: '14px', borderRadius: '3px', border: `1.5px solid ${border}`, flexShrink: 0, marginTop: '1px' }} />
-                            <p style={{ fontSize: '11px', color: text, lineHeight: 1.5 }}>{item}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+            {/* ── Tarefas tab ── */}
+            {activeTab === 'tasks' && (
+              <div style={{ padding: '20px 24px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+                  <p className="section-header">Tarefas ({dealTasks.length})</p>
+                  <button type="button" onClick={() => { setShowQuickTask(true); setShowAddActivity(false) }}
+                    style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', fontWeight: 600, color: 'var(--brand)', backgroundColor: 'var(--brand)14', border: '1px solid var(--brand)30', borderRadius: 'var(--radius-sm)', padding: '4px 10px', cursor: 'pointer' }}>
+                    <Plus style={{ width: '10px', height: '10px' }} />Nova Tarefa
+                  </button>
                 </div>
-              )
-            })()}
-
-            {/* Risk signals */}
-            {(deal.days_in_stage > 60 || !deal.next_activity) && (
-              <div style={{ backgroundColor: isDark ? '#2d1515' : '#fff5f5', border: `1px solid ${isDark ? '#4a1f1f' : '#fecaca'}`, borderRadius: '8px', padding: '12px 14px' }}>
-                <p style={{ fontSize: '10px', fontWeight: 700, color: '#c53030', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '8px' }}>Alertas de Risco</p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                  {deal.days_in_stage > 90 && <p style={{ fontSize: '12px', color: isDark ? '#fc8181' : '#c53030' }}>⚠ Estagnado há {deal.days_in_stage} dias nesta etapa</p>}
-                  {deal.days_in_stage > 60 && deal.days_in_stage <= 90 && <p style={{ fontSize: '12px', color: '#b45309' }}>⚠ {deal.days_in_stage} dias nesta etapa — acima da média</p>}
-                  {!deal.next_activity && <p style={{ fontSize: '12px', color: isDark ? '#fc8181' : '#c53030' }}>⚠ Sem próxima atividade agendada</p>}
-                </div>
-              </div>
-            )}
-
-            {/* Stakeholders — editável */}
-            <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '8px', padding: '14px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-                <p style={{ fontSize: '10px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                  Stakeholders ({deal.stakeholders?.length ?? 0})
-                </p>
-                <button
-                  type="button"
-                  onClick={() => { setShowAddStakeholder((v) => !v); if (!showAddStakeholder) loadProfiles() }}
-                  style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '10px', fontWeight: 600, color: showAddStakeholder ? muted : '#2c5545', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px' }}
-                >
-                  {showAddStakeholder ? <><X style={{ width: '10px', height: '10px' }} />Fechar</> : <><Plus style={{ width: '10px', height: '10px' }} />Adicionar</>}
-                </button>
-              </div>
-
-              {/* Add stakeholder dropdown */}
-              {showAddStakeholder && (
-                <div style={{ marginBottom: '10px', padding: '8px', backgroundColor: isDark ? '#111110' : '#f5f4f0', borderRadius: '6px', border: `1px solid ${border}` }}>
-                  {loadingProfiles ? (
-                    <p style={{ fontSize: '11px', color: muted, textAlign: 'center', padding: '4px 0' }}>Carregando...</p>
-                  ) : profiles.length === 0 ? (
-                    <div style={{ textAlign: 'center', padding: '4px 0' }}>
-                      <p style={{ fontSize: '11px', color: muted, fontStyle: 'italic', marginBottom: '6px' }}>Nenhum perfil encontrado</p>
-                      <button type="button" onClick={() => loadProfiles(true)} style={{ fontSize: '10px', fontWeight: 600, color: '#2c5545', background: 'none', border: 'none', cursor: 'pointer' }}>Tentar novamente</button>
-                    </div>
-                  ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '160px', overflowY: 'auto' }}>
-                      {profiles
-                        .map((p) => ({ ...p, displayName: p.full_name || p.email.split('@')[0] }))
-                        .filter((p) => !(deal.stakeholders ?? []).some((s) => s.name === p.displayName))
-                        .map((p) => (
-                          <button
-                            key={p.id} type="button"
-                            onClick={() => addStakeholder(p)}
-                            style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '5px 6px', borderRadius: '5px', border: 'none', backgroundColor: 'transparent', cursor: 'pointer', textAlign: 'left', width: '100%', overflow: 'hidden' }}
-                            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = isDark ? '#1e1e1c' : '#e8e4da')}
-                            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-                          >
-                            <UserAvatarRow
-                              name={p.displayName}
-                              initials={getInitials(p.displayName)}
-                              color={p.avatar_color || getAvatarColor(p.id)}
-                              size="xs"
-                              textColor={text}
-                            />
-                          </button>
-                        ))}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Current stakeholders list */}
-              {(deal.stakeholders ?? []).length > 0 ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '7px' }}>
-                  {deal.stakeholders!.map((s, i) => (
-                    <div key={`${s.name}-${i}`} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <div style={{ width: '24px', height: '24px', borderRadius: '50%', backgroundColor: s.color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '7px', fontWeight: 700, flexShrink: 0 }}>
-                        {s.initials}
-                      </div>
-                      <span style={{ fontSize: '12px', fontWeight: 500, color: text, flex: 1 }}>{s.name}</span>
-                      <button
-                        type="button" title="Remover"
-                        onClick={() => removeStakeholder(i)}
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: muted, padding: '2px', borderRadius: '3px', lineHeight: 1, flexShrink: 0 }}
-                        onMouseEnter={(e) => (e.currentTarget.style.color = '#c53030')}
-                        onMouseLeave={(e) => (e.currentTarget.style.color = muted)}
-                      >
-                        <X style={{ width: '11px', height: '11px' }} />
+                {showQuickTask && (
+                  <div style={{ marginBottom: '16px', padding: '12px', borderRadius: 'var(--radius-md)', border: '1px solid var(--line)', backgroundColor: 'var(--surface-raised)' }}>
+                    <input autoFocus type="text" value={quickTaskTitle} onChange={(e) => setQuickTaskTitle(e.target.value)}
+                      onKeyDown={async (e) => {
+                        if (e.key === 'Enter' && quickTaskTitle.trim()) {
+                          setSavingQuickTask(true)
+                          await createTask({ title: quickTaskTitle.trim(), deal_id: deal.id, due_date: quickTaskDate || undefined, priority: 'medium', task_type: 'other' })
+                          setSavingQuickTask(false)
+                          setQuickTaskTitle(''); setQuickTaskDate(''); setShowQuickTask(false)
+                        }
+                        if (e.key === 'Escape') setShowQuickTask(false)
+                      }}
+                      placeholder="O que precisa ser feito?"
+                      style={{ width: '100%', height: '32px', padding: '0 10px', fontSize: '12px', backgroundColor: inputBg, border: '1px solid var(--line)', borderRadius: 'var(--radius-sm)', color: text, outline: 'none', marginBottom: '8px', boxSizing: 'border-box' }} />
+                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
+                      {[
+                        { label: 'Hoje', value: new Date().toISOString().slice(0, 10) },
+                        { label: 'Amanhã', value: (() => { const d = new Date(); d.setDate(d.getDate() + 1); return d.toISOString().slice(0, 10) })() },
+                        { label: 'Próx. semana', value: (() => { const d = new Date(); d.setDate(d.getDate() + 7); return d.toISOString().slice(0, 10) })() },
+                      ].map(({ label, value }) => (
+                        <button key={value} type="button" onClick={() => setQuickTaskDate(quickTaskDate === value ? '' : value)}
+                          style={{ height: '24px', padding: '0 8px', borderRadius: 'var(--radius-sm)', fontSize: '10px', fontWeight: 500, cursor: 'pointer', backgroundColor: quickTaskDate === value ? 'var(--brand)' : 'transparent', color: quickTaskDate === value ? '#fff' : muted, border: `1px solid ${quickTaskDate === value ? 'var(--brand)' : 'var(--line)'}` }}>
+                          {label}
+                        </button>
+                      ))}
+                      <button type="button" disabled={!quickTaskTitle.trim() || savingQuickTask}
+                        onClick={async () => {
+                          if (!quickTaskTitle.trim()) return
+                          setSavingQuickTask(true)
+                          await createTask({ title: quickTaskTitle.trim(), deal_id: deal.id, due_date: quickTaskDate || undefined, priority: 'medium', task_type: 'other' })
+                          setSavingQuickTask(false)
+                          setQuickTaskTitle(''); setQuickTaskDate(''); setShowQuickTask(false)
+                        }}
+                        style={{ height: '24px', padding: '0 10px', borderRadius: 'var(--radius-sm)', fontSize: '10px', fontWeight: 600, cursor: 'pointer', backgroundColor: 'var(--brand)', color: '#fff', border: 'none', marginLeft: 'auto', opacity: quickTaskTitle.trim() ? 1 : 0.5 }}>
+                        {savingQuickTask ? '...' : 'Criar'}
                       </button>
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <p style={{ fontSize: '11px', color: muted, fontStyle: 'italic' }}>Nenhum stakeholder mapeado</p>
-              )}
-            </div>
-
-            {/* Mapa de stakeholders */}
-            <StakeholderMap dealId={deal.id} isDark={isDark} />
-
-            {/* Deals relacionados */}
-            <RelatedDeals dealId={deal.id} isDark={isDark} />
-
-            {/* Histórico de alterações */}
-            <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '8px', overflow: 'hidden' }}>
-              <button
-                type="button"
-                onClick={() => { setShowHistory((v) => !v); if (!showHistory && dealEvents.length === 0) loadEvents() }}
-                style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', background: 'none', border: 'none', cursor: 'pointer' }}
-              >
-                <p style={{ fontSize: '10px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                  Histórico
-                </p>
-                <ChevronDown style={{ width: '12px', height: '12px', color: muted, transform: showHistory ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} />
-              </button>
-
-              {showHistory && (
-                <div style={{ padding: '0 14px 14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {loadingEvents ? (
-                    <p style={{ fontSize: '11px', color: muted, textAlign: 'center', padding: '8px 0' }}>Carregando...</p>
-                  ) : dealEvents.length === 0 ? (
-                    <p style={{ fontSize: '11px', color: muted, fontStyle: 'italic', textAlign: 'center', padding: '8px 0' }}>Nenhuma alteração registrada</p>
-                  ) : dealEvents.map((ev) => {
-                    const fieldLabel = ev.field_name ? (FIELD_LABELS[ev.field_name] ?? ev.field_name) : 'Campo'
-                    const isStage = ev.event_type === 'stage_change'
-
-                    function fmtVal(v: unknown, field?: string): string {
-                      if (v == null) return '—'
-                      if (field === 'stage_id') return STAGES.find((s) => s.id === String(v))?.label ?? String(v)
-                      if (field === 'value') return formatCurrency(Number(v))
-                      if (field === 'probability') return `${v}%`
-                      if (field === 'expected_close') return formatDate(String(v))
-                      if (field === 'company_size') return SIZE_LABELS[String(v)] ?? String(v)
-                      if (field === 'company_arr_range') return ARR_LABELS[String(v)] ?? String(v)
-                      if (field === 'stakeholders' || field === 'next_activity') {
-                        if (Array.isArray(v)) return `${v.length} item${v.length !== 1 ? 's' : ''}`
-                        if (typeof v === 'object') return 'actualizado'
-                        return String(v)
-                      }
-                      return String(v)
-                    }
-
-                    const oldStr = fmtVal(ev.old_value, ev.field_name)
-                    const newStr = fmtVal(ev.new_value, ev.field_name)
-                    return (
-                      <div key={ev.id} style={{ display: 'flex', flexDirection: 'column', gap: '3px', padding: '8px', backgroundColor: isDark ? '#111110' : '#f5f4f0', borderRadius: '6px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <span style={{ fontSize: '10px', fontWeight: 700, color: isStage ? '#2c5545' : muted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                            {isStage ? '↗ Etapa' : fieldLabel}
-                          </span>
-                          <span style={{ fontSize: '9px', color: muted }}>{relativeDate(ev.created_at.slice(0, 10))}</span>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: text, flexWrap: 'wrap' }}>
-                          <span style={{ color: isDark ? '#fc8181' : '#c53030', textDecoration: 'line-through', maxWidth: '90px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={oldStr}>{oldStr}</span>
-                          <span style={{ color: muted }}>→</span>
-                          <span style={{ color: '#2d9e6b', fontWeight: 600, maxWidth: '90px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={newStr}>{newStr}</span>
+                  </div>
+                )}
+                {dealTasks.length === 0 ? (
+                  <p style={{ fontSize: '12px', color: muted, fontStyle: 'italic' }}>Nenhuma tarefa associada a este lead</p>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    {dealTasks.map((task) => (
+                      <div key={task.id} className="card-sm" style={{ padding: '10px 14px', display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                        <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: task.completed_at ? '#2d9e6b' : (task.due_date && task.due_date < new Date().toISOString().slice(0, 10) ? '#c53030' : 'var(--ink-muted)'), flexShrink: 0, marginTop: '5px' }} />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <p style={{ fontSize: '13px', fontWeight: 500, color: task.completed_at ? muted : text, textDecoration: task.completed_at ? 'line-through' : 'none' }}>{task.title}</p>
+                          {task.due_date && <p style={{ fontSize: '11px', color: muted, marginTop: '2px' }}>{formatDate(task.due_date)}</p>}
                         </div>
                       </div>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
           </div>
         </div>

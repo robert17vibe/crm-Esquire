@@ -1,6 +1,8 @@
 import { create } from 'zustand'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from './useAuthStore'
+import { useMeetingStore } from './useMeetingStore'
+import { useOwnerStore } from './useOwnerStore'
 import type { Task, TaskPriority, TaskType } from '@/types/task.types'
 
 interface NewTask {
@@ -66,6 +68,23 @@ export const useTaskStore = create<TaskState>((set) => ({
     if (error || !data) return error?.message ?? 'Erro ao criar tarefa'
     const task: Task = { ...data, deal_title: (data.deal as { title?: string } | null)?.title ?? undefined, deal: undefined }
     set((s) => ({ tasks: [...s.tasks, task] }))
+
+    // Sync meeting tasks → calendar
+    if (t.task_type === 'meeting' && t.due_date && t.deal_id) {
+      const owners = useOwnerStore.getState().owners
+      const owner = owners.find((o) => o.id === userId) ?? owners[0]
+      if (owner) {
+        useMeetingStore.getState().addMeeting({
+          deal_id: t.deal_id,
+          title: t.title.trim(),
+          scheduled_at: `${t.due_date}T09:00:00`,
+          duration_minutes: 60,
+          attendees: [],
+          owner,
+        }).catch(() => { /* non-blocking */ })
+      }
+    }
+
     return null
   },
 

@@ -16,11 +16,12 @@ interface StageColumnProps {
   dimmedIds?: Set<string>
   onMoveDeal: (dealId: string, targetStage: StageId) => void
   showScore?: boolean
+  highlightNew?: boolean
+  onAddDeal?: (stageId: StageId) => void
 }
 
-export function StageColumn({ stage, deals, dimmedIds, onMoveDeal: _onMoveDeal, showScore }: StageColumnProps) {
+export function StageColumn({ stage, deals, dimmedIds, onMoveDeal: _onMoveDeal, showScore, highlightNew }: StageColumnProps) {
   const totalValue = deals.reduce((sum, d) => sum + Number(d.value ?? 0), 0)
-  // Attach droppable to the outer column so even empty columns are a large drop target
   const { setNodeRef, isOver } = useDroppable({ id: stage.id })
 
   return (
@@ -28,12 +29,12 @@ export function StageColumn({ stage, deals, dimmedIds, onMoveDeal: _onMoveDeal, 
       ref={setNodeRef}
       className="deal-column"
       style={{
-        width: '234px',
-        minWidth: '234px',
-        maxWidth: '234px',
+        width: '240px',
+        minWidth: '240px',
+        maxWidth: '240px',
         flexShrink: 0,
-        borderRadius: '8px',
-        backgroundColor: isOver ? 'var(--surface-col-over)' : 'var(--surface-col)',
+        borderRadius: 'var(--radius-lg)',
+        backgroundColor: isOver ? 'var(--surface-raised)' : 'var(--surface-card)',
         border: isOver ? '1px solid var(--brand)' : '1px solid var(--line)',
         display: 'flex',
         flexDirection: 'column',
@@ -43,27 +44,50 @@ export function StageColumn({ stage, deals, dimmedIds, onMoveDeal: _onMoveDeal, 
       }}
     >
       {/* ── Header ── */}
-      <div style={{ padding: '10px 14px 9px', flexShrink: 0, borderBottom: '1px solid var(--line)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div style={{
+        padding: '12px 14px 11px',
+        flexShrink: 0,
+        borderBottom: '1px solid var(--line)',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
+          {/* Stage color dot */}
           <span style={{
-            fontSize: '11px', fontWeight: 600, letterSpacing: '0.06em',
-            color: stage.color, textTransform: 'uppercase',
+            width: '7px', height: '7px', borderRadius: '50%',
+            backgroundColor: stage.color, flexShrink: 0,
+          }} />
+
+          {/* Label */}
+          <span style={{
+            fontSize: '10px', fontWeight: 700, letterSpacing: '0.08em',
+            color: 'var(--ink-muted)', textTransform: 'uppercase', flex: 1,
           }}>
             {stage.label}
           </span>
+
+          {/* Count pill */}
           <span style={{
-            fontSize: '11px', fontWeight: 500,
-            color: 'var(--ink-faint)',
+            fontSize: '11px', fontWeight: 600,
+            color: 'var(--ink-muted)',
+            backgroundColor: 'var(--surface-raised)',
+            border: '1px solid var(--line)',
+            borderRadius: 'var(--radius-full)',
+            padding: '0 7px',
+            lineHeight: '20px',
             fontVariantNumeric: 'tabular-nums',
           }}>
             {deals.length}
           </span>
+
         </div>
+
+        {/* Total value */}
         {totalValue > 0 && (
           <p style={{
             fontSize: '11px', fontWeight: 700,
-            color: 'var(--ink-muted)',
-            marginTop: '2px', fontVariantNumeric: 'tabular-nums',
+            color: 'var(--ink-faint)',
+            marginTop: '5px',
+            fontVariantNumeric: 'tabular-nums',
+            letterSpacing: '-0.01em',
           }}>
             {fmtCompact(totalValue)}
           </p>
@@ -80,7 +104,7 @@ export function StageColumn({ stage, deals, dimmedIds, onMoveDeal: _onMoveDeal, 
             padding: '10px 10px 12px',
             display: 'flex',
             flexDirection: 'column',
-            gap: '6px',
+            gap: '7px',
             minHeight: '80px',
           }}
         >
@@ -90,6 +114,7 @@ export function StageColumn({ stage, deals, dimmedIds, onMoveDeal: _onMoveDeal, 
               deal={deal}
               dimmed={dimmedIds?.size ? !dimmedIds.has(deal.id) : false}
               showScore={showScore}
+              highlightNew={highlightNew}
             />
           ))}
           {deals.length === 0 && (
@@ -103,11 +128,11 @@ export function StageColumn({ stage, deals, dimmedIds, onMoveDeal: _onMoveDeal, 
               color: isOver ? 'var(--ink-muted)' : 'var(--ink-faint)',
               userSelect: 'none',
               letterSpacing: '0.02em',
-              border: isOver ? '1px dashed var(--brand)' : '1px dashed transparent',
-              borderRadius: '6px',
+              border: isOver ? '1px dashed var(--brand)' : '1px dashed var(--line)',
+              borderRadius: 'var(--radius-md)',
               transition: 'all 0.15s ease',
             }}>
-              {isOver ? 'Soltar aqui' : 'Arraste um lead aqui'}
+              {isOver ? 'Soltar aqui' : 'Sem leads'}
             </div>
           )}
         </div>

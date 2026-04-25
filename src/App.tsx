@@ -21,11 +21,13 @@ const SettingsPage     = lazy(() => import('@/pages/SettingsPage').then((m) => (
 const DealDetailPage   = lazy(() => import('@/pages/DealDetailPage').then((m) => ({ default: m.DealDetailPage })))
 const TeamsPage        = lazy(() => import('@/pages/TeamsPage').then((m) => ({ default: m.TeamsPage })))
 const TasksPage        = lazy(() => import('@/pages/TasksPage').then((m) => ({ default: m.TasksPage })))
-const AdminUsersPage      = lazy(() => import('@/pages/AdminUsersPage').then((m) => ({ default: m.AdminUsersPage })))
+const AdminUsersPage          = lazy(() => import('@/pages/AdminUsersPage').then((m) => ({ default: m.AdminUsersPage })))
+const AdminNotificationsPage  = lazy(() => import('@/pages/AdminNotificationsPage').then((m) => ({ default: m.AdminNotificationsPage })))
 const LandingPage         = lazy(() => import('@/pages/LandingPage').then((m) => ({ default: m.LandingPage })))
 const LoginPage        = lazy(() => import('@/pages/LoginPage').then((m) => ({ default: m.LoginPage })))
 const ForgotPasswordPage = lazy(() => import('@/pages/ForgotPasswordPage').then((m) => ({ default: m.ForgotPasswordPage })))
 const ResetPasswordPage  = lazy(() => import('@/pages/ResetPasswordPage').then((m) => ({ default: m.ResetPasswordPage })))
+const EmailPage          = lazy(() => import('@/pages/EmailPage').then((m) => ({ default: m.EmailPage })))
 
 export default function App() {
   const isDark       = useThemeStore((s) => s.isDark)
@@ -85,12 +87,14 @@ export default function App() {
         <Route path="/clients"   element={<ClientsPage />} />
         <Route path="/meetings"  element={<MeetingsPage />} />
         <Route path="/calendar"  element={<CalendarPage />} />
+        <Route path="/email"     element={<EmailPage />} />
         <Route path="/tarefas"   element={<TasksPage />} />
         <Route path="/settings"  element={<SettingsPage />} />
         <Route path="/deal/:id"  element={<DealDetailPage />} />
         <Route element={<AdminGuard />}>
           <Route path="/teams"            element={<TeamsPage />} />
-          <Route path="/admin/users"  element={<AdminUsersPage />} />
+          <Route path="/admin/users"          element={<AdminUsersPage />} />
+          <Route path="/admin/notifications"  element={<AdminNotificationsPage />} />
         </Route>
       </Route>
       <Route path="*" element={<Navigate to={session ? '/dashboard' : '/login'} replace />} />

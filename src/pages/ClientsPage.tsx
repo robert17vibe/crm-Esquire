@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Building2, TrendingUp, ArrowRight, Search, ChevronDown, ChevronRight } from 'lucide-react'
+import { Building2, TrendingUp, ArrowRight, Search, ChevronDown, ChevronRight, DollarSign, Activity } from 'lucide-react'
 import { useDealStore } from '@/store/useDealStore'
 import { useThemeStore } from '@/store/useThemeStore'
 import { STAGES } from '@/constants/pipeline'
@@ -37,8 +37,6 @@ export function ClientsPage() {
   const trackBg = isDark ? '#1e1e1c' : '#eeece8'
   const inputBg = isDark ? '#111111' : '#f5f4f1'
   const inputBorder = isDark ? '#2a2a2a' : '#e0ddd8'
-  const expandBg = isDark ? '#111110' : '#f5f4f0'
-
   const companies = useMemo(() => {
     const map = new Map<string, {
       name: string
@@ -96,13 +94,14 @@ export function ClientsPage() {
   const totalWon      = useMemo(() => filtered.reduce((s, c) => s + c.revenue, 0), [filtered])
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: isDark ? '#0d0c0a' : '#f5f4f0' }}>
 
       {/* Header */}
       <div style={{
         height: '56px', minHeight: '56px', display: 'flex', alignItems: 'center',
         justifyContent: 'space-between', padding: '0 20px',
         borderBottom: `1px solid ${border}`, flexShrink: 0, gap: '12px',
+        backgroundColor: isDark ? '#0d0c0a' : '#f5f4f0',
       }}>
         <div>
           <p style={{ fontSize: '13px', fontWeight: 700, color: text, letterSpacing: '-0.01em' }}>Clientes</p>
@@ -129,15 +128,42 @@ export function ClientsPage() {
               }}
             />
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', fontWeight: 600, color: '#2c5545', backgroundColor: '#2c554514', border: '1px solid #2c554530', borderRadius: '6px', padding: '5px 10px' }}>
-            <TrendingUp style={{ width: '12px', height: '12px' }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', fontWeight: 600, color: '#2c5545', backgroundColor: isDark ? 'rgba(44,85,69,0.15)' : '#dcfce7', border: '1px solid rgba(44,85,69,0.25)', borderRadius: '6px', padding: '5px 10px' }}>
+            <Activity style={{ width: '12px', height: '12px' }} />
             {filtered.filter((c) => c.active > 0).length} ativos
           </div>
         </div>
       </div>
 
+      {/* Summary cards */}
+      <div style={{ padding: '12px 20px 0', display: 'flex', gap: '10px', flexShrink: 0 }}>
+        {[
+          { label: 'Empresas',  value: String(filtered.length), icon: Building2, color: '#4a7c8a' },
+          { label: 'Pipeline',  value: fmt(totalPipeline), icon: TrendingUp, color: '#2c5545' },
+          { label: 'Fechado',   value: fmt(totalWon), icon: DollarSign, color: '#2d9e6b' },
+        ].map(({ label, value, icon: Icon, color }) => (
+          <div key={label} style={{
+            flex: 1, padding: '10px 14px', borderRadius: '10px',
+            backgroundColor: cardBg, border: `1px solid ${border}`,
+            display: 'flex', alignItems: 'center', gap: '10px',
+          }}>
+            <div style={{
+              width: '32px', height: '32px', borderRadius: '8px', flexShrink: 0,
+              backgroundColor: `${color}14`, border: `1px solid ${color}25`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <Icon style={{ width: '14px', height: '14px', color }} />
+            </div>
+            <div>
+              <p style={{ fontSize: '15px', fontWeight: 700, color: text, fontVariantNumeric: 'tabular-nums' }}>{value}</p>
+              <p style={{ fontSize: '10px', color: muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: '1px' }}>{label}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
       {/* Table */}
-      <div style={{ flex: 1, overflowY: 'auto', overflowX: 'auto' }}>
+      <div style={{ flex: 1, overflowY: 'auto', overflowX: 'auto', padding: '12px 20px' }}>
         {filtered.length === 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: '8px' }}>
             <Building2 style={{ width: '28px', height: '28px', color: border }} />
@@ -149,15 +175,13 @@ export function ClientsPage() {
             </p>
           </div>
         ) : (
-          <div style={{ minWidth: '640px' }}>
+          <div style={{ minWidth: '640px', backgroundColor: cardBg, borderRadius: '12px', border: `1px solid ${border}`, overflow: 'hidden' }}>
             {/* Column headers */}
             <div style={{
               display: 'grid', gridTemplateColumns: 'minmax(180px, 2fr) minmax(80px, 110px) minmax(60px, 80px) minmax(100px, 120px) minmax(100px, 120px) 32px',
-              padding: '8px 20px', gap: '10px',
-              borderBottom: `1px solid ${border}`, flexShrink: 0,
-              position: 'sticky', top: 0,
-              backgroundColor: isDark ? '#0d0c0a' : '#f5f4f0',
-              zIndex: 1,
+              padding: '10px 20px', gap: '10px',
+              borderBottom: `1px solid ${border}`,
+              backgroundColor: isDark ? '#111110' : '#fafaf8',
             }}>
               {['Empresa', 'Setor', 'Tam.', 'Pipeline', 'Fechado'].map((h) => (
                 <p key={h} style={{ fontSize: '10px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{h}</p>
@@ -165,14 +189,15 @@ export function ClientsPage() {
               <span />
             </div>
 
-            {filtered.map((company) => {
+            {filtered.map((company, idx) => {
               const stage       = STAGES.find((s) => s.id === company.latestStage)
               const ownerColors = [...new Set(
                 company.deals
                   .map((d) => d.owner?.avatar_color)
                   .filter((c): c is string => Boolean(c))
               )].slice(0, 3)
-              const isExpanded = expandedCompany === company.name
+              const isExpanded  = expandedCompany === company.name
+              const isLast      = idx === filtered.length - 1
 
               return (
                 <div key={company.name}>
@@ -182,9 +207,9 @@ export function ClientsPage() {
                     onClick={() => setExpandedCompany(isExpanded ? null : company.name)}
                     style={{
                       display: 'grid', gridTemplateColumns: 'minmax(180px, 2fr) minmax(80px, 110px) minmax(60px, 80px) minmax(100px, 120px) minmax(100px, 120px) 32px',
-                      width: '100%', padding: '12px 20px', gap: '10px', alignItems: 'center',
-                      borderBottom: `1px solid ${isExpanded ? 'transparent' : border}`,
-                      background: isExpanded ? expandBg : 'none',
+                      width: '100%', padding: '13px 20px', gap: '10px', alignItems: 'center',
+                      borderBottom: `1px solid ${isExpanded || isLast ? 'transparent' : border}`,
+                      background: isExpanded ? (isDark ? '#161614' : '#f8f7f4') : 'none',
                       cursor: 'pointer',
                       textAlign: 'left', transition: 'background-color 0.1s ease',
                     }}
@@ -194,21 +219,23 @@ export function ClientsPage() {
                     {/* Company */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
                       <div style={{
-                        width: '32px', height: '32px', borderRadius: '8px', flexShrink: 0,
-                        backgroundColor: trackBg, border: `1px solid ${border}`,
+                        width: '36px', height: '36px', borderRadius: '10px', flexShrink: 0,
+                        backgroundColor: stage ? `${stage.color}18` : trackBg,
+                        border: `1px solid ${stage ? `${stage.color}30` : border}`,
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                       }}>
-                        <Building2 style={{ width: '14px', height: '14px', color: muted }} />
+                        <Building2 style={{ width: '15px', height: '15px', color: stage?.color ?? muted }} />
                       </div>
                       <div style={{ minWidth: 0 }}>
                         <p style={{ fontSize: '13px', fontWeight: 600, color: text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {company.name}
                         </p>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '3px' }}>
                           {stage && (
                             <span style={{
                               fontSize: '9px', fontWeight: 700, color: stage.color,
-                              backgroundColor: `${stage.color}14`, borderRadius: '3px', padding: '1px 5px',
+                              backgroundColor: `${stage.color}14`, borderRadius: '4px', padding: '1px 6px',
+                              border: `1px solid ${stage.color}25`,
                             }}>
                               {stage.label}
                             </span>
@@ -217,7 +244,7 @@ export function ClientsPage() {
                             {ownerColors.map((color, i) => (
                               <div key={i} style={{
                                 width: '14px', height: '14px', borderRadius: '50%',
-                                backgroundColor: color, border: `1px solid ${cardBg}`,
+                                backgroundColor: color, border: `1.5px solid ${cardBg}`,
                               }} />
                             ))}
                           </div>
@@ -237,11 +264,11 @@ export function ClientsPage() {
 
                     {/* Pipeline */}
                     <div>
-                      <p style={{ fontSize: '13px', fontWeight: 700, color: text, fontVariantNumeric: 'tabular-nums', fontFamily: 'monospace' }}>
+                      <p style={{ fontSize: '13px', fontWeight: 700, color: company.pipeline > 0 ? text : muted, fontVariantNumeric: 'tabular-nums' }}>
                         {company.pipeline > 0 ? fmt(company.pipeline) : '—'}
                       </p>
                       {company.active > 0 && (
-                        <p style={{ fontSize: '10px', color: muted, marginTop: '1px' }}>
+                        <p style={{ fontSize: '10px', color: '#4a7c8a', marginTop: '1px', fontWeight: 600 }}>
                           {company.active} deal{company.active > 1 ? 's' : ''}
                         </p>
                       )}
@@ -249,26 +276,36 @@ export function ClientsPage() {
 
                     {/* Won */}
                     <div>
-                      <p style={{ fontSize: '13px', fontWeight: 700, color: company.revenue > 0 ? '#2d9e6b' : muted, fontVariantNumeric: 'tabular-nums', fontFamily: 'monospace' }}>
+                      <p style={{ fontSize: '13px', fontWeight: 700, color: company.revenue > 0 ? '#2d9e6b' : muted, fontVariantNumeric: 'tabular-nums' }}>
                         {company.revenue > 0 ? fmt(company.revenue) : '—'}
                       </p>
                       {company.won > 0 && (
-                        <p style={{ fontSize: '10px', color: '#2d9e6b', marginTop: '1px' }}>
+                        <p style={{ fontSize: '10px', color: '#2d9e6b', marginTop: '1px', fontWeight: 600 }}>
                           {company.won} fechado{company.won > 1 ? 's' : ''}
                         </p>
                       )}
                     </div>
 
                     {/* Expand icon */}
-                    {isExpanded
-                      ? <ChevronDown style={{ width: '14px', height: '14px', color: muted }} />
-                      : <ChevronRight style={{ width: '14px', height: '14px', color: muted }} />
-                    }
+                    <div style={{
+                      width: '24px', height: '24px', borderRadius: '6px', flexShrink: 0,
+                      backgroundColor: isExpanded ? (isDark ? '#2a2a28' : '#eeece8') : 'transparent',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      {isExpanded
+                        ? <ChevronDown style={{ width: '13px', height: '13px', color: muted }} />
+                        : <ChevronRight style={{ width: '13px', height: '13px', color: muted }} />
+                      }
+                    </div>
                   </button>
 
                   {/* Expanded deals list */}
                   {isExpanded && (
-                    <div style={{ backgroundColor: expandBg, borderBottom: `1px solid ${border}`, padding: '4px 20px 12px 62px' }}>
+                    <div style={{
+                      borderBottom: isLast ? 'none' : `1px solid ${border}`,
+                      padding: '6px 20px 12px 66px',
+                      backgroundColor: isDark ? '#111110' : '#fafaf8',
+                    }}>
                       {company.deals.map((deal) => {
                         const dealStage = STAGES.find((s) => s.id === deal.stage_id)
                         return (
@@ -278,7 +315,7 @@ export function ClientsPage() {
                             onClick={(e) => { e.stopPropagation(); navigate(`/deal/${deal.id}`) }}
                             style={{
                               display: 'flex', alignItems: 'center', gap: '10px',
-                              width: '100%', padding: '7px 10px', borderRadius: '6px',
+                              width: '100%', padding: '8px 10px', borderRadius: '7px',
                               backgroundColor: 'transparent', border: 'none', cursor: 'pointer',
                               textAlign: 'left', marginBottom: '2px',
                             }}
@@ -290,7 +327,8 @@ export function ClientsPage() {
                               <span style={{
                                 fontSize: '9px', fontWeight: 700, color: dealStage.color,
                                 backgroundColor: `${dealStage.color}18`, borderRadius: '4px',
-                                padding: '2px 7px', flexShrink: 0, whiteSpace: 'nowrap',
+                                padding: '2px 8px', flexShrink: 0, whiteSpace: 'nowrap',
+                                border: `1px solid ${dealStage.color}25`,
                               }}>
                                 {dealStage.label}
                               </span>
@@ -320,7 +358,7 @@ export function ClientsPage() {
                             <p style={{ fontSize: '12px', fontWeight: 600, color: deal.stage_id === 'closed_won' ? '#2d9e6b' : text, fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
                               {Number(deal.value) > 0 ? fmtFull(Number(deal.value)) : '—'}
                             </p>
-                            <ArrowRight style={{ width: '11px', height: '11px', color: muted, flexShrink: 0 }} />
+                            <ArrowRight style={{ width: '10px', height: '10px', color: muted, flexShrink: 0 }} />
                           </button>
                         )
                       })}

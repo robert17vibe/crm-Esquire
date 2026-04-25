@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import {
   Moon, Sun, Target, Bell, BellOff, Eye, RefreshCw,
-  DollarSign, Check, User, Palette, Mail, Keyboard,
+  DollarSign, Check, User, Palette, Mail,
   Zap, GitBranch, Clock, AlertCircle, Plus, Trash2,
 } from 'lucide-react'
 import { useThemeStore } from '@/store/useThemeStore'
@@ -101,6 +101,16 @@ const AVATAR_COLORS = [
   '#0f766e', '#dc2626', '#0369a1', '#4d7c0f', '#92400e',
 ]
 
+type SettingsTab = 'perfil' | 'aparencia' | 'pipeline' | 'notificacoes' | 'integracoes'
+
+const TABS: { id: SettingsTab; label: string }[] = [
+  { id: 'perfil',        label: 'Perfil' },
+  { id: 'aparencia',     label: 'Aparência' },
+  { id: 'pipeline',      label: 'Pipeline' },
+  { id: 'notificacoes',  label: 'Notificações' },
+  { id: 'integracoes',   label: 'Integrações' },
+]
+
 export function SettingsPage() {
   const isDark        = useThemeStore((s) => s.isDark)
   const toggleTheme   = useThemeStore((s) => s.toggle)
@@ -110,6 +120,7 @@ export function SettingsPage() {
   const profile       = useAuthStore((s) => s.profile)
   const updateProfile = useAuthStore((s) => s.updateProfile)
 
+  const [activeTab, setActiveTab]   = useState<SettingsTab>('perfil')
   const [goalInput, setGoalInput]   = useState(String(settings.quarterlyGoal))
   const [goalSaved, setGoalSaved]   = useState(false)
   const [showReset, setShowReset]   = useState(false)
@@ -193,225 +204,185 @@ export function SettingsPage() {
         </div>
       </div>
 
-      {/* Content */}
+      {/* Tab bar */}
+      <div style={{
+        display: 'flex', gap: '2px', padding: '12px 20px 0',
+        borderBottom: `1px solid ${border}`, flexShrink: 0,
+      }}>
+        {TABS.map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => setActiveTab(tab.id)}
+            style={{
+              height: '32px', padding: '0 14px',
+              borderRadius: '10px 10px 0 0',
+              border: activeTab === tab.id ? `1px solid ${border}` : '1px solid transparent',
+              borderBottom: activeTab === tab.id ? `1px solid ${isDark ? '#141412' : '#ffffff'}` : '1px solid transparent',
+              marginBottom: activeTab === tab.id ? '-1px' : '0',
+              backgroundColor: activeTab === tab.id ? (isDark ? '#141412' : '#ffffff') : 'transparent',
+              fontSize: '12px', fontWeight: activeTab === tab.id ? 600 : 500,
+              color: activeTab === tab.id ? text : muted,
+              cursor: 'pointer',
+              transition: 'color 0.15s ease',
+            }}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Tab content */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '20px', maxWidth: '640px' }}>
 
         {/* ── Perfil ── */}
-        <Section title="Perfil" isDark={isDark}>
-          {/* Avatar preview + color picker */}
-          <div style={{ padding: '16px', borderBottom: `1px solid ${border}` }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-              <div style={{
-                width: '48px', height: '48px', borderRadius: '50%', flexShrink: 0,
-                backgroundColor: displayColor,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                color: '#fff', fontSize: '16px', fontWeight: 700,
-                boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-              }}>
-                {displayInitials}
+        {activeTab === 'perfil' && (
+          <>
+            <Section title="Perfil" isDark={isDark}>
+              <div style={{ padding: '16px', borderBottom: `1px solid ${border}` }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                  <div style={{
+                    width: '56px', height: '56px', borderRadius: '50%', flexShrink: 0,
+                    backgroundColor: displayColor,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    color: '#fff', fontSize: '18px', fontWeight: 700,
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                  }}>
+                    {displayInitials}
+                  </div>
+                  <div>
+                    <p style={{ fontSize: '14px', fontWeight: 600, color: text }}>{profile?.full_name || '—'}</p>
+                    <p style={{ fontSize: '11px', color: muted, marginTop: '2px' }}>{profile?.email || '—'}</p>
+                    <span style={{
+                      display: 'inline-block', marginTop: '5px',
+                      fontSize: '9px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase',
+                      color: '#2c5545', backgroundColor: isDark ? '#1a2e22' : '#e6f2ee',
+                      border: `1px solid ${isDark ? '#2c5545' : '#b8d9ce'}`,
+                      borderRadius: '4px', padding: '1px 6px',
+                    }}>
+                      {profile?.role === 'admin' ? 'Admin' : 'Usuário'}
+                    </span>
+                  </div>
+                </div>
               </div>
-              <div>
-                <p style={{ fontSize: '13px', fontWeight: 600, color: text }}>{profile?.full_name || '—'}</p>
-                <p style={{ fontSize: '11px', color: muted, marginTop: '2px' }}>{profile?.email || '—'}</p>
-                <span style={{
-                  display: 'inline-block', marginTop: '4px',
-                  fontSize: '9px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase',
-                  color: '#2c5545', backgroundColor: isDark ? '#1a2e22' : '#e6f2ee',
-                  border: `1px solid ${isDark ? '#2c5545' : '#b8d9ce'}`,
-                  borderRadius: '4px', padding: '1px 6px',
-                }}>
-                  {profile?.role === 'admin' ? 'Admin' : 'Usuário'}
+              <Row icon={User} label="Nome" description="Exibido no sidebar e nos cards" isDark={isDark}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <input
+                    value={nameInput}
+                    onChange={(e) => setNameInput(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && saveName()}
+                    placeholder="Seu nome"
+                    style={{ ...inputStyle, width: '160px' }}
+                  />
+                  {saveBtn(nameSaved, saveName, savingName)}
+                </div>
+                {nameError && <p style={{ fontSize: '10px', color: '#dc2626', marginTop: '4px' }}>{nameError}</p>}
+              </Row>
+              <Row icon={Mail} label="E-mail" description="Vinculado à conta Supabase Auth" isDark={isDark}>
+                <span style={{ fontSize: '12px', color: muted, fontFamily: 'monospace' }}>
+                  {profile?.email ?? '—'}
                 </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Name */}
-          <Row icon={User} label="Nome" description="Exibido no sidebar e nos cards" isDark={isDark}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <input
-                value={nameInput}
-                onChange={(e) => setNameInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && saveName()}
-                placeholder="Seu nome"
-                style={{ ...inputStyle, width: '160px' }}
-              />
-              {saveBtn(nameSaved, saveName, savingName)}
-            </div>
-            {nameError && <p style={{ fontSize: '10px', color: '#dc2626', marginTop: '4px' }}>{nameError}</p>}
-          </Row>
-
-          {/* Email */}
-          <Row icon={Mail} label="E-mail" description="Vinculado à conta Supabase Auth" isDark={isDark}>
-            <span style={{ fontSize: '12px', color: muted, fontFamily: 'monospace' }}>
-              {profile?.email ?? '—'}
-            </span>
-          </Row>
-
-          {/* Avatar color */}
-          <Row icon={Palette} label="Cor do avatar" description="Identifica você nos cards e listas" isDark={isDark} last>
-            <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', maxWidth: '180px', justifyContent: 'flex-end' }}>
-              {AVATAR_COLORS.map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  onClick={() => pickColor(c)}
-                  title={c}
-                  style={{
-                    width: '20px', height: '20px', borderRadius: '50%',
-                    backgroundColor: c, border: 'none', cursor: 'pointer',
-                    outline: displayColor === c ? `2px solid ${c}` : 'none',
-                    outlineOffset: '2px',
-                    transition: 'transform 0.1s ease',
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.15)')}
-                  onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
-                />
-              ))}
-            </div>
-          </Row>
-        </Section>
+              </Row>
+              <Row icon={Palette} label="Cor do avatar" description="Identifica você nos cards e listas" isDark={isDark} last>
+                <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', maxWidth: '180px', justifyContent: 'flex-end' }}>
+                  {AVATAR_COLORS.map((c) => (
+                    <button key={c} type="button" onClick={() => pickColor(c)} title={c} style={{
+                      width: '20px', height: '20px', borderRadius: '50%',
+                      backgroundColor: c, border: 'none', cursor: 'pointer',
+                      outline: displayColor === c ? `2px solid ${c}` : 'none',
+                      outlineOffset: '2px', transition: 'transform 0.1s ease',
+                    }}
+                      onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.15)')}
+                      onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
+                    />
+                  ))}
+                </div>
+              </Row>
+            </Section>
+          </>
+        )}
 
         {/* ── Aparência ── */}
-        <Section title="Aparência" isDark={isDark}>
-          <Row icon={isDark ? Moon : Sun} label="Tema" description={isDark ? 'Modo escuro ativo' : 'Modo claro ativo'} isDark={isDark} last>
-            <Toggle checked={isDark} onChange={toggleTheme} isDark={isDark} />
-          </Row>
-        </Section>
+        {activeTab === 'aparencia' && (
+          <Section title="Aparência" isDark={isDark}>
+            <Row icon={isDark ? Moon : Sun} label="Tema" description={isDark ? 'Modo escuro ativo' : 'Modo claro ativo'} isDark={isDark} last>
+              <Toggle checked={isDark} onChange={toggleTheme} isDark={isDark} />
+            </Row>
+          </Section>
+        )}
 
-        {/* ── Pipeline & Metas ── */}
-        <Section title="Pipeline e Metas" isDark={isDark}>
-          <Row icon={Target} label="Meta trimestral" description={`Atual: ${fmt(settings.quarterlyGoal)}`} isDark={isDark}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <input
-                type="text"
-                value={goalInput}
-                onChange={(e) => setGoalInput(e.target.value.replace(/\D/g, ''))}
-                onKeyDown={(e) => e.key === 'Enter' && saveGoal()}
-                placeholder="15000000"
-                style={{ ...inputStyle, width: '120px', fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' }}
-              />
-              {saveBtn(goalSaved, saveGoal)}
-            </div>
-          </Row>
-          <Row icon={Eye} label="Exibir deals fechados" description="Mostra colunas Ganho e Perdido no pipeline" isDark={isDark}>
-            <Toggle checked={settings.showClosedDeals} onChange={(v) => setSetting('showClosedDeals', v)} isDark={isDark} />
-          </Row>
-          <Row icon={DollarSign} label="Moeda padrão" description="Utilizada em novos deals" isDark={isDark} last>
-            <select
-              value={settings.defaultCurrency}
-              onChange={(e) => setSetting('defaultCurrency', e.target.value as 'BRL' | 'USD' | 'EUR')}
-              style={{ ...inputStyle, cursor: 'pointer' }}
-            >
-              <option value="BRL">BRL — Real</option>
-              <option value="USD">USD — Dólar</option>
-              <option value="EUR">EUR — Euro</option>
-            </select>
-          </Row>
-        </Section>
+        {/* ── Pipeline ── */}
+        {activeTab === 'pipeline' && (
+          <Section title="Pipeline e Metas" isDark={isDark}>
+            <Row icon={Target} label="Meta trimestral" description={`Atual: ${fmt(settings.quarterlyGoal)}`} isDark={isDark}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <input
+                  type="text"
+                  value={goalInput}
+                  onChange={(e) => setGoalInput(e.target.value.replace(/\D/g, ''))}
+                  onKeyDown={(e) => e.key === 'Enter' && saveGoal()}
+                  placeholder="15000000"
+                  style={{ ...inputStyle, width: '120px', fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' }}
+                />
+                {saveBtn(goalSaved, saveGoal)}
+              </div>
+            </Row>
+            <Row icon={Eye} label="Exibir deals fechados" description="Mostra colunas Ganho e Perdido no pipeline" isDark={isDark}>
+              <Toggle checked={settings.showClosedDeals} onChange={(v) => setSetting('showClosedDeals', v)} isDark={isDark} />
+            </Row>
+            <Row icon={DollarSign} label="Moeda padrão" description="Utilizada em novos deals" isDark={isDark}>
+              <select
+                value={settings.defaultCurrency}
+                onChange={(e) => setSetting('defaultCurrency', e.target.value as 'BRL' | 'USD' | 'EUR')}
+                style={{ ...inputStyle, cursor: 'pointer' }}
+              >
+                <option value="BRL">BRL — Real</option>
+                <option value="USD">USD — Dólar</option>
+                <option value="EUR">EUR — Euro</option>
+              </select>
+            </Row>
+            <Row icon={RefreshCw} label="Restaurar configurações" description="Volta tudo para os valores padrão" isDark={isDark} last>
+              {showReset ? (
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  <button type="button"
+                    onClick={() => { resetSettings(); setGoalInput(String(15_000_000)); setShowReset(false) }}
+                    style={{ height: '28px', padding: '0 12px', borderRadius: '8px', backgroundColor: '#dc2626', color: '#fff', border: 'none', cursor: 'pointer', fontSize: '11px', fontWeight: 600 }}>
+                    Confirmar
+                  </button>
+                  <button type="button" onClick={() => setShowReset(false)}
+                    style={{ height: '28px', padding: '0 10px', borderRadius: '8px', backgroundColor: 'transparent', border: `1px solid ${isDark ? '#2a2a28' : '#d4d0ca'}`, color: muted, cursor: 'pointer', fontSize: '11px', fontWeight: 500 }}>
+                    Cancelar
+                  </button>
+                </div>
+              ) : (
+                <button type="button" onClick={() => setShowReset(true)}
+                  style={{ height: '28px', padding: '0 12px', borderRadius: '8px', backgroundColor: 'transparent', border: `1px solid ${isDark ? '#2a2a28' : '#d4d0ca'}`, color: muted, cursor: 'pointer', fontSize: '11px', fontWeight: 500, transition: 'all 0.15s ease' }}>
+                  Restaurar
+                </button>
+              )}
+            </Row>
+          </Section>
+        )}
 
         {/* ── Notificações ── */}
-        <Section title="Notificações" isDark={isDark}>
-          <Row icon={settings.notifications ? Bell : BellOff} label="Notificações" description="Alertas ao criar novos leads" isDark={isDark}>
-            <Toggle checked={settings.notifications} onChange={(v) => setSetting('notifications', v)} isDark={isDark} />
-          </Row>
-          <Row icon={AlertCircle} label="Alertas de vencimento" description="Avisa quando atividade estiver atrasada" isDark={isDark}>
-            <Toggle checked={settings.overdueAlerts} onChange={(v) => setSetting('overdueAlerts', v)} isDark={isDark} />
-          </Row>
-          <Row icon={Clock} label="Lembrete de follow-up" description="Leads sem atividade há mais de 7 dias" isDark={isDark} last>
-            <Toggle checked={settings.followUpReminders} onChange={(v) => setSetting('followUpReminders', v)} isDark={isDark} />
-          </Row>
-        </Section>
-
-        {/* ── Atalhos ── */}
-        <Section title="Atalhos de teclado" isDark={isDark}>
-          <div style={{ padding: '4px 0' }}>
-            {[
-              ['Cmd/Ctrl + K', 'Abrir paleta de comandos'],
-              ['N',            'Novo lead (na página Pipeline)'],
-              ['Esc',          'Fechar modal / painel'],
-              ['↑ / ↓',        'Navegar por resultados'],
-              ['Enter',        'Confirmar seleção'],
-            ].map(([key, desc], i, arr) => (
-              <div
-                key={key}
-                style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  padding: '10px 16px',
-                  borderBottom: i < arr.length - 1 ? `1px solid ${border}` : 'none',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <div style={{
-                    width: '32px', height: '32px', borderRadius: '8px', flexShrink: 0,
-                    backgroundColor: isDark ? '#1e1e1c' : '#f0eeea',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}>
-                    <Keyboard style={{ width: '14px', height: '14px', color: isDark ? '#8a857d' : '#6b6560' }} />
-                  </div>
-                  <p style={{ fontSize: '13px', fontWeight: 600, color: text }}>{desc}</p>
-                </div>
-                <kbd style={{
-                  fontSize: '11px', fontWeight: 600, fontFamily: 'monospace',
-                  color: muted, backgroundColor: isDark ? '#1e1e1c' : '#f0eeea',
-                  border: `1px solid ${isDark ? '#2a2a28' : '#d4d0ca'}`,
-                  borderRadius: '5px', padding: '3px 8px',
-                  whiteSpace: 'nowrap',
-                }}>{key}</kbd>
-              </div>
-            ))}
-          </div>
-        </Section>
+        {activeTab === 'notificacoes' && (
+          <Section title="Notificações" isDark={isDark}>
+            <Row icon={settings.notifications ? Bell : BellOff} label="Notificações" description="Alertas ao criar novos leads" isDark={isDark}>
+              <Toggle checked={settings.notifications} onChange={(v) => setSetting('notifications', v)} isDark={isDark} />
+            </Row>
+            <Row icon={AlertCircle} label="Alertas de vencimento" description="Avisa quando atividade estiver atrasada" isDark={isDark}>
+              <Toggle checked={settings.overdueAlerts} onChange={(v) => setSetting('overdueAlerts', v)} isDark={isDark} />
+            </Row>
+            <Row icon={Clock} label="Lembrete de follow-up" description="Leads sem atividade há mais de 7 dias" isDark={isDark} last>
+              <Toggle checked={settings.followUpReminders} onChange={(v) => setSetting('followUpReminders', v)} isDark={isDark} />
+            </Row>
+          </Section>
+        )}
 
         {/* ── Integrações ── */}
-        <IntegracaoSection isDark={isDark} />
-
-        {/* ── Avançado ── */}
-        <Section title="Avançado" isDark={isDark}>
-          <Row icon={RefreshCw} label="Restaurar configurações" description="Volta tudo para os valores padrão" isDark={isDark} last>
-            {showReset ? (
-              <div style={{ display: 'flex', gap: '6px' }}>
-                <button
-                  type="button"
-                  onClick={() => { resetSettings(); setGoalInput(String(15_000_000)); setShowReset(false) }}
-                  style={{
-                    height: '28px', padding: '0 12px', borderRadius: '5px',
-                    backgroundColor: '#dc2626', color: '#fff', border: 'none',
-                    cursor: 'pointer', fontSize: '11px', fontWeight: 600,
-                  }}
-                >
-                  Confirmar
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowReset(false)}
-                  style={{
-                    height: '28px', padding: '0 10px', borderRadius: '5px',
-                    backgroundColor: 'transparent',
-                    border: `1px solid ${isDark ? '#2a2a28' : '#d4d0ca'}`,
-                    color: muted, cursor: 'pointer', fontSize: '11px', fontWeight: 500,
-                  }}
-                >
-                  Cancelar
-                </button>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setShowReset(true)}
-                style={{
-                  height: '28px', padding: '0 12px', borderRadius: '5px',
-                  backgroundColor: 'transparent',
-                  border: `1px solid ${isDark ? '#2a2a28' : '#d4d0ca'}`,
-                  color: muted, cursor: 'pointer', fontSize: '11px', fontWeight: 500,
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                Restaurar
-              </button>
-            )}
-          </Row>
-        </Section>
+        {activeTab === 'integracoes' && (
+          <IntegracaoSection isDark={isDark} />
+        )}
 
         <p style={{ fontSize: '10px', color: isDark ? '#2a2a28' : '#c4bfb8', textAlign: 'center', marginTop: '8px' }}>
           Esquire CRM · v1.0 · {new Date().getFullYear()}

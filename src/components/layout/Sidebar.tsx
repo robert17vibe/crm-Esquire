@@ -1,7 +1,6 @@
-import { useState, useRef, useLayoutEffect, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, Kanban, Users, Mic, CalendarDays, CheckSquare, Settings, LogOut, Users2, Shield, Bell } from 'lucide-react'
-import { useThemeStore } from '@/store/useThemeStore'
+import { LayoutDashboard, Kanban, Users, Mic, CalendarDays, CheckSquare, Settings, LogOut, Users2, Shield, Bell, Zap, Mail, Megaphone } from 'lucide-react'
 import { useAuthStore } from '@/store/useAuthStore'
 import { useDealStore } from '@/store/useDealStore'
 import { useTaskStore } from '@/store/useTaskStore'
@@ -19,11 +18,12 @@ const NAV_ITEMS = [
   { to: '/pipeline',  label: 'Jornada',    icon: Kanban          },
   { to: '/clients',   label: 'Clientes',   icon: Users           },
   { to: '/tarefas',   label: 'Tarefas',    icon: CheckSquare     },
-  { to: '/meetings',  label: 'Registro',   icon: Mic             },
+  { to: '/meetings',  label: 'Registo',    icon: Mic             },
   { to: '/calendar',  label: 'Calendário', icon: CalendarDays    },
+  { to: '/email',     label: 'Email',      icon: Mail            },
 ] as const
 
-type NavTo = (typeof NAV_ITEMS)[number]['to'] | '/teams' | '/admin/users'
+type NavTo = (typeof NAV_ITEMS)[number]['to'] | '/teams' | '/admin/users' | '/admin/notifications'
 
 // ─── Nav item ─────────────────────────────────────────────────────────────────
 
@@ -40,101 +40,74 @@ function NavItem({
   collapsed: boolean
   badge?: number
 }) {
-  const [hovered, setHovered] = useState(false)
+  const hasBadge = (badge ?? 0) > 0
 
   return (
     <NavLink
       to={to}
       title={collapsed ? label : undefined}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      className="sidebar-nav-item"
       style={({ isActive }) => ({
         display: 'flex',
         alignItems: 'center',
-        height: '36px',
-        padding: collapsed ? '0' : '0 12px',
+        height: '38px',
+        padding: collapsed ? '0' : '0 10px',
         justifyContent: collapsed ? 'center' : 'flex-start',
-        borderRadius: '6px',
+        borderRadius: 'var(--radius-sm)',
         gap: collapsed ? 0 : '10px',
         fontSize: '13px',
-        fontWeight: 500,
+        fontWeight: isActive ? 600 : 500,
         textDecoration: 'none',
         userSelect: 'none',
         cursor: 'pointer',
-        transition: 'background-color 0.2s ease, color 0.2s ease',
-        backgroundColor: isActive ? 'rgba(255,255,255,0.10)' : hovered ? 'rgba(255,255,255,0.06)' : 'transparent',
-        color: isActive || hovered ? '#f0ede5' : 'rgba(240,237,229,0.45)',
+        transition: 'background-color 0.15s ease, color 0.15s ease',
+        backgroundColor: isActive ? 'rgba(255,255,255,0.10)' : 'transparent',
+        color: isActive ? '#f0ede5' : 'rgba(240,237,229,0.5)',
         position: 'relative',
       })}
+      onMouseEnter={(e) => {
+        const el = e.currentTarget as HTMLAnchorElement
+        if (!el.classList.contains('active')) el.style.backgroundColor = 'rgba(255,255,255,0.06)'
+      }}
+      onMouseLeave={(e) => {
+        const el = e.currentTarget as HTMLAnchorElement
+        if (!el.classList.contains('active')) el.style.backgroundColor = 'transparent'
+      }}
     >
       {({ isActive }) => (
         <>
+          {/* Active left stripe */}
+          {isActive && !collapsed && (
+            <span style={{
+              position: 'absolute', left: '-10px', top: '50%', transform: 'translateY(-50%)',
+              width: '3px', height: '20px', borderRadius: '0 3px 3px 0',
+              backgroundColor: 'var(--brand)',
+            }} />
+          )}
           <div style={{ position: 'relative', flexShrink: 0 }}>
-            <Icon style={{ width: '16px', height: '16px', color: isActive || hovered ? '#f0ede5' : 'rgba(240,237,229,0.45)', transition: 'color 0.2s ease' }} />
-            {badge && badge > 0 && collapsed && (
+            <Icon style={{ width: '16px', height: '16px', color: isActive ? '#f0ede5' : 'rgba(240,237,229,0.5)', transition: 'color 0.15s ease' }} />
+            {hasBadge && collapsed && (
               <span style={{
-                position: 'absolute', top: '-4px', right: '-4px',
-                width: '8px', height: '8px', borderRadius: '50%',
+                position: 'absolute', top: '-3px', right: '-3px',
+                width: '7px', height: '7px', borderRadius: '50%',
                 backgroundColor: '#dc2626', border: '1.5px solid var(--surface-sidebar)',
               }} />
             )}
           </div>
           {!collapsed && (
             <>
-              <span className="sidebar-label" style={{ flex: 1 }}>{label}</span>
-              {badge && badge > 0 && (
+              <span style={{ flex: 1 }}>{label}</span>
+              {hasBadge && (
                 <span style={{
                   fontSize: '9px', fontWeight: 700, minWidth: '16px', height: '16px',
-                  borderRadius: '8px', backgroundColor: '#dc2626', color: '#fff',
+                  borderRadius: '999px', backgroundColor: '#dc2626', color: '#fff',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   padding: '0 4px', flexShrink: 0,
                 }}>
-                  {badge > 9 ? '9+' : badge}
+                  {(badge ?? 0) > 9 ? '9+' : badge}
                 </span>
               )}
             </>
           )}
-        </>
-      )}
-    </NavLink>
-  )
-}
-
-// ─── Settings item ────────────────────────────────────────────────────────────
-
-function SettingsItem({ collapsed }: { collapsed: boolean }) {
-  const [hovered, setHovered] = useState(false)
-
-  return (
-    <NavLink
-      to="/settings"
-      title={collapsed ? 'Configurações' : undefined}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      className="sidebar-nav-item"
-      style={({ isActive }) => ({
-        display: 'flex',
-        alignItems: 'center',
-        height: '32px',
-        padding: collapsed ? '0' : '0 12px',
-        justifyContent: collapsed ? 'center' : 'flex-start',
-        borderRadius: '6px',
-        gap: collapsed ? 0 : '8px',
-        fontSize: '11px',
-        fontWeight: 500,
-        textDecoration: 'none',
-        userSelect: 'none',
-        cursor: 'pointer',
-        transition: 'background-color 0.2s ease, color 0.2s ease',
-        backgroundColor: isActive ? 'rgba(255,255,255,0.10)' : hovered ? 'rgba(255,255,255,0.06)' : 'transparent',
-        color: isActive || hovered ? '#f0ede5' : 'rgba(240,237,229,0.3)',
-      })}
-    >
-      {({ isActive }) => (
-        <>
-          <Settings style={{ width: '14px', height: '14px', flexShrink: 0, color: isActive || hovered ? '#f0ede5' : 'rgba(240,237,229,0.3)', transition: 'color 0.2s ease' }} />
-          {!collapsed && <span className="sidebar-label">Configurações</span>}
         </>
       )}
     </NavLink>
@@ -157,18 +130,20 @@ function timeAgo(iso: string): string {
   return `${Math.floor(diff / 1440)}d`
 }
 
-function NotificationPanel({ onClose, collapsed }: { onClose: () => void; collapsed: boolean }) {
+function NotificationPanel({ onClose, bottom }: { onClose: () => void; bottom: number }) {
   const notifications = useNotificationStore((s) => s.notifications)
   const markRead      = useNotificationStore((s) => s.markRead)
   const markAllRead   = useNotificationStore((s) => s.markAllRead)
   const navigate      = useNavigate()
-  const panelRef      = useRef<HTMLDivElement>(null)
 
   const unread = notifications.filter((n) => !n.read)
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) { if (e.key === 'Escape') onClose() }
-    function onClick(e: MouseEvent) { if (panelRef.current && !panelRef.current.contains(e.target as Node)) onClose() }
+    function onClick(e: MouseEvent) {
+      const panel = document.getElementById('notif-panel')
+      if (panel && !panel.contains(e.target as Node)) onClose()
+    }
     document.addEventListener('keydown', onKey)
     document.addEventListener('mousedown', onClick)
     return () => { document.removeEventListener('keydown', onKey); document.removeEventListener('mousedown', onClick) }
@@ -180,17 +155,15 @@ function NotificationPanel({ onClose, collapsed }: { onClose: () => void; collap
     onClose()
   }
 
-  const left = collapsed ? 56 : 200
-
   return (
     <div
-      ref={panelRef}
+      id="notif-panel"
       style={{
-        position: 'fixed', left: `${left + 8}px`, bottom: '60px', zIndex: 100,
-        width: '300px', maxHeight: '420px',
+        position: 'fixed', left: '8px', bottom: `${bottom + 8}px`, zIndex: 200,
+        width: '296px', maxHeight: '400px',
         backgroundColor: 'var(--surface-card)', border: '1px solid var(--line)',
         borderRadius: 'var(--radius-lg)', overflow: 'hidden',
-        boxShadow: 'var(--shadow-overlay)',
+        boxShadow: '0 20px 60px rgba(0,0,0,0.4)',
         display: 'flex', flexDirection: 'column',
       }}
     >
@@ -204,18 +177,16 @@ function NotificationPanel({ onClose, collapsed }: { onClose: () => void; collap
         </div>
         {unread.length > 0 && (
           <button type="button" onClick={markAllRead}
-            style={{ fontSize: '10px', color: 'var(--ink-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, transition: 'color 0.15s ease' }}
+            style={{ fontSize: '10px', color: 'var(--ink-muted)', background: 'none', border: 'none', cursor: 'pointer' }}
             onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--ink-base)')}
-            onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--ink-muted)')}
-          >Marcar todas como lidas</button>
+            onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--ink-muted)')}>
+            Marcar todas
+          </button>
         )}
       </div>
-
       <div style={{ overflowY: 'auto', flex: 1 }}>
         {notifications.length === 0 ? (
-          <div style={{ padding: '28px', textAlign: 'center', color: 'var(--ink-faint)', fontSize: '12px' }}>
-            Nenhuma notificação
-          </div>
+          <div style={{ padding: '28px', textAlign: 'center', color: 'var(--ink-faint)', fontSize: '12px' }}>Nenhuma notificação</div>
         ) : (
           notifications.slice(0, 30).map((n, i) => {
             const cfg = NOTIF_LABELS[n.type] ?? { label: n.type, color: 'var(--ink-muted)' }
@@ -223,14 +194,13 @@ function NotificationPanel({ onClose, collapsed }: { onClose: () => void; collap
               <button key={n.id} type="button" onClick={() => handleClick(n)}
                 style={{
                   display: 'flex', alignItems: 'flex-start', gap: '9px', width: '100%', padding: '10px 14px',
-                  backgroundColor: n.read ? 'transparent' : 'var(--surface-hover)',
+                  backgroundColor: n.read ? 'transparent' : 'var(--surface-raised)',
                   borderBottom: i < notifications.length - 1 ? '1px solid var(--line)' : 'none',
                   cursor: 'pointer', textAlign: 'left', border: 'none',
                   transition: 'background-color 0.1s ease',
                 }}
                 onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--surface-col)')}
-                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = n.read ? 'transparent' : 'var(--surface-hover)')}
-              >
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = n.read ? 'transparent' : 'var(--surface-raised)')}>
                 <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: n.read ? 'transparent' : cfg.color, flexShrink: 0, marginTop: '5px' }} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '2px' }}>
@@ -252,7 +222,6 @@ function NotificationPanel({ onClose, collapsed }: { onClose: () => void; collap
 // ─── Sidebar ──────────────────────────────────────────────────────────────────
 
 export function Sidebar() {
-  const isDark   = useThemeStore((s) => s.isDark)
   const location = useLocation()
   const signOut  = useAuthStore((s) => s.signOut)
   const profile  = useAuthStore((s) => s.profile)
@@ -274,12 +243,12 @@ export function Sidebar() {
     [tasks, today],
   )
 
-  const notifications   = useNotificationStore((s) => s.notifications)
-  const unreadCount     = useMemo(() => notifications.filter((n) => !n.read).length, [notifications])
+  const notifications = useNotificationStore((s) => s.notifications)
+  const unreadCount   = useMemo(() => notifications.filter((n) => !n.read).length, [notifications])
   const [showNotif, setShowNotif] = useState(false)
 
   const displayName     = profile?.full_name || 'Robert Ferreira'
-  const displayRole     = profile?.role === 'admin' ? 'ADMIN' : profile?.role === 'user' ? 'USER' : 'ADMIN'
+  const displayRole     = profile?.role === 'admin' ? 'ADMIN' : 'USER'
   const displayInitials = displayName.split(' ').map((p) => p[0]).slice(0, 2).join('').toUpperCase()
   const displayColor    = profile?.avatar_color || hashColor(displayName)
 
@@ -291,270 +260,287 @@ export function Sidebar() {
     return () => window.removeEventListener('resize', handleResize)
   }, [])
 
-  const asideRef     = useRef<HTMLElement>(null)
-  const indicatorRef = useRef<HTMLDivElement>(null)
-  const wrapperRefs  = useRef<Partial<Record<NavTo, HTMLDivElement>>>({})
-  const firstRender  = useRef(true)
+  const sidebarW = collapsed ? 60 : 220
 
-  const sidebarWidth = collapsed ? 56 : 200
-
-  useLayoutEffect(() => {
-    const aside     = asideRef.current
-    const indicator = indicatorRef.current
-    if (!aside || !indicator) return
-
-    const active = NAV_ITEMS.find(({ to }) => location.pathname.startsWith(to))
-    const onSettings = location.pathname.startsWith('/settings')
-
-    if (!active || onSettings) {
-      indicator.style.opacity = '0'
-      return
+  // Footer ref for notification panel position
+  const [footerBottom, setFooterBottom] = useState(80)
+  const footerRef = (el: HTMLDivElement | null) => {
+    if (el) {
+      const r = el.getBoundingClientRect()
+      setFooterBottom(window.innerHeight - r.top)
     }
+  }
 
-    const wrapper = wrapperRefs.current[active.to]
-    if (!wrapper) {
-      indicator.style.opacity = '0'
-      return
-    }
-
-    const asideRect   = aside.getBoundingClientRect()
-    const wrapperRect = wrapper.getBoundingClientRect()
-    const topOffset   = wrapperRect.top - asideRect.top
-
-    if (firstRender.current) {
-      indicator.style.transition = 'none'
-      indicator.style.top        = `${topOffset}px`
-      indicator.style.height     = `${wrapperRect.height}px`
-      indicator.style.opacity    = '1'
-      void indicator.getBoundingClientRect()
-      indicator.style.transition = 'top 0.3s cubic-bezier(0.4,0,0.2,1), height 0.3s cubic-bezier(0.4,0,0.2,1), opacity 0.15s ease'
-      firstRender.current = false
-    } else {
-      indicator.style.top     = `${topOffset}px`
-      indicator.style.height  = `${wrapperRect.height}px`
-      indicator.style.opacity = '1'
-    }
-  }, [location.pathname, collapsed])
+  const isAdmin = profile?.is_admin || profile?.role === 'admin'
 
   return (
-  <>
-    <aside
-      ref={asideRef}
-      className="sidebar-responsive relative flex flex-col shrink-0"
-      style={{
-        width: `${sidebarWidth}px`,
-        minWidth: `${sidebarWidth}px`,
-        backgroundColor: 'var(--surface-sidebar)',
-        borderRadius: '0 20px 20px 0',
-        margin: '12px 0',
-        height: 'calc(100vh - 24px)',
-        flexShrink: 0,
-        zIndex: 10,
-        overflow: 'hidden',
-        boxShadow: isDark
-          ? '4px 0 20px rgba(0,0,0,0.3)'
-          : '4px 0 20px rgba(0,0,0,0.08)',
-        transition: 'width 0.25s cubic-bezier(0.4,0,0.2,1), background-color 0.3s ease',
-      }}
-    >
-      {/* Sliding accent indicator — 3px brand left edge */}
-      <div
-        ref={indicatorRef}
-        aria-hidden
+    <>
+      <aside
         style={{
-          position: 'absolute',
-          left: '0',
-          top: 0,
-          width: '3px',
-          height: '36px',
-          backgroundColor: 'var(--brand)',
-          borderRadius: '0 3px 3px 0',
-          opacity: 0,
-          pointerEvents: 'none',
-          zIndex: 20,
-          transition: 'top 0.3s cubic-bezier(0.4,0,0.2,1), height 0.3s cubic-bezier(0.4,0,0.2,1), opacity 0.15s ease',
+          width: `${sidebarW}px`,
+          minWidth: `${sidebarW}px`,
+          backgroundColor: 'var(--surface-sidebar)',
+          borderRight: '1px solid rgba(255,255,255,0.06)',
+          borderRadius: '0 20px 20px 0',
+          display: 'flex',
+          flexDirection: 'column',
+          height: '100vh',
+          flexShrink: 0,
+          zIndex: 10,
+          overflow: 'hidden',
+          transition: 'width 0.25s cubic-bezier(0.4,0,0.2,1)',
+          position: 'relative',
         }}
-      />
+      >
 
-      {/* Logo */}
-      <div style={{ padding: collapsed ? '20px 0 16px' : '20px 12px 16px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'flex-start' }}>
-        {collapsed ? (
-          <span style={{ fontSize: '14px', fontWeight: 700, color: '#f0ede5', letterSpacing: '-0.01em' }}>E</span>
-        ) : (
-          <span className="sidebar-logo-text" style={{ fontSize: '14px', fontWeight: 600, letterSpacing: '-0.01em', color: '#f0ede5' }}>
-            Esquire CRM
-          </span>
-        )}
-      </div>
+        {/* ── Logo ── */}
+        <div style={{
+          height: '56px', minHeight: '56px', flexShrink: 0,
+          display: 'flex', alignItems: 'center',
+          padding: collapsed ? '0' : '0 16px',
+          justifyContent: collapsed ? 'center' : 'flex-start',
+          gap: '10px',
+          borderBottom: '1px solid rgba(255,255,255,0.06)',
+        }}>
+          <div style={{
+            width: '28px', height: '28px', borderRadius: 'var(--radius-sm)',
+            backgroundColor: 'var(--brand)', flexShrink: 0,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <Zap style={{ width: '14px', height: '14px', color: '#fff' }} />
+          </div>
+          {!collapsed && (
+            <span style={{ fontSize: '14px', fontWeight: 700, color: '#f0ede5', letterSpacing: '-0.02em', whiteSpace: 'nowrap' }}>
+              Esquire CRM
+            </span>
+          )}
+        </div>
 
-      <div style={{ height: '1px', backgroundColor: 'var(--line)', marginBottom: '12px', flexShrink: 0 }} />
 
-      {/* Navigation */}
-      <nav className="flex-1 flex flex-col" style={{ padding: collapsed ? '0 8px' : '0 12px', gap: '4px' }}>
-        {NAV_ITEMS.map(({ to, label, icon }) => (
-          <div
-            key={to}
-            ref={(el) => { if (el) wrapperRefs.current[to] = el }}
-          >
+        {/* ── Navigation ── */}
+        <nav style={{ flex: 1, padding: collapsed ? '12px 10px' : '12px 10px', display: 'flex', flexDirection: 'column', gap: '2px', overflowY: 'auto', overflowX: 'hidden' }}>
+
+          {/* Main items */}
+          {NAV_ITEMS.map(({ to, label, icon }) => (
             <NavItem
+              key={to}
               to={to}
               label={label}
               icon={icon}
               collapsed={collapsed}
               badge={to === '/pipeline' ? overdueCount : to === '/tarefas' ? overdueTaskCount : undefined}
             />
-          </div>
-        ))}
+          ))}
 
-        {(profile?.is_admin || profile?.role === 'admin') && (
-          <>
-            <div style={{ height: '1px', backgroundColor: 'var(--line)', margin: '8px 0 6px' }} />
-            {!collapsed && (
-              <span style={{ fontSize: '9px', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(240,237,229,0.25)', paddingLeft: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <Shield style={{ width: '9px', height: '9px' }} />
-                Admin
-              </span>
-            )}
-            <div ref={(el) => { if (el) wrapperRefs.current['/admin/users' as NavTo] = el }}>
+          {/* Admin section */}
+          {isAdmin && (
+            <>
+              <div style={{ margin: '10px 0 6px', height: '1px', backgroundColor: 'rgba(255,255,255,0.06)' }} />
+              {!collapsed && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '0 10px', marginBottom: '4px' }}>
+                  <Shield style={{ width: '9px', height: '9px', color: 'rgba(240,237,229,0.2)' }} />
+                  <span style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(240,237,229,0.2)' }}>
+                    Admin
+                  </span>
+                </div>
+              )}
+              <NavLink
+                to="/admin/notifications"
+                title={collapsed ? 'Notificações Equipa' : undefined}
+                style={({ isActive }) => ({
+                  display: 'flex', alignItems: 'center', height: '38px',
+                  padding: collapsed ? '0' : '0 10px',
+                  justifyContent: collapsed ? 'center' : 'flex-start',
+                  borderRadius: 'var(--radius-sm)', gap: collapsed ? 0 : '10px',
+                  fontSize: '13px', fontWeight: isActive ? 600 : 500, textDecoration: 'none',
+                  color: isActive ? '#f0ede5' : 'rgba(240,237,229,0.5)',
+                  backgroundColor: isActive ? 'rgba(255,255,255,0.10)' : 'transparent',
+                  transition: 'background-color 0.15s ease',
+                  position: 'relative',
+                })}
+                onMouseEnter={(e) => { const el = e.currentTarget; if (!location.pathname.startsWith('/admin/notif')) el.style.backgroundColor = 'rgba(255,255,255,0.06)' }}
+                onMouseLeave={(e) => { const el = e.currentTarget; if (!location.pathname.startsWith('/admin/notif')) el.style.backgroundColor = 'transparent' }}
+              >
+                {({ isActive }) => (
+                  <>
+                    {isActive && !collapsed && <span style={{ position: 'absolute', left: '-10px', top: '50%', transform: 'translateY(-50%)', width: '3px', height: '20px', borderRadius: '0 3px 3px 0', backgroundColor: 'var(--brand)' }} />}
+                    <Megaphone style={{ width: '16px', height: '16px', color: isActive ? '#f0ede5' : 'rgba(240,237,229,0.5)', flexShrink: 0 }} />
+                    {!collapsed && <span>Comunicados</span>}
+                  </>
+                )}
+              </NavLink>
               <NavLink
                 to="/admin/users"
                 title={collapsed ? 'Utilizadores' : undefined}
-                className="sidebar-nav-item"
                 style={({ isActive }) => ({
-                  display: 'flex', alignItems: 'center', height: '36px',
-                  padding: collapsed ? '0' : '0 12px',
+                  display: 'flex', alignItems: 'center', height: '38px',
+                  padding: collapsed ? '0' : '0 10px',
                   justifyContent: collapsed ? 'center' : 'flex-start',
-                  borderRadius: '6px', gap: collapsed ? 0 : '10px',
-                  fontSize: '13px', fontWeight: 500, textDecoration: 'none',
-                  userSelect: 'none', cursor: 'pointer',
-                  transition: 'background-color 0.2s ease, color 0.2s ease',
+                  borderRadius: 'var(--radius-sm)', gap: collapsed ? 0 : '10px',
+                  fontSize: '13px', fontWeight: isActive ? 600 : 500, textDecoration: 'none',
+                  color: isActive ? '#f0ede5' : 'rgba(240,237,229,0.5)',
                   backgroundColor: isActive ? 'rgba(255,255,255,0.10)' : 'transparent',
-                  color: isActive ? '#f0ede5' : 'rgba(240,237,229,0.45)',
+                  transition: 'background-color 0.15s ease',
+                  position: 'relative',
                 })}
+                onMouseEnter={(e) => { const el = e.currentTarget; if (!location.pathname.startsWith('/admin')) el.style.backgroundColor = 'rgba(255,255,255,0.06)' }}
+                onMouseLeave={(e) => { const el = e.currentTarget; if (!location.pathname.startsWith('/admin')) el.style.backgroundColor = 'transparent' }}
               >
                 {({ isActive }) => (
                   <>
-                    <Shield style={{ width: '16px', height: '16px', color: isActive ? '#f0ede5' : 'rgba(240,237,229,0.45)', transition: 'color 0.2s ease', flexShrink: 0 }} />
-                    {!collapsed && <span className="sidebar-label" style={{ flex: 1 }}>Utilizadores</span>}
+                    {isActive && !collapsed && <span style={{ position: 'absolute', left: '-10px', top: '50%', transform: 'translateY(-50%)', width: '3px', height: '20px', borderRadius: '0 3px 3px 0', backgroundColor: 'var(--brand)' }} />}
+                    <Shield style={{ width: '16px', height: '16px', color: isActive ? '#f0ede5' : 'rgba(240,237,229,0.5)', flexShrink: 0 }} />
+                    {!collapsed && <span>Utilizadores</span>}
                   </>
                 )}
               </NavLink>
-            </div>
-            <div ref={(el) => { if (el) wrapperRefs.current['/teams' as NavTo] = el }}>
               <NavLink
                 to="/teams"
                 title={collapsed ? 'Grupos' : undefined}
-                className="sidebar-nav-item"
                 style={({ isActive }) => ({
-                  display: 'flex', alignItems: 'center', height: '36px',
-                  padding: collapsed ? '0' : '0 12px',
+                  display: 'flex', alignItems: 'center', height: '38px',
+                  padding: collapsed ? '0' : '0 10px',
                   justifyContent: collapsed ? 'center' : 'flex-start',
-                  borderRadius: '6px', gap: collapsed ? 0 : '10px',
-                  fontSize: '13px', fontWeight: 500, textDecoration: 'none',
-                  userSelect: 'none', cursor: 'pointer',
-                  transition: 'background-color 0.2s ease, color 0.2s ease',
+                  borderRadius: 'var(--radius-sm)', gap: collapsed ? 0 : '10px',
+                  fontSize: '13px', fontWeight: isActive ? 600 : 500, textDecoration: 'none',
+                  color: isActive ? '#f0ede5' : 'rgba(240,237,229,0.5)',
                   backgroundColor: isActive ? 'rgba(255,255,255,0.10)' : 'transparent',
-                  color: isActive ? '#f0ede5' : 'rgba(240,237,229,0.45)',
+                  transition: 'background-color 0.15s ease',
+                  position: 'relative',
                 })}
+                onMouseEnter={(e) => { const el = e.currentTarget; if (!location.pathname.startsWith('/teams')) el.style.backgroundColor = 'rgba(255,255,255,0.06)' }}
+                onMouseLeave={(e) => { const el = e.currentTarget; if (!location.pathname.startsWith('/teams')) el.style.backgroundColor = 'transparent' }}
               >
                 {({ isActive }) => (
                   <>
-                    <Users2 style={{ width: '16px', height: '16px', color: isActive ? '#f0ede5' : 'rgba(240,237,229,0.45)', transition: 'color 0.2s ease', flexShrink: 0 }} />
-                    {!collapsed && <span className="sidebar-label" style={{ flex: 1 }}>Grupos</span>}
+                    {isActive && !collapsed && <span style={{ position: 'absolute', left: '-10px', top: '50%', transform: 'translateY(-50%)', width: '3px', height: '20px', borderRadius: '0 3px 3px 0', backgroundColor: 'var(--brand)' }} />}
+                    <Users2 style={{ width: '16px', height: '16px', color: isActive ? '#f0ede5' : 'rgba(240,237,229,0.5)', flexShrink: 0 }} />
+                    {!collapsed && <span>Grupos</span>}
                   </>
                 )}
               </NavLink>
-            </div>
-          </>
-        )}
-      </nav>
+            </>
+          )}
+        </nav>
 
-      <div style={{ height: '1px', backgroundColor: 'var(--line)', flexShrink: 0 }} />
+        {/* ── Footer ── */}
+        <div ref={footerRef} style={{ borderTop: '1px solid rgba(255,255,255,0.06)', padding: collapsed ? '12px 10px' : '12px 10px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
 
-      {/* Footer */}
-      <div style={{ padding: collapsed ? '10px 8px 14px' : '10px 12px 14px', flexShrink: 0 }}>
-
-        {/* Bell */}
-        <div style={{ marginBottom: '6px', position: 'relative' }}>
+          {/* Notifications */}
           <button
             type="button"
             onClick={() => setShowNotif((v) => !v)}
             title={collapsed ? 'Notificações' : undefined}
             style={{
-              display: 'flex', alignItems: 'center', height: '32px',
-              width: '100%', padding: collapsed ? '0' : '0 12px',
+              display: 'flex', alignItems: 'center', height: '36px',
+              width: '100%', padding: collapsed ? '0' : '0 10px',
               justifyContent: collapsed ? 'center' : 'flex-start',
-              borderRadius: '6px', gap: collapsed ? 0 : '8px',
-              fontSize: '11px', fontWeight: 500,
+              borderRadius: 'var(--radius-sm)', gap: collapsed ? 0 : '10px',
+              fontSize: '13px', fontWeight: 500,
               background: showNotif ? 'rgba(255,255,255,0.10)' : 'none',
               border: 'none', cursor: 'pointer',
-              color: showNotif ? '#f0ede5' : 'rgba(240,237,229,0.3)',
+              color: showNotif ? '#f0ede5' : 'rgba(240,237,229,0.5)',
               transition: 'background-color 0.15s ease, color 0.15s ease',
               position: 'relative',
             }}
             onMouseEnter={(e) => { if (!showNotif) { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = '#f0ede5' } }}
-            onMouseLeave={(e) => { if (!showNotif) { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = 'rgba(240,237,229,0.3)' } }}
+            onMouseLeave={(e) => { if (!showNotif) { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = 'rgba(240,237,229,0.5)' } }}
           >
             <div style={{ position: 'relative', flexShrink: 0 }}>
-              <Bell style={{ width: '14px', height: '14px' }} />
+              <Bell style={{ width: '16px', height: '16px' }} />
               {unreadCount > 0 && (
                 <span style={{
-                  position: 'absolute', top: '-4px', right: '-5px',
+                  position: 'absolute', top: '-3px', right: '-3px',
                   fontSize: '7px', fontWeight: 800, color: '#fff',
                   backgroundColor: '#dc2626', borderRadius: '99px',
-                  padding: '1px 3px', minWidth: '12px', textAlign: 'center', lineHeight: 1.4,
+                  padding: '1px 3px', minWidth: '11px', textAlign: 'center', lineHeight: 1.4,
                 }}>{unreadCount > 9 ? '9+' : unreadCount}</span>
               )}
             </div>
-            {!collapsed && <span className="sidebar-label">Notificações</span>}
+            {!collapsed && <span style={{ flex: 1 }}>Notificações</span>}
           </button>
-        </div>
 
-        <div style={{ marginBottom: '10px' }}>
-          <SettingsItem collapsed={collapsed} />
-        </div>
+          {/* Settings */}
+          <NavLink
+            to="/settings"
+            title={collapsed ? 'Configurações' : undefined}
+            style={({ isActive }) => ({
+              display: 'flex', alignItems: 'center', height: '36px',
+              padding: collapsed ? '0' : '0 10px',
+              justifyContent: collapsed ? 'center' : 'flex-start',
+              borderRadius: 'var(--radius-sm)', gap: collapsed ? 0 : '10px',
+              fontSize: '13px', fontWeight: 500, textDecoration: 'none',
+              color: isActive ? '#f0ede5' : 'rgba(240,237,229,0.5)',
+              backgroundColor: isActive ? 'rgba(255,255,255,0.10)' : 'transparent',
+              transition: 'background-color 0.15s ease, color 0.15s ease',
+            })}
+            onMouseEnter={(e) => { const el = e.currentTarget; if (!location.pathname.startsWith('/settings')) el.style.backgroundColor = 'rgba(255,255,255,0.06)' }}
+            onMouseLeave={(e) => { const el = e.currentTarget; if (!location.pathname.startsWith('/settings')) el.style.backgroundColor = 'transparent' }}
+          >
+            {({ isActive }) => (
+              <>
+                <Settings style={{ width: '16px', height: '16px', color: isActive ? '#f0ede5' : 'rgba(240,237,229,0.5)', flexShrink: 0 }} />
+                {!collapsed && <span style={{ flex: 1 }}>Configurações</span>}
+              </>
+            )}
+          </NavLink>
 
-        <div style={{ height: '1px', backgroundColor: 'var(--line)', marginBottom: '10px' }} />
-
-        {/* User */}
-        {collapsed ? (
-          <div style={{ display: 'flex', justifyContent: 'center' }}>
-            <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: displayColor, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#fff', fontSize: '11px', fontWeight: 600 }}>
+          {/* User row */}
+          <div style={{ height: '1px', backgroundColor: 'rgba(255,255,255,0.06)', margin: '6px 0' }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: collapsed ? '0' : '0 2px', justifyContent: collapsed ? 'center' : 'flex-start' }}>
+            <div style={{
+              width: '32px', height: '32px', borderRadius: 'var(--radius-full)', backgroundColor: displayColor,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+              color: '#fff', fontSize: '11px', fontWeight: 700,
+            }}>
               {displayInitials}
             </div>
+            {!collapsed && (
+              <>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <p style={{ fontSize: '12px', fontWeight: 600, color: '#f0ede5', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: 1.3 }}>{displayName}</p>
+                  <p style={{ fontSize: '9px', color: 'rgba(240,237,229,0.3)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{displayRole}</p>
+                </div>
+                <button type="button" onClick={() => signOut()} title="Sair"
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', flexShrink: 0, color: 'rgba(240,237,229,0.3)', transition: 'color 0.15s ease' }}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = '#f0ede5')}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(240,237,229,0.3)')}>
+                  <LogOut style={{ width: '14px', height: '14px' }} />
+                </button>
+              </>
+            )}
           </div>
-        ) : (
-          <div className="sidebar-user-details" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: displayColor, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#fff', fontSize: '11px', fontWeight: 600 }}>
-              {displayInitials}
-            </div>
-            <div style={{ minWidth: 0, flex: 1 }}>
-              <p style={{ fontSize: '12px', fontWeight: 500, color: '#f0ede5', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: 1.3 }}>
-                {displayName}
-              </p>
-              <p style={{ fontSize: '10px', color: 'rgba(240,237,229,0.3)', textTransform: 'uppercase', letterSpacing: '0.08em', lineHeight: 1.4, marginTop: '1px' }}>
-                {displayRole}
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => signOut()}
-              title="Sair"
-              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', flexShrink: 0, color: 'rgba(240,237,229,0.3)', transition: 'color 0.15s ease' }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = '#f0ede5')}
-              onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(240,237,229,0.3)')}
-            >
-              <LogOut style={{ width: '14px', height: '14px' }} />
-            </button>
-          </div>
-        )}
+        </div>
 
-      </div>
-    </aside>
+      </aside>
 
-    {showNotif && (
-      <NotificationPanel onClose={() => setShowNotif(false)} collapsed={collapsed} />
-    )}
-  </>
+      {/* Collapse toggle — outside aside so overflow:hidden doesn't clip it */}
+      <button
+        type="button"
+        onClick={() => setCollapsed((v) => !v)}
+        title={collapsed ? 'Expandir sidebar' : 'Recolher sidebar'}
+        style={{
+          position: 'fixed',
+          left: `${sidebarW - 11}px`,
+          top: '68px',
+          width: '22px', height: '22px', borderRadius: '50%',
+          backgroundColor: 'var(--surface-card)', border: '1px solid var(--line)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          cursor: 'pointer', zIndex: 20,
+          color: 'var(--ink-muted)',
+          fontSize: '11px', fontWeight: 700,
+          transition: 'background-color 0.15s ease, left 0.25s cubic-bezier(0.4,0,0.2,1)',
+          boxShadow: '0 1px 4px rgba(0,0,0,0.2)',
+        }}
+        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--surface-raised)')}
+        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'var(--surface-card)')}
+      >
+        {collapsed ? '›' : '‹'}
+      </button>
+
+      {showNotif && (
+        <NotificationPanel onClose={() => setShowNotif(false)} bottom={footerBottom} />
+      )}
+    </>
   )
 }
