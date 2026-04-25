@@ -150,7 +150,7 @@ export const useDealStore = create<DealStore>((set, get) => {
     const optimistic: Deal = {
       id: `opt-${Date.now()}`,
       company_id: `c-${Date.now()}`,
-      title: `${values.company_name} — ${values.contact_name}`,
+      title: values.company_name ? `${values.company_name} — ${values.contact_name}` : values.contact_name,
       stage_id: values.stage_id,
       value: values.value ?? 0,
       currency: 'BRL',

@@ -1,13 +1,13 @@
 import { useState, useMemo, useRef, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Plus, Zap } from 'lucide-react'
-import { evaluateDealScore } from '@/lib/dealScore'
 import * as Tooltip from '@radix-ui/react-tooltip'
 import { KanbanBoard } from '@/components/pipeline/KanbanBoard'
 import { NewLeadModal } from '@/components/pipeline/NewLeadModal'
 import { EditDealModal } from '@/components/pipeline/EditDealModal'
 import { useDealStore } from '@/store/useDealStore'
 import { useThemeStore } from '@/store/useThemeStore'
+import { useNotificationStore } from '@/store/useNotificationStore'
 import type { Deal } from '@/types/deal.types'
 
 export function PipelinePage() {
@@ -16,6 +16,7 @@ export function PipelinePage() {
   const moveDeal      = useDealStore((s) => s.moveDeal)
   const setLossReason = useDealStore((s) => s.setLossReason)
   const isDark        = useThemeStore((s) => s.isDark)
+  const notifications = useNotificationStore((s) => s.notifications)
 
   const [searchParams, setSearchParams] = useSearchParams()
   const searchQuery    = searchParams.get('search') ?? ''
@@ -24,18 +25,21 @@ export function PipelinePage() {
     return raw ? raw.split(',').filter(Boolean) : []
   }, [searchParams])
 
-  type SortMode  = 'manual' | 'score' | 'urgency'
-
   const [showNewModal, setShowNewModal]     = useState(false)
-  const [sortMode, setSortMode]             = useState<SortMode>('manual')
+  const [prioritizeNew, setPrioritizeNew]   = useState(false)
   const [editingDeal, setEditingDeal]       = useState<Deal | null>(null)
   const zapRef                              = useRef<HTMLButtonElement>(null)
   const [zapAnimating, setZapAnimating]     = useState(false)
   const [pendingNewDeal, setPendingNewDeal] = useState<Deal | null>(null)
   const [updatedDeal, setUpdatedDeal]       = useState<Deal | null>(null)
 
+  const newDealIds = useMemo(
+    () => new Set(notifications.filter((n) => !n.read).map((n) => n.dealId)),
+    [notifications],
+  )
+
   const handleZapClick = useCallback(() => {
-    setSortMode((m) => m === 'manual' ? 'score' : m === 'score' ? 'urgency' : 'manual')
+    setPrioritizeNew((v) => !v)
     setZapAnimating(false)
     requestAnimationFrame(() => setZapAnimating(true))
   }, [])
@@ -74,20 +78,16 @@ export function PipelinePage() {
       })
     }
 
-    if (sortMode === 'score') {
-      result = [...result].sort((a, b) => evaluateDealScore(b) - evaluateDealScore(a))
-    } else if (sortMode === 'urgency') {
-      const today = new Date().toISOString().slice(0, 10)
+    if (prioritizeNew) {
       result = [...result].sort((a, b) => {
-        const aOv = a.next_activity?.due_date && a.next_activity.due_date < today ? 1 : 0
-        const bOv = b.next_activity?.due_date && b.next_activity.due_date < today ? 1 : 0
-        if (bOv !== aOv) return bOv - aOv
-        return b.days_in_stage - a.days_in_stage
+        const aNew = newDealIds.has(a.id) ? 1 : 0
+        const bNew = newDealIds.has(b.id) ? 1 : 0
+        return bNew - aNew
       })
     }
 
     return result
-  }, [deals, selectedOwners, searchQuery, sortMode])
+  }, [deals, selectedOwners, searchQuery, prioritizeNew, newDealIds])
 
   const hasFilter = selectedOwners.length > 0 || !!searchQuery
 
@@ -121,7 +121,7 @@ export function PipelinePage() {
         {/* Right: sort + new lead */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
 
-          {/* Sort mode — zap icon only with electrocuted effect */}
+          {/* Priorizar novos leads — toggle */}
           <Tooltip.Provider delayDuration={300}>
             <Tooltip.Root>
               <Tooltip.Trigger asChild>
@@ -129,12 +129,12 @@ export function PipelinePage() {
                   ref={zapRef}
                   type="button"
                   onClick={handleZapClick}
-                  title={sortMode === 'manual' ? 'Ordenar por score' : sortMode === 'score' ? 'Ordenar por urgência' : 'Voltar à ordem manual'}
+                  title={prioritizeNew ? 'Desativar priorização de novos leads' : 'Priorizar novos leads'}
                   style={{
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     width: '32px', height: '32px', borderRadius: '8px', cursor: 'pointer',
-                    backgroundColor: sortMode !== 'manual' ? (isDark ? '#1e1e1e' : '#ede9e2') : filterBg,
-                    border: `1px solid ${sortMode !== 'manual' ? (isDark ? '#3a3a3a' : '#c8c4be') : filterBorder}`,
+                    backgroundColor: prioritizeNew ? (isDark ? '#1a1500' : '#fef9c3') : filterBg,
+                    border: `1px solid ${prioritizeNew ? (isDark ? '#713f12' : '#eab308') : filterBorder}`,
                     flexShrink: 0, transition: 'background-color 0.15s ease, border-color 0.15s ease',
                   }}
                 >
@@ -143,8 +143,8 @@ export function PipelinePage() {
                     onAnimationEnd={() => setZapAnimating(false)}
                     style={{
                       width: '16px', height: '16px',
-                      color: sortMode !== 'manual' ? '#facc15' : filterText,
-                      fill: sortMode !== 'manual' ? '#facc15' : 'none',
+                      color: prioritizeNew ? '#eab308' : filterText,
+                      fill: prioritizeNew ? '#eab308' : 'none',
                       transition: 'color 0.2s ease, fill 0.2s ease',
                     }}
                   />
@@ -157,7 +157,7 @@ export function PipelinePage() {
                   backgroundColor: isDark ? '#e8e4dc' : '#1a1814',
                   borderRadius: '5px', padding: '4px 8px', zIndex: 50, userSelect: 'none',
                 }}>
-                  {sortMode === 'manual' ? 'Ordenar por score' : sortMode === 'score' ? 'Ordenar por urgência' : 'Voltar à ordem manual'}
+                  {prioritizeNew ? 'Desativar priorização' : 'Priorizar novos leads'}
                   <Tooltip.Arrow style={{ fill: isDark ? '#e8e4dc' : '#1a1814' }} />
                 </Tooltip.Content>
               </Tooltip.Portal>
@@ -203,7 +203,7 @@ export function PipelinePage() {
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '10px', opacity: 0.6 }}>
           <p style={{ fontSize: '13px', fontWeight: 600, color: filterText }}>Nenhum deal encontrado</p>
           <p style={{ fontSize: '12px', color: filterText }}>Tente outros termos ou limpe os filtros</p>
-          <button type="button" onClick={() => { clearFilters(); setSortMode('manual') }}
+          <button type="button" onClick={() => { clearFilters() }}
             style={{ fontSize: '12px', fontWeight: 600, color: '#2c5545', background: 'none', border: 'none', cursor: 'pointer', marginTop: '4px' }}>
             Limpar filtros
           </button>
@@ -223,7 +223,8 @@ export function PipelinePage() {
             onDeleteDeal={(id) => { deleteDeal(id) }}
             onStageChange={(id, stageId) => { moveDeal(id, stageId) }}
             onLossReasonConfirmed={(id, reason) => { setLossReason(id, reason) }}
-            showScore={sortMode === 'score'}
+            showScore={false}
+            highlightNew={prioritizeNew}
             onAddDeal={() => setShowNewModal(true)}
           />
         </div>

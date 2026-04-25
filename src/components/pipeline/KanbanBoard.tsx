@@ -32,6 +32,7 @@ interface KanbanBoardProps {
   onStageChange?: (dealId: string, stageId: StageId) => void
   onLossReasonConfirmed?: (dealId: string, reason: string) => void
   showScore?: boolean
+  highlightNew?: boolean
   dimmedIds?: Set<string>
   onAddDeal?: (stageId: StageId) => void
 }
@@ -62,6 +63,7 @@ export function KanbanBoard({
   onStageChange,
   onLossReasonConfirmed,
   showScore,
+  highlightNew,
   dimmedIds,
   onAddDeal,
 }: KanbanBoardProps) {
@@ -309,6 +311,7 @@ export function KanbanBoard({
               deals={grouped[stage.id] ?? []}
               onMoveDeal={onMoveDeal}
               showScore={showScore}
+              highlightNew={highlightNew}
               dimmedIds={dimmedIds}
               onAddDeal={onAddDeal}
             />

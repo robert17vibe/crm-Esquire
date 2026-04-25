@@ -10,7 +10,12 @@ import {
   Link2,
   Plus,
   Search,
+  Forward,
+  Star,
+  MoreHorizontal,
+  X,
 } from 'lucide-react'
+import { useThemeStore } from '@/store/useThemeStore'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -233,9 +238,21 @@ function AvatarInitials({ initials, color, size = 32 }: { initials: string; colo
 // ─── EmailPage ────────────────────────────────────────────────────────────────
 
 export function EmailPage() {
+  const isDark = useThemeStore((s) => s.isDark)
   const [activeFolder, setActiveFolder] = useState<FolderKey>('inbox')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
+  const [showReply, setShowReply] = useState(false)
+  const [replyText, setReplyText] = useState('')
+
+  const border   = isDark ? '#242422' : '#e4e0da'
+  const text     = isDark ? '#e8e4dc' : '#1a1814'
+  const muted    = isDark ? '#6b6560' : '#8a857d'
+  const faint    = isDark ? '#3a3834' : '#c4bfb8'
+  const cardBg   = isDark ? '#161614' : '#ffffff'
+  const raisedBg = isDark ? '#111110' : '#f5f4f0'
+  const hoverBg  = isDark ? '#1c1c1a' : '#f8f7f4'
+  const inputBg  = isDark ? '#111110' : '#f5f4f1'
 
   const inboxUnread = MOCK_EMAILS.filter((e) => e.folder === 'inbox' && !e.read).length
 
@@ -255,62 +272,70 @@ export function EmailPage() {
   return (
     <div style={{
       display: 'flex', height: '100%', overflow: 'hidden',
-      backgroundColor: 'var(--surface-card)',
+      backgroundColor: isDark ? '#0d0c0a' : '#f5f4f0',
     }}>
 
       {/* ── Left panel ── */}
       <aside style={{
-        width: '280px', minWidth: '280px', flexShrink: 0,
-        backgroundColor: 'var(--surface-raised)',
-        borderRight: '1px solid var(--line)',
+        width: '220px', minWidth: '220px', flexShrink: 0,
+        backgroundColor: raisedBg,
+        borderRight: `1px solid ${border}`,
         display: 'flex', flexDirection: 'column',
         overflow: 'hidden',
       }}>
+        {/* Title */}
+        <div style={{ padding: '16px 16px 10px', borderBottom: `1px solid ${border}` }}>
+          <p style={{ fontSize: '13px', fontWeight: 700, color: text, letterSpacing: '-0.01em' }}>Email</p>
+          <p style={{ fontSize: '10px', color: muted, marginTop: '2px' }}>
+            {inboxUnread > 0 ? `${inboxUnread} não lido${inboxUnread > 1 ? 's' : ''}` : 'Tudo lido'}
+          </p>
+        </div>
 
         {/* Escrever button */}
-        <div style={{ padding: '16px 14px 12px' }}>
+        <div style={{ padding: '12px 12px 8px' }}>
           <button
             type="button"
             style={{
-              width: '100%', height: '36px', borderRadius: 'var(--radius-sm)',
-              backgroundColor: 'var(--brand)', color: '#fff',
+              width: '100%', height: '34px', borderRadius: '8px',
+              backgroundColor: isDark ? '#f0ede5' : '#0f0e0c',
+              color: isDark ? '#0f0e0c' : '#f0ede5',
               border: 'none', cursor: 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              gap: '7px', fontSize: '13px', fontWeight: 600,
+              gap: '6px', fontSize: '12px', fontWeight: 700,
               transition: 'opacity 0.15s ease',
             }}
-            onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.88')}
+            onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.85')}
             onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
           >
-            <Plus style={{ width: '14px', height: '14px' }} />
+            <Plus style={{ width: '13px', height: '13px' }} />
             Escrever
           </button>
         </div>
 
         {/* Search */}
-        <div style={{ padding: '0 14px 12px' }}>
+        <div style={{ padding: '0 12px 10px' }}>
           <div style={{
-            display: 'flex', alignItems: 'center', gap: '8px',
-            height: '32px', borderRadius: 'var(--radius-sm)',
-            backgroundColor: 'var(--surface-card)',
-            border: '1px solid var(--line)', padding: '0 10px',
+            display: 'flex', alignItems: 'center', gap: '7px',
+            height: '30px', borderRadius: '6px',
+            backgroundColor: inputBg,
+            border: `1px solid ${border}`, padding: '0 9px',
           }}>
-            <Search style={{ width: '12px', height: '12px', color: 'var(--ink-faint)', flexShrink: 0 }} />
+            <Search style={{ width: '11px', height: '11px', color: faint, flexShrink: 0 }} />
             <input
               type="text"
-              placeholder="Pesquisar emails..."
+              placeholder="Pesquisar..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               style={{
                 flex: 1, border: 'none', background: 'none', outline: 'none',
-                fontSize: '12px', color: 'var(--ink-base)',
+                fontSize: '12px', color: text,
               }}
             />
           </div>
         </div>
 
         {/* Folders */}
-        <nav style={{ padding: '0 10px', display: 'flex', flexDirection: 'column', gap: '1px' }}>
+        <nav style={{ padding: '0 8px', display: 'flex', flexDirection: 'column', gap: '1px' }}>
           {FOLDERS.map(({ key, label, icon: Icon }) => {
             const isActive = key === activeFolder
             const badge = key === 'inbox' ? inboxUnread : 0
@@ -318,25 +343,25 @@ export function EmailPage() {
               <button
                 key={key}
                 type="button"
-                onClick={() => { setActiveFolder(key); setSelectedId(null) }}
+                onClick={() => { setActiveFolder(key); setSelectedId(null); setShowReply(false) }}
                 style={{
-                  display: 'flex', alignItems: 'center', gap: '9px',
-                  height: '34px', padding: '0 10px', borderRadius: 'var(--radius-sm)',
+                  display: 'flex', alignItems: 'center', gap: '8px',
+                  height: '32px', padding: '0 10px', borderRadius: '7px',
                   border: 'none', cursor: 'pointer', width: '100%', textAlign: 'left',
-                  fontSize: '13px', fontWeight: isActive ? 600 : 500,
-                  color: isActive ? 'var(--ink-base)' : 'var(--ink-muted)',
-                  backgroundColor: isActive ? 'var(--surface-card)' : 'transparent',
-                  transition: 'background-color 0.12s ease, color 0.12s ease',
+                  fontSize: '12px', fontWeight: isActive ? 600 : 500,
+                  color: isActive ? text : muted,
+                  backgroundColor: isActive ? (isDark ? '#1e1e1c' : '#eeece8') : 'transparent',
+                  transition: 'background-color 0.12s ease',
                 }}
-                onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.04)' }}
+                onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.backgroundColor = hoverBg }}
                 onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.backgroundColor = 'transparent' }}
               >
-                <Icon style={{ width: '14px', height: '14px', flexShrink: 0 }} />
+                <Icon style={{ width: '13px', height: '13px', flexShrink: 0 }} />
                 <span style={{ flex: 1 }}>{label}</span>
                 {badge > 0 && (
                   <span style={{
-                    fontSize: '9px', fontWeight: 700, minWidth: '16px', height: '16px',
-                    borderRadius: '99px', backgroundColor: 'var(--brand)', color: '#fff',
+                    fontSize: '9px', fontWeight: 700, minWidth: '18px', height: '16px',
+                    borderRadius: '99px', backgroundColor: '#2c5545', color: '#fff',
                     display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px',
                   }}>
                     {badge > 9 ? '9+' : badge}
@@ -345,47 +370,43 @@ export function EmailPage() {
               </button>
             )
           })}
-
-          {/* Trash */}
           <button
             type="button"
             onClick={() => { setActiveFolder('archived'); setSelectedId(null) }}
             style={{
-              display: 'flex', alignItems: 'center', gap: '9px',
-              height: '34px', padding: '0 10px', borderRadius: 'var(--radius-sm)',
+              display: 'flex', alignItems: 'center', gap: '8px',
+              height: '32px', padding: '0 10px', borderRadius: '7px',
               border: 'none', cursor: 'pointer', width: '100%', textAlign: 'left',
-              fontSize: '13px', fontWeight: 500,
-              color: 'var(--ink-muted)', backgroundColor: 'transparent',
+              fontSize: '12px', fontWeight: 500, color: muted, backgroundColor: 'transparent',
               transition: 'background-color 0.12s ease',
             }}
-            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.04)')}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = hoverBg)}
             onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
           >
-            <Trash2 style={{ width: '14px', height: '14px', flexShrink: 0 }} />
+            <Trash2 style={{ width: '13px', height: '13px', flexShrink: 0 }} />
             <span>Lixeira</span>
           </button>
         </nav>
 
         {/* Labels */}
-        <div style={{ padding: '20px 14px 8px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
-            <Tag style={{ width: '11px', height: '11px', color: 'var(--ink-faint)' }} />
-            <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--ink-faint)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+        <div style={{ padding: '16px 12px 8px', marginTop: '8px', borderTop: `1px solid ${border}` }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '8px' }}>
+            <Tag style={{ width: '10px', height: '10px', color: faint }} />
+            <span style={{ fontSize: '9px', fontWeight: 700, color: faint, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
               Etiquetas
             </span>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
             {(Object.entries(LABEL_CONFIG) as [LabelKey, typeof LABEL_CONFIG[LabelKey]][]).map(([key, cfg]) => (
-              <div
-                key={key}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: '9px',
-                  height: '30px', padding: '0 10px', borderRadius: 'var(--radius-sm)',
-                  cursor: 'default',
-                }}
+              <div key={key} style={{
+                display: 'flex', alignItems: 'center', gap: '8px',
+                height: '28px', padding: '0 10px', borderRadius: '6px', cursor: 'pointer',
+              }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = hoverBg)}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
               >
-                <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: cfg.color, flexShrink: 0 }} />
-                <span style={{ fontSize: '12px', color: 'var(--ink-muted)' }}>{cfg.label}</span>
+                <span style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: cfg.color, flexShrink: 0 }} />
+                <span style={{ fontSize: '12px', color: muted }}>{cfg.label}</span>
               </div>
             ))}
           </div>
@@ -394,21 +415,23 @@ export function EmailPage() {
 
       {/* ── Center panel (email list) ── */}
       <div style={{
-        width: '380px', minWidth: '380px', flexShrink: 0,
-        borderRight: '1px solid var(--line)',
+        width: '340px', minWidth: '300px', flexShrink: 0,
+        borderRight: `1px solid ${border}`,
         display: 'flex', flexDirection: 'column',
         overflow: 'hidden',
+        backgroundColor: cardBg,
       }}>
         {/* Header */}
         <div style={{
-          height: '52px', minHeight: '52px', padding: '0 16px',
+          height: '48px', minHeight: '48px', padding: '0 16px',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          borderBottom: '1px solid var(--line)', flexShrink: 0,
+          borderBottom: `1px solid ${border}`, flexShrink: 0,
+          backgroundColor: isDark ? '#111110' : '#fafaf8',
         }}>
-          <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--ink-base)' }}>
+          <span style={{ fontSize: '12px', fontWeight: 700, color: text, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
             {FOLDERS.find((f) => f.key === activeFolder)?.label ?? 'Email'}
           </span>
-          <span style={{ fontSize: '11px', color: 'var(--ink-faint)' }}>
+          <span style={{ fontSize: '10px', color: muted }}>
             {visibleEmails.length} mensagem{visibleEmails.length !== 1 ? 's' : ''}
           </span>
         </div>
@@ -416,7 +439,7 @@ export function EmailPage() {
         {/* List */}
         <div style={{ flex: 1, overflowY: 'auto' }}>
           {visibleEmails.length === 0 ? (
-            <div style={{ padding: '48px 16px', textAlign: 'center', color: 'var(--ink-faint)', fontSize: '13px' }}>
+            <div style={{ padding: '48px 16px', textAlign: 'center', color: faint, fontSize: '12px' }}>
               Nenhum email encontrado
             </div>
           ) : (
@@ -426,39 +449,35 @@ export function EmailPage() {
                 <button
                   key={email.id}
                   type="button"
-                  onClick={() => setSelectedId(email.id)}
+                  onClick={() => { setSelectedId(email.id); setShowReply(false) }}
                   style={{
                     display: 'flex', alignItems: 'flex-start', gap: '10px',
-                    width: '100%', padding: '12px 16px', textAlign: 'left',
-                    border: 'none', borderBottom: '1px solid var(--line)', cursor: 'pointer',
-                    borderLeft: isSelected ? '3px solid var(--brand)' : '3px solid transparent',
+                    width: '100%', padding: '11px 16px', textAlign: 'left',
+                    border: 'none', borderBottom: `1px solid ${border}`, cursor: 'pointer',
+                    borderLeft: isSelected ? '3px solid #2c5545' : '3px solid transparent',
                     paddingLeft: isSelected ? '13px' : '16px',
                     backgroundColor: isSelected
-                      ? 'color-mix(in srgb, var(--brand) 7%, var(--surface-card))'
+                      ? (isDark ? '#0d1a14' : '#f0f7f3')
                       : !email.read
-                        ? 'var(--surface-raised)'
-                        : 'var(--surface-card)',
+                        ? (isDark ? '#161614' : '#fafaf8')
+                        : 'transparent',
                     transition: 'background-color 0.1s ease',
                   }}
-                  onMouseEnter={(e) => {
-                    if (!isSelected) e.currentTarget.style.backgroundColor = 'var(--surface-raised)'
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isSelected) e.currentTarget.style.backgroundColor = !email.read ? 'var(--surface-raised)' : 'var(--surface-card)'
-                  }}
+                  onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.backgroundColor = hoverBg }}
+                  onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.backgroundColor = !email.read ? (isDark ? '#161614' : '#fafaf8') : 'transparent' }}
                 >
-                  <AvatarInitials initials={email.from.initials} color={email.from.color} size={36} />
+                  <AvatarInitials initials={email.from.initials} color={email.from.color} size={34} />
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '3px' }}>
-                      <span style={{ fontSize: '13px', fontWeight: !email.read ? 700 : 500, color: 'var(--ink-base)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, marginRight: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2px' }}>
+                      <span style={{ fontSize: '12px', fontWeight: !email.read ? 700 : 500, color: text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, marginRight: '8px' }}>
                         {email.from.name}
                       </span>
-                      <span style={{ fontSize: '11px', color: 'var(--ink-faint)', flexShrink: 0 }}>{email.date}</span>
+                      <span style={{ fontSize: '10px', color: faint, flexShrink: 0 }}>{email.date}</span>
                     </div>
-                    <p style={{ fontSize: '12px', fontWeight: !email.read ? 600 : 400, color: 'var(--ink-base)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: '5px' }}>
+                    <p style={{ fontSize: '11.5px', fontWeight: !email.read ? 600 : 400, color: !email.read ? text : muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: '4px' }}>
                       {email.subject}
                     </p>
-                    <p style={{ fontSize: '11px', color: 'var(--ink-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: '6px' }}>
+                    <p style={{ fontSize: '11px', color: faint, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: email.labels.length > 0 ? '5px' : '0' }}>
                       {email.preview}
                     </p>
                     {email.labels.length > 0 && (
@@ -467,6 +486,9 @@ export function EmailPage() {
                       </div>
                     )}
                   </div>
+                  {!email.read && (
+                    <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#2c5545', flexShrink: 0, marginTop: '6px' }} />
+                  )}
                 </button>
               )
             })
@@ -475,95 +497,151 @@ export function EmailPage() {
       </div>
 
       {/* ── Right panel (email view) ── */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0, backgroundColor: cardBg }}>
         {selectedEmail ? (
           <>
             {/* Email header */}
-            <div style={{
-              padding: '20px 28px 16px',
-              borderBottom: '1px solid var(--line)', flexShrink: 0,
-            }}>
-              <h2 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--ink-base)', marginBottom: '14px', lineHeight: 1.3 }}>
-                {selectedEmail.subject}
-              </h2>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <AvatarInitials initials={selectedEmail.from.initials} color={selectedEmail.from.color} size={40} />
+            <div style={{ padding: '18px 24px 14px', borderBottom: `1px solid ${border}`, flexShrink: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '12px' }}>
+                <h2 style={{ fontSize: '16px', fontWeight: 700, color: text, lineHeight: 1.3, flex: 1, marginRight: '16px' }}>
+                  {selectedEmail.subject}
+                </h2>
+                <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
+                  <button type="button" style={{ width: '28px', height: '28px', borderRadius: '6px', border: `1px solid ${border}`, backgroundColor: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: muted }}
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = hoverBg)}
+                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}>
+                    <Star style={{ width: '12px', height: '12px' }} />
+                  </button>
+                  <button type="button" style={{ width: '28px', height: '28px', borderRadius: '6px', border: `1px solid ${border}`, backgroundColor: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: muted }}
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = hoverBg)}
+                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}>
+                    <MoreHorizontal style={{ width: '12px', height: '12px' }} />
+                  </button>
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <AvatarInitials initials={selectedEmail.from.initials} color={selectedEmail.from.color} size={38} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
-                    <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--ink-base)' }}>{selectedEmail.from.name}</span>
-                    <span style={{ fontSize: '12px', color: 'var(--ink-faint)' }}>&lt;{selectedEmail.from.email}&gt;</span>
+                    <span style={{ fontSize: '13px', fontWeight: 600, color: text }}>{selectedEmail.from.name}</span>
+                    <span style={{ fontSize: '11px', color: muted }}>&lt;{selectedEmail.from.email}&gt;</span>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <span style={{ fontSize: '12px', color: 'var(--ink-muted)' }}>Para: robert.sousa@aureatech.io</span>
-                    <span style={{ fontSize: '12px', color: 'var(--ink-faint)' }}>{selectedEmail.date}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span style={{ fontSize: '11px', color: muted }}>Para: robert.sousa@aureatech.io</span>
+                    <span style={{ fontSize: '11px', color: faint }}>{selectedEmail.date}</span>
+                    <div style={{ display: 'flex', gap: '4px' }}>
+                      {selectedEmail.labels.map((lk) => <LabelBadge key={lk} labelKey={lk} />)}
+                    </div>
                   </div>
-                </div>
-                <div style={{ display: 'flex', gap: '4px' }}>
-                  {selectedEmail.labels.map((lk) => <LabelBadge key={lk} labelKey={lk} />)}
                 </div>
               </div>
             </div>
 
             {/* Body */}
-            <div style={{ flex: 1, overflowY: 'auto', padding: '24px 28px' }}>
+            <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px' }}>
               <div style={{
-                fontSize: '14px', lineHeight: 1.75, color: 'var(--ink-base)',
-                whiteSpace: 'pre-wrap', maxWidth: '680px',
+                fontSize: '13.5px', lineHeight: 1.8, color: text,
+                whiteSpace: 'pre-wrap', maxWidth: '640px',
               }}>
                 {selectedEmail.body}
               </div>
             </div>
 
+            {/* Reply compose area */}
+            {showReply && (
+              <div style={{
+                margin: '0 24px 16px', borderRadius: '10px',
+                border: `1px solid ${border}`,
+                backgroundColor: isDark ? '#111110' : '#fafaf8',
+                overflow: 'hidden',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderBottom: `1px solid ${border}` }}>
+                  <span style={{ fontSize: '11px', fontWeight: 600, color: muted }}>
+                    Responder a {selectedEmail.from.name}
+                  </span>
+                  <button type="button" onClick={() => setShowReply(false)}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: muted, display: 'flex', alignItems: 'center' }}>
+                    <X style={{ width: '13px', height: '13px' }} />
+                  </button>
+                </div>
+                <textarea
+                  autoFocus
+                  value={replyText}
+                  onChange={(e) => setReplyText(e.target.value)}
+                  placeholder="Escreva a sua resposta..."
+                  style={{
+                    width: '100%', minHeight: '100px', padding: '12px 14px',
+                    border: 'none', outline: 'none', resize: 'none',
+                    backgroundColor: 'transparent', color: text, fontSize: '13px',
+                    lineHeight: 1.6, boxSizing: 'border-box',
+                  }}
+                />
+                <div style={{ padding: '8px 14px', display: 'flex', gap: '8px', borderTop: `1px solid ${border}` }}>
+                  <button type="button"
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '5px',
+                      height: '30px', padding: '0 14px', borderRadius: '7px',
+                      backgroundColor: '#2c5545', color: '#fff', border: 'none',
+                      fontSize: '12px', fontWeight: 600, cursor: 'pointer',
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.85')}
+                    onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
+                  >
+                    <Send style={{ width: '11px', height: '11px' }} />
+                    Enviar
+                  </button>
+                  <button type="button" onClick={() => setShowReply(false)}
+                    style={{
+                      height: '30px', padding: '0 12px', borderRadius: '7px',
+                      backgroundColor: 'transparent', border: `1px solid ${border}`,
+                      color: muted, fontSize: '12px', cursor: 'pointer',
+                    }}>
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Action bar */}
-            <div style={{
-              borderTop: '1px solid var(--line)', padding: '14px 28px',
-              display: 'flex', gap: '8px', flexShrink: 0,
-            }}>
+            <div style={{ borderTop: `1px solid ${border}`, padding: '12px 24px', display: 'flex', gap: '8px', flexShrink: 0 }}>
               <button
                 type="button"
+                onClick={() => setShowReply((v) => !v)}
                 style={{
                   display: 'flex', alignItems: 'center', gap: '6px',
-                  height: '32px', padding: '0 14px', borderRadius: 'var(--radius-sm)',
-                  backgroundColor: 'var(--brand)', color: '#fff',
-                  border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: 600,
-                  transition: 'opacity 0.15s ease',
+                  height: '32px', padding: '0 14px', borderRadius: '8px',
+                  backgroundColor: showReply ? (isDark ? '#0d1a14' : '#f0f7f3') : '#2c5545',
+                  color: showReply ? '#2c5545' : '#fff',
+                  border: showReply ? '1px solid #2c5545' : 'none',
+                  cursor: 'pointer', fontSize: '12px', fontWeight: 600,
+                  transition: 'all 0.15s ease',
                 }}
                 onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.85')}
                 onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
               >
-                <Reply style={{ width: '13px', height: '13px' }} />
+                <Reply style={{ width: '12px', height: '12px' }} />
                 Responder
               </button>
-              <button
-                type="button"
-                style={{
-                  display: 'flex', alignItems: 'center', gap: '6px',
-                  height: '32px', padding: '0 14px', borderRadius: 'var(--radius-sm)',
-                  backgroundColor: 'var(--surface-raised)', color: 'var(--ink-base)',
-                  border: '1px solid var(--line)', cursor: 'pointer', fontSize: '12px', fontWeight: 500,
-                  transition: 'background-color 0.12s ease',
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--surface-card)')}
-                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'var(--surface-raised)')}
-              >
-                <Archive style={{ width: '13px', height: '13px' }} />
-                Arquivar
-              </button>
-              <button
-                type="button"
-                style={{
-                  display: 'flex', alignItems: 'center', gap: '6px',
-                  height: '32px', padding: '0 14px', borderRadius: 'var(--radius-sm)',
-                  backgroundColor: 'var(--surface-raised)', color: 'var(--ink-base)',
-                  border: '1px solid var(--line)', cursor: 'pointer', fontSize: '12px', fontWeight: 500,
-                  transition: 'background-color 0.12s ease',
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--surface-card)')}
-                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'var(--surface-raised)')}
-              >
-                <Link2 style={{ width: '13px', height: '13px' }} />
-                Associar deal
-              </button>
+              {[
+                { icon: Forward, label: 'Reencaminhar' },
+                { icon: Archive, label: 'Arquivar' },
+                { icon: Link2,   label: 'Associar deal' },
+              ].map(({ icon: Icon, label }) => (
+                <button key={label} type="button"
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '6px',
+                    height: '32px', padding: '0 12px', borderRadius: '8px',
+                    backgroundColor: 'transparent', color: muted,
+                    border: `1px solid ${border}`, cursor: 'pointer', fontSize: '12px', fontWeight: 500,
+                    transition: 'background-color 0.12s ease',
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = hoverBg)}
+                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                >
+                  <Icon style={{ width: '12px', height: '12px' }} />
+                  {label}
+                </button>
+              ))}
             </div>
           </>
         ) : (
@@ -572,17 +650,17 @@ export function EmailPage() {
             alignItems: 'center', justifyContent: 'center', gap: '10px',
           }}>
             <div style={{
-              width: '48px', height: '48px', borderRadius: '50%',
-              backgroundColor: 'var(--surface-raised)',
+              width: '52px', height: '52px', borderRadius: '14px',
+              backgroundColor: raisedBg, border: `1px solid ${border}`,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               marginBottom: '4px',
             }}>
-              <Mail style={{ width: '22px', height: '22px', color: 'var(--ink-faint)' }} />
+              <Mail style={{ width: '22px', height: '22px', color: muted }} />
             </div>
-            <p style={{ fontSize: '15px', fontWeight: 600, color: 'var(--ink-base)' }}>
+            <p style={{ fontSize: '14px', fontWeight: 600, color: text }}>
               Selecione um email
             </p>
-            <p style={{ fontSize: '13px', color: 'var(--ink-muted)' }}>
+            <p style={{ fontSize: '12px', color: muted }}>
               Escolha uma conversa na lista à esquerda
             </p>
           </div>

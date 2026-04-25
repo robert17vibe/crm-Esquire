@@ -16,10 +16,11 @@ interface StageColumnProps {
   dimmedIds?: Set<string>
   onMoveDeal: (dealId: string, targetStage: StageId) => void
   showScore?: boolean
+  highlightNew?: boolean
   onAddDeal?: (stageId: StageId) => void
 }
 
-export function StageColumn({ stage, deals, dimmedIds, onMoveDeal: _onMoveDeal, showScore }: StageColumnProps) {
+export function StageColumn({ stage, deals, dimmedIds, onMoveDeal: _onMoveDeal, showScore, highlightNew }: StageColumnProps) {
   const totalValue = deals.reduce((sum, d) => sum + Number(d.value ?? 0), 0)
   const { setNodeRef, isOver } = useDroppable({ id: stage.id })
 
@@ -113,6 +114,7 @@ export function StageColumn({ stage, deals, dimmedIds, onMoveDeal: _onMoveDeal, 
               deal={deal}
               dimmed={dimmedIds?.size ? !dimmedIds.has(deal.id) : false}
               showScore={showScore}
+              highlightNew={highlightNew}
             />
           ))}
           {deals.length === 0 && (

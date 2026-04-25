@@ -25,6 +25,7 @@ interface DealCardProps {
   onMoveDeal?: (dealId: string, targetStage: StageId) => void
   dimmed?: boolean
   showScore?: boolean
+  highlightNew?: boolean
 }
 
 // ─── Task Quick-Add Popover ───────────────────────────────────────────────────
@@ -105,7 +106,7 @@ function TaskQuickAdd({ dealId, isDark, onClose }: { dealId: string; isDark: boo
 
 // ─── DealCard ─────────────────────────────────────────────────────────────────
 
-export function DealCard({ deal, isOverlay = false, dimmed = false, showScore = false }: DealCardProps) {
+export function DealCard({ deal, isOverlay = false, dimmed = false, showScore = false, highlightNew = false }: DealCardProps) {
   const navigate      = useNavigate()
   const isDark        = useThemeStore((s) => s.isDark)
   const notifications = useNotificationStore((s) => s.notifications)
@@ -144,7 +145,9 @@ export function DealCard({ deal, isOverlay = false, dimmed = false, showScore = 
   const cardBg     = isWon  ? (isDark ? '#0a1f0e' : '#f0faf4')
                    : isLost ? (isDark ? '#1a0c0c' : '#fdf4f4')
                    :          'var(--surface-card)'
-  const cardBorder = isOverdue            ? (isDark ? 'rgba(220,38,38,0.3)'  : 'rgba(252,165,165,0.6)')
+  const isHighlighted = highlightNew && isNew
+  const cardBorder = isHighlighted            ? (isDark ? 'rgba(234,179,8,0.5)' : 'rgba(234,179,8,0.6)')
+                   : isOverdue               ? (isDark ? 'rgba(220,38,38,0.3)'  : 'rgba(252,165,165,0.6)')
                    : deal.days_in_stage > 30 ? (isDark ? 'rgba(120,113,108,0.3)' : 'rgba(214,211,209,0.8)')
                    :                           'var(--line)'
   const textPrimary = 'var(--ink-base)'
@@ -155,13 +158,15 @@ export function DealCard({ deal, isOverlay = false, dimmed = false, showScore = 
 
   const cardStyle: React.CSSProperties = {
     borderRadius: 'var(--radius-lg)',
-    backgroundColor: cardBg,
+    backgroundColor: isHighlighted ? (isDark ? '#1a1500' : '#fffbeb') : cardBg,
     border: `1px solid ${cardBorder}`,
     ...(isSpecial && { borderLeft: `3px solid ${stageColor}` }),
+    ...(isHighlighted && !isSpecial && { borderLeft: '3px solid #eab308' }),
     overflow: 'hidden',
     display: 'flex',
     flexDirection: 'column',
-    boxShadow: isOverlay ? '0 20px 48px rgba(0,0,0,0.3), 0 6px 16px rgba(0,0,0,0.15)' : 'none',
+    height: '128px',
+    boxShadow: isHighlighted ? (isDark ? '0 0 0 1px rgba(234,179,8,0.2)' : '0 0 0 1px rgba(234,179,8,0.15)') : isOverlay ? '0 20px 48px rgba(0,0,0,0.3), 0 6px 16px rgba(0,0,0,0.15)' : 'none',
     ...(isOverlay
       ? { transform: 'rotate(1.5deg)', opacity: 1 }
       : { transform: CSS.Transform.toString(transform), transition, opacity: cardOpacity }),
@@ -215,13 +220,6 @@ export function DealCard({ deal, isOverlay = false, dimmed = false, showScore = 
               color: '#b45309', backgroundColor: isDark ? 'rgba(180,83,9,0.15)' : '#fef3c7',
               borderRadius: 'var(--radius-full)', padding: '1px 6px', flexShrink: 0,
             }}>⚔</span>
-          )}
-          {tagStyle && tag && (
-            <span style={{
-              fontSize: '8px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase',
-              color: tagStyle.bg, backgroundColor: `${tagStyle.bg}18`,
-              borderRadius: 'var(--radius-full)', padding: '1px 6px', flexShrink: 0,
-            }}>{tag}</span>
           )}
           <div style={{ flex: 1 }} />
           {score !== null && (
