@@ -489,7 +489,7 @@ interface WeekMeeting {
   date: string; eventType: string; rawMeeting?: DealMeeting; rawCalEv?: CalendarEvent
 }
 
-function WeekView({ weekDays, eventsByDate, meetings, calendarEvents, isDark, todayStr, onMeetingOpen, onCalEventOpen, onNewEvent }: {
+function WeekView({ weekDays, eventsByDate: _eventsByDate, meetings, calendarEvents, isDark, todayStr, onMeetingOpen, onCalEventOpen, onNewEvent }: {
   weekDays: string[]; eventsByDate: Map<string, CalEvent[]>
   meetings: DealMeeting[]; calendarEvents: CalendarEvent[]
   isDark: boolean; todayStr: string
