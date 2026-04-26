@@ -2,7 +2,6 @@ import { useState, useEffect, useMemo } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { LayoutDashboard, Kanban, Users, Mic, CalendarDays, CheckSquare, Settings, LogOut, Users2, Shield, Bell, Zap, Mail, Megaphone } from 'lucide-react'
 import { useAuthStore } from '@/store/useAuthStore'
-import { useDealStore } from '@/store/useDealStore'
 import { useTaskStore } from '@/store/useTaskStore'
 import { useNotificationStore, type AppNotification } from '@/store/useNotificationStore'
 
@@ -225,18 +224,9 @@ export function Sidebar() {
   const location = useLocation()
   const signOut  = useAuthStore((s) => s.signOut)
   const profile  = useAuthStore((s) => s.profile)
-  const deals    = useDealStore((s) => s.deals)
   const tasks    = useTaskStore((s) => s.tasks)
 
   const today = new Date().toISOString().slice(0, 10)
-  const overdueCount = useMemo(() =>
-    deals.filter((d) =>
-      !['closed_won', 'closed_lost'].includes(d.stage_id) &&
-      !!d.next_activity?.due_date &&
-      d.next_activity.due_date < today
-    ).length,
-    [deals, today],
-  )
 
   const overdueTaskCount = useMemo(() =>
     tasks.filter((t) => !t.completed_at && !!t.due_date && t.due_date < today).length,

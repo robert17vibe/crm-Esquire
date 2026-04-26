@@ -12,7 +12,7 @@ export async function fetchDeals(): Promise<Deal[]> {
 }
 
 export async function insertDeal(
-  payload: Omit<Deal, 'id' | 'created_at' | 'updated_at'>,
+  payload: Omit<Deal, 'id' | 'created_at' | 'updated_at' | 'owner' | 'company_id' | 'days_in_stage'>,
 ): Promise<Deal> {
   const { data, error } = await supabase
     .from('deals')
