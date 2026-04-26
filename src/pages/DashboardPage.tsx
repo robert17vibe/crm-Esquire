@@ -153,8 +153,11 @@ function KpiCard({
         <p style={{ fontSize: '10px', fontWeight: 600, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', lineHeight: 1.2 }}>
           {label}
         </p>
-        <div style={{ width: '26px', height: '26px', borderRadius: '6px', backgroundColor: `${accent}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-          <Icon style={{ width: '12px', height: '12px', color: accent }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <GripVertical style={{ width: '12px', height: '12px', color: muted, opacity: 0.4, cursor: 'grab' }} />
+          <div style={{ width: '26px', height: '26px', borderRadius: '6px', backgroundColor: `${accent}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <Icon style={{ width: '12px', height: '12px', color: accent }} />
+          </div>
         </div>
       </div>
       <div style={{ paddingBottom: sparkline ? '0' : '14px' }}>
@@ -253,23 +256,23 @@ function WidgetWrapper({ id, onRemove, children, isDark }: WidgetWrapperProps) {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      {hovered && (
-        <div
-          {...attributes}
-          {...listeners}
-          title="Arraste para reorganizar"
-          style={{
-            position: 'absolute', top: '8px', right: '36px', zIndex: 10,
-            width: '22px', height: '22px', borderRadius: '4px',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: 'grab', color: handleColor,
-            backgroundColor: isDark ? 'rgba(30,30,28,0.9)' : 'rgba(255,255,255,0.9)',
-            border: `1px solid ${isDark ? '#333' : '#ddd'}`,
-          }}
-        >
-          <GripVertical style={{ width: '12px', height: '12px' }} />
-        </div>
-      )}
+      <div
+        {...attributes}
+        {...listeners}
+        title="Arraste para reorganizar"
+        style={{
+          position: 'absolute', top: '8px', right: '36px', zIndex: 10,
+          width: '22px', height: '22px', borderRadius: '4px',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          cursor: 'grab', color: handleColor,
+          backgroundColor: hovered ? (isDark ? 'rgba(30,30,28,0.9)' : 'rgba(255,255,255,0.9)') : 'transparent',
+          border: hovered ? `1px solid ${isDark ? '#333' : '#ddd'}` : '1px solid transparent',
+          opacity: hovered ? 1 : 0.35,
+          transition: 'opacity 0.15s, background-color 0.15s',
+        }}
+      >
+        <GripVertical style={{ width: '12px', height: '12px' }} />
+      </div>
       {hovered && (
         <button
           type="button"

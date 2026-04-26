@@ -163,7 +163,7 @@ export function DealCard({ deal, isOverlay = false, dimmed = false, showScore = 
     overflow: 'hidden',
     display: 'flex',
     flexDirection: 'column',
-    height: '128px',
+    height: '120px',
     boxShadow: isHighlighted ? (isDark ? '0 0 0 1px rgba(234,179,8,0.2)' : '0 0 0 1px rgba(234,179,8,0.15)') : isOverlay ? '0 20px 48px rgba(0,0,0,0.3), 0 6px 16px rgba(0,0,0,0.15)' : 'none',
     ...(isOverlay
       ? { transform: 'rotate(1.5deg)', opacity: 1 }
@@ -249,11 +249,6 @@ export function DealCard({ deal, isOverlay = false, dimmed = false, showScore = 
           textDecorationColor: textMuted,
         }}>
           {deal.title}
-        </p>
-
-        {/* Row 3: company */}
-        <p className="truncate" style={{ fontSize: '11px', fontWeight: 400, color: textMuted, flexShrink: 0 }}>
-          {deal.company_name}
         </p>
 
         {/* Divider */}

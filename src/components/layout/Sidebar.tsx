@@ -328,7 +328,7 @@ export function Sidebar() {
               label={label}
               icon={icon}
               collapsed={collapsed}
-              badge={to === '/pipeline' ? overdueCount : to === '/tarefas' ? overdueTaskCount : undefined}
+              badge={to === '/pipeline' ? unreadCount : to === '/tarefas' ? overdueTaskCount : undefined}
             />
           ))}
 

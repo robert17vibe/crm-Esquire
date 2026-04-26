@@ -240,14 +240,18 @@ export function NewLeadModal({ open, onClose, onCreated }: Props) {
   function handleClose() { reset(); onClose() }
 
   async function onSubmit(values: NewLeadFormValues) {
-    const deal = await createDeal(values)
-    onCreated(deal)
-    reset()
-    const isMinimal = !values.company_name && !values.contact_email && !values.value
-    if (isMinimal) {
-      addToast('Lead criado! Complete as informações para melhores resultados.', 'info', 5000)
-    } else {
-      addToast('Lead criado com sucesso!', 'success')
+    try {
+      const deal = await createDeal(values)
+      onCreated(deal)
+      reset()
+      const isMinimal = !values.company_name && !values.contact_email && !values.value
+      if (isMinimal) {
+        addToast('Lead criado! Complete as informações para melhores resultados.', 'info', 5000)
+      } else {
+        addToast('Lead criado com sucesso!', 'success')
+      }
+    } catch {
+      addToast('Erro ao criar lead — verifique os dados e tente novamente', 'error')
     }
   }
 
