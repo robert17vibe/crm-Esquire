@@ -157,7 +157,7 @@ function UserMenu({ onClose, isDark }: { onClose: () => void; isDark: boolean })
   const displayName    = profile?.full_name || 'Usuário'
   const displayEmail   = profile?.email || '—'
   const displayRole    = profile?.role === 'admin' ? 'Admin' : 'Usuário'
-  const displayColor   = profile?.avatar_color ?? '#2c5545'
+  const displayColor   = profile?.avatar_color ?? '#e31e24'
   const displayInitials = displayName.split(' ').map((p) => p[0]).slice(0, 2).join('').toUpperCase()
 
   return (
@@ -196,8 +196,8 @@ function UserMenu({ onClose, isDark }: { onClose: () => void; isDark: boolean })
           <span style={{
             display: 'inline-block', marginTop: '8px',
             fontSize: '9px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase',
-            color: '#2c5545', backgroundColor: isDark ? '#1a2e22' : '#e6f2ee',
-            border: `1px solid ${isDark ? '#2c5545' : '#b8d9ce'}`,
+            color: '#e31e24', backgroundColor: isDark ? '#2a0a0a' : '#fef2f2',
+            border: `1px solid ${isDark ? '#4a1010' : '#fecaca'}`,
             borderRadius: '4px', padding: '2px 8px',
           }}>
             {displayRole}
@@ -269,12 +269,12 @@ export function Header({ onOpenSearch }: { onOpenSearch?: () => void }) {
 
   const unreadCount = notifications.filter((n) => !n.read).length
 
-  const displayColor    = profile?.avatar_color ?? '#2c5545'
+  const displayColor    = profile?.avatar_color ?? '#e31e24'
   const displayName     = profile?.full_name || 'Usuário'
   const displayInitials = displayName.split(' ').map((p) => p[0]).slice(0, 2).join('').toUpperCase()
 
   return (
-    <header className="flex h-14 items-center border-b border-line/60 bg-surface-base px-5 shrink-0" style={{ position: 'relative' }}>
+    <header className="flex items-center bg-surface-base px-5 shrink-0" style={{ position: 'relative', height: '52px', borderBottom: '1px solid var(--line)', boxShadow: 'none' }}>
       {/* Empty left spacer */}
       <div style={{ flex: 1 }} />
 
@@ -288,7 +288,7 @@ export function Header({ onOpenSearch }: { onOpenSearch?: () => void }) {
           padding: '0 14px',
           backgroundColor: isDark ? '#111110' : '#f0ede8',
           border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.09)'}`,
-          borderRadius: '12px', cursor: 'text',
+          borderRadius: '5px', cursor: 'text',
           transition: 'border-color 0.15s ease, background-color 0.15s ease',
           position: 'absolute', left: '50%', transform: 'translateX(-50%)',
         }}

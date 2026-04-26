@@ -28,7 +28,8 @@
       "Bash(git commit *)",
       "Bash(npx vercel *)",
       "Bash(npx supabase *)",
-      "Bash(git checkout *)"
+      "Bash(git checkout *)",
+      "WebFetch(domain:www.esquirebrasil.com.br)"
     ]
   }
 }
