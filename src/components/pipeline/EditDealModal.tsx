@@ -15,7 +15,7 @@ import type { Deal } from '@/types/deal.types'
 const T = {
   border:      'border border-[#e4e0da] dark:border-[#242422]',
   inputBg:     'bg-[#f5f4f0] dark:bg-[#111110]',
-  focusBorder: 'focus:border-[#2c5545] dark:focus:border-[#4a9080] focus:ring-2 focus:ring-[#2c5545]/15 dark:focus:ring-[#4a9080]/15',
+  focusBorder: 'focus:border-[#e31e24] dark:focus:border-[#e31e24] focus:ring-2 focus:ring-[#e31e24]/15 dark:focus:ring-[#e31e24]/15',
   errBorder:   'border-[#ef4444] focus:border-[#ef4444] focus:ring-[#ef4444]/15',
   labelColor:  'text-[#8a857d] dark:text-[#6b6560]',
   separator:   'bg-[#e4e0da] dark:bg-[#242422]',
@@ -342,7 +342,7 @@ export function EditDealModal({ deal, open, onClose, onUpdated }: Props) {
             <button type="button" onClick={handleClose} className={cn('transition-colors duration-150 text-[#8a857d] dark:text-[#6b6560]', 'border border-[#e4e0da] dark:border-[#242422]', 'hover:bg-[#f5f4f0] dark:hover:bg-[#1e1e1c] hover:text-[#1a1814] dark:hover:text-[#e8e4dc]')} style={{ height: '40px', borderRadius: '10px', padding: '0 24px', fontSize: '13px', fontWeight: 600, background: 'transparent', cursor: 'pointer' }}>
               Cancelar
             </button>
-            <button type="submit" form="edit-deal-form" disabled={isSubmitting} className="flex items-center gap-2 transition-opacity duration-150 disabled:opacity-70 disabled:cursor-not-allowed" style={{ height: '40px', borderRadius: '10px', padding: '0 28px', fontSize: '13px', fontWeight: 700, backgroundColor: '#2c5545', color: '#ffffff', border: 'none', cursor: isSubmitting ? 'not-allowed' : 'pointer', boxShadow: '0 2px 12px rgba(44,85,69,0.35)' }}>
+            <button type="submit" form="edit-deal-form" disabled={isSubmitting} className="flex items-center gap-2 transition-opacity duration-150 disabled:opacity-70 disabled:cursor-not-allowed" style={{ height: '40px', borderRadius: '10px', padding: '0 28px', fontSize: '13px', fontWeight: 700, backgroundColor: '#e31e24', color: '#ffffff', border: 'none', cursor: isSubmitting ? 'not-allowed' : 'pointer', boxShadow: '0 2px 12px rgba(44,85,69,0.35)' }}>
               {isSubmitting && <Loader2 style={{ width: '14px', height: '14px' }} className="animate-spin" />}
               {isSubmitting ? 'Salvando...' : 'Salvar alterações'}
             </button>

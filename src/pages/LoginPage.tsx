@@ -22,9 +22,6 @@ export function LoginPage() {
   const text    = isDark ? '#e8e4dc' : '#1a1814'
   const muted   = isDark ? '#6b6560' : '#8a857d'
   const inputBg = isDark ? '#111110' : '#f5f4f0'
-  const btnBg   = isDark ? '#e8e4dc' : '#1a1814'
-  const btnText = isDark ? '#0d0c0a' : '#f5f4f0'
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
@@ -62,12 +59,13 @@ export function LoginPage() {
       }}>
 
         {/* Logo */}
-        <div style={{ marginBottom: '36px', textAlign: 'center' }}>
-          <p style={{ fontSize: '20px', fontWeight: 600, color: text, letterSpacing: '-0.02em', lineHeight: 1.2 }}>
-            Esquire CRM
+        <div style={{ marginBottom: '36px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <div style={{ height: '3px', backgroundColor: '#e31e24', width: '40px', marginBottom: '16px' }} />
+          <p style={{ fontFamily: '"Playfair Display", Georgia, serif', fontStyle: 'italic', fontWeight: 700, fontSize: '32px', color: '#0d0d0b', lineHeight: 1 }}>
+            Esquire
           </p>
-          <p style={{ fontSize: '12px', color: muted, marginTop: '5px' }}>
-            Aurea Tech · Enterprise Sales
+          <p style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.25em', textTransform: 'uppercase', color: '#7a756e', marginTop: '6px' }}>
+            CRM
           </p>
         </div>
 
@@ -92,7 +90,7 @@ export function LoginPage() {
                 fontSize: '13px', fontWeight: 500, color: text,
                 outline: 'none', transition: 'border-color 0.15s ease',
               }}
-              onFocus={(e) => (e.currentTarget.style.borderColor = isDark ? '#4a9080' : '#2c5545')}
+              onFocus={(e) => (e.currentTarget.style.borderColor = isDark ? '#e31e24' : '#e31e24')}
               onBlur={(e)  => (e.currentTarget.style.borderColor = border)}
             />
           </div>
@@ -117,7 +115,7 @@ export function LoginPage() {
                   fontSize: '13px', fontWeight: 500, color: text,
                   outline: 'none', transition: 'border-color 0.15s ease',
                 }}
-                onFocus={(e) => (e.currentTarget.style.borderColor = isDark ? '#4a9080' : '#2c5545')}
+                onFocus={(e) => (e.currentTarget.style.borderColor = isDark ? '#e31e24' : '#e31e24')}
                 onBlur={(e)  => (e.currentTarget.style.borderColor = border)}
               />
               <button
@@ -154,9 +152,9 @@ export function LoginPage() {
             type="submit"
             disabled={loading}
             style={{
-              width: '100%', height: '40px', borderRadius: '8px', marginTop: '2px',
-              backgroundColor: loading ? (isDark ? '#2a2a28' : '#e0dbd4') : btnBg,
-              color: loading ? muted : btnText,
+              width: '100%', height: '40px', borderRadius: '4px', marginTop: '2px',
+              backgroundColor: loading ? (isDark ? '#2a2a28' : '#e0dbd4') : '#e31e24',
+              color: loading ? muted : '#fff',
               fontSize: '13px', fontWeight: 700,
               border: 'none', cursor: loading ? 'not-allowed' : 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
@@ -204,7 +202,7 @@ export function LoginPage() {
               opacity: msLoading ? 0.6 : 1,
               transition: 'border-color 0.15s ease, opacity 0.15s ease',
             }}
-            onMouseEnter={(e) => { if (!msLoading) e.currentTarget.style.borderColor = isDark ? '#4a9080' : '#2c5545' }}
+            onMouseEnter={(e) => { if (!msLoading) e.currentTarget.style.borderColor = isDark ? '#e31e24' : '#e31e24' }}
             onMouseLeave={(e) => { e.currentTarget.style.borderColor = border }}
           >
             {msLoading ? (

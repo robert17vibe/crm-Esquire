@@ -21,7 +21,7 @@ function fmtDate(iso: string) {
 
 const PRIORITY_CFG: Record<TaskPriority, { label: string; color: string; bg: string }> = {
   high:   { label: 'Alta',   color: '#dc2626', bg: '#fee2e2' },
-  medium: { label: 'Média',  color: '#b45309', bg: '#fef3c7' },
+  medium: { label: 'Média',  color: '#78716c', bg: '#f5f4f0' },
   low:    { label: 'Baixa',  color: '#4a7c8a', bg: '#e0f2fe' },
 }
 
@@ -72,9 +72,9 @@ function TaskRow({
         type="button"
         onClick={isDone ? onUncomplete : onComplete}
         style={{
-          width: '18px', height: '18px', borderRadius: '5px', flexShrink: 0,
-          border: `2px solid ${isDone ? '#2d9e6b' : border}`,
-          backgroundColor: isDone ? '#2d9e6b' : 'transparent',
+          width: '18px', height: '18px', borderRadius: '4px', flexShrink: 0,
+          border: `2px solid ${isDone ? '#e31e24' : border}`,
+          backgroundColor: isDone ? '#e31e24' : 'transparent',
           cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}
       >
@@ -240,9 +240,9 @@ function AddTaskForm({
             onClick={() => setDueDate(dueDate === value ? '' : value)}
             style={{
               height: '26px', padding: '0 10px', borderRadius: '5px', fontSize: '11px', fontWeight: 500,
-              backgroundColor: dueDate === value ? '#2c5545' : 'transparent',
+              backgroundColor: dueDate === value ? '#e31e24' : 'transparent',
               color: dueDate === value ? '#fff' : muted,
-              border: `1px solid ${dueDate === value ? '#2c5545' : border}`,
+              border: `1px solid ${dueDate === value ? '#e31e24' : border}`,
               cursor: 'pointer',
             }}
           >
@@ -287,7 +287,7 @@ function AddTaskForm({
           disabled={!title.trim() || saving}
           style={{
             height: '30px', padding: '0 14px', borderRadius: '6px',
-            backgroundColor: '#2c5545', color: '#fff', border: 'none',
+            backgroundColor: '#e31e24', color: '#fff', border: 'none',
             fontSize: '12px', fontWeight: 600, cursor: title.trim() && !saving ? 'pointer' : 'not-allowed',
             opacity: title.trim() && !saving ? 1 : 0.6,
           }}
@@ -373,20 +373,20 @@ export function TasksPage() {
 
   const visibleGroups: Array<{ key: keyof typeof grouped; label: string; color: string; icon: React.ComponentType<{ style?: React.CSSProperties }> }> =
     filter === 'done'
-      ? [{ key: 'done', label: 'Concluídas', color: '#2d9e6b', icon: Check }]
+      ? [{ key: 'done', label: 'Concluídas', color: muted, icon: Check }]
       : filter === 'all'
         ? [
             { key: 'overdue', label: 'Atrasadas',      color: '#dc2626',  icon: AlertTriangle },
             { key: 'today',   label: 'Hoje',           color: '#b45309',  icon: Clock         },
-            { key: 'week',    label: 'Esta semana',    color: '#2c5545',  icon: Calendar      },
+            { key: 'week',    label: 'Esta semana',    color: '#e31e24',  icon: Calendar      },
             { key: 'future',  label: 'Futuras',        color: muted,      icon: Calendar      },
             { key: 'no_date', label: 'Sem prazo',      color: muted,      icon: CheckSquare   },
-            { key: 'done',    label: 'Concluídas',     color: '#2d9e6b',  icon: Check         },
+            { key: 'done',    label: 'Concluídas',     color: muted,      icon: Check         },
           ]
         : [
             { key: 'overdue', label: 'Atrasadas',      color: '#dc2626',  icon: AlertTriangle },
             { key: 'today',   label: 'Hoje',           color: '#b45309',  icon: Clock         },
-            { key: 'week',    label: 'Esta semana',    color: '#2c5545',  icon: Calendar      },
+            { key: 'week',    label: 'Esta semana',    color: '#e31e24',  icon: Calendar      },
             { key: 'future',  label: 'Futuras',        color: muted,      icon: Calendar      },
             { key: 'no_date', label: 'Sem prazo',      color: muted,      icon: CheckSquare   },
           ]
@@ -402,7 +402,7 @@ export function TasksPage() {
         backgroundColor: isDark ? '#0d0c0a' : '#f5f4f0',
       }}>
         <div>
-          <p style={{ fontSize: '13px', fontWeight: 700, color: text, letterSpacing: '-0.01em' }}>Tarefas</p>
+          <p style={{ fontSize: '13px', fontWeight: 700, color: text, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Tarefas</p>
           <p style={{ fontSize: '10px', color: muted, marginTop: '2px' }}>
             {overdueCount > 0
               ? `${overdueCount} atrasada${overdueCount > 1 ? 's' : ''} · ${pendingCount} total`
@@ -418,7 +418,7 @@ export function TasksPage() {
             style={{
               height: '30px', padding: '0 8px', fontSize: '11px', fontWeight: 500,
               backgroundColor: inputBg, border: `1px solid ${border}`,
-              borderRadius: '6px', color: priorityFilter !== 'all' ? PRIORITY_CFG[priorityFilter as TaskPriority]?.color : muted,
+              borderRadius: '4px', color: priorityFilter !== 'all' ? PRIORITY_CFG[priorityFilter as TaskPriority]?.color : muted,
               outline: 'none', cursor: 'pointer',
             }}
           >
@@ -435,7 +435,7 @@ export function TasksPage() {
             style={{
               height: '30px', padding: '0 8px', fontSize: '11px', fontWeight: 500,
               backgroundColor: inputBg, border: `1px solid ${border}`,
-              borderRadius: '6px', color: typeFilter !== 'all' ? '#2c5545' : muted,
+              borderRadius: '4px', color: typeFilter !== 'all' ? '#e31e24' : muted,
               outline: 'none', cursor: 'pointer',
             }}
           >
@@ -448,7 +448,7 @@ export function TasksPage() {
           </select>
 
           {/* Filter tabs */}
-          <div style={{ display: 'flex', border: `1px solid ${border}`, borderRadius: '7px', overflow: 'hidden', backgroundColor: cardBg }}>
+          <div style={{ display: 'flex', borderBottom: `1px solid ${border}`, gap: '0' }}>
             {([
               { key: 'pending' as TaskFilter, label: 'Pendentes' },
               { key: 'done'    as TaskFilter, label: 'Concluídas' },
@@ -459,10 +459,13 @@ export function TasksPage() {
                 type="button"
                 onClick={() => setFilter(key)}
                 style={{
-                  height: '30px', padding: '0 12px', fontSize: '11px', fontWeight: 600,
-                  backgroundColor: filter === key ? '#2c5545' : 'transparent',
-                  color: filter === key ? '#fff' : muted,
-                  border: 'none', cursor: 'pointer',
+                  height: '30px', padding: '0 12px', fontSize: '10px', fontWeight: 700,
+                  letterSpacing: '0.06em', textTransform: 'uppercase',
+                  backgroundColor: 'transparent',
+                  color: filter === key ? '#e31e24' : muted,
+                  border: 'none',
+                  borderBottom: filter === key ? '2px solid #e31e24' : '2px solid transparent',
+                  cursor: 'pointer', marginBottom: '-1px',
                 }}
               >
                 {label}
@@ -474,11 +477,12 @@ export function TasksPage() {
             type="button"
             onClick={() => setShowForm((v) => !v)}
             style={{
-              height: '30px', padding: '0 12px', borderRadius: '7px',
-              backgroundColor: showForm ? 'transparent' : '#2c5545',
+              height: '30px', padding: '0 12px', borderRadius: '4px',
+              backgroundColor: showForm ? 'transparent' : '#e31e24',
               color: showForm ? muted : '#fff',
-              border: `1px solid ${showForm ? border : '#2c5545'}`,
-              fontSize: '11px', fontWeight: 600, cursor: 'pointer',
+              border: `1px solid ${showForm ? border : '#e31e24'}`,
+              fontSize: '10px', fontWeight: 700, cursor: 'pointer',
+              textTransform: 'uppercase', letterSpacing: '0.08em',
               display: 'flex', alignItems: 'center', gap: '5px',
             }}
           >

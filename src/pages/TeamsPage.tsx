@@ -38,10 +38,10 @@ const HEALTH_LABEL: Record<HealthStatus, string> = {
   healthy: 'Saudável', warning: 'Atenção', critical: 'Crítico',
 }
 const HEALTH_COLOR: Record<HealthStatus, string> = {
-  healthy: '#2c5545', warning: '#92400e', critical: '#dc2626',
+  healthy: '#e31e24', warning: '#92400e', critical: '#dc2626',
 }
 const HEALTH_BG: Record<HealthStatus, string> = {
-  healthy: '#d1fae5', warning: '#fef3c7', critical: '#fee2e2',
+  healthy: 'rgba(227,30,36,0.10)', warning: '#fef3c7', critical: '#fee2e2',
 }
 
 // ─── Format helpers ───────────────────────────────────────────────────────────
@@ -162,8 +162,8 @@ function GroupDetailModal({
             {TABS.map(({ key, label }) => (
               <button key={key} type="button" onClick={() => setTab(key)} style={{
                 height: '36px', padding: '0 16px', fontSize: '13px', fontWeight: tab === key ? 700 : 500,
-                color: tab === key ? (isDark ? '#a0c4b4' : '#2c5545') : muted,
-                backgroundColor: 'transparent', border: 'none', borderBottom: `2px solid ${tab === key ? (isDark ? '#a0c4b4' : '#2c5545') : 'transparent'}`,
+                color: tab === key ? (isDark ? 'rgba(227,30,36,0.50)' : '#e31e24') : muted,
+                backgroundColor: 'transparent', border: 'none', borderBottom: `2px solid ${tab === key ? (isDark ? 'rgba(227,30,36,0.50)' : '#e31e24') : 'transparent'}`,
                 cursor: 'pointer', marginBottom: '-1px', transition: 'all 0.15s',
               }}>{label}</button>
             ))}
@@ -215,9 +215,9 @@ function GroupDetailModal({
                         style={{
                           display: 'flex', alignItems: 'center', gap: '5px',
                           height: '28px', padding: '0 10px', fontSize: '11px', fontWeight: 600,
-                          backgroundColor: isDark ? '#0d1a14' : '#f0f7f3',
-                          color: isDark ? '#a0c4b4' : '#2c5545',
-                          border: `1px solid ${isDark ? '#1e4a38' : '#a3d9c0'}`,
+                          backgroundColor: isDark ? 'rgba(227,30,36,0.08)' : '#f0f7f3',
+                          color: isDark ? 'rgba(227,30,36,0.50)' : '#e31e24',
+                          border: `1px solid ${isDark ? 'rgba(227,30,36,0.15)' : 'rgba(227,30,36,0.30)'}`,
                           borderRadius: '6px', cursor: 'pointer',
                         }}>
                         <Eye style={{ width: '11px', height: '11px' }} />
@@ -253,7 +253,7 @@ function GroupDetailModal({
                             backgroundColor: surfBg, border: `1px dashed ${border}`,
                             borderRadius: '8px', cursor: 'pointer', color: text,
                           }}
-                          onMouseEnter={(e) => (e.currentTarget.style.borderColor = isDark ? '#3d7a62' : '#2c5545')}
+                          onMouseEnter={(e) => (e.currentTarget.style.borderColor = isDark ? '#3d7a62' : '#e31e24')}
                           onMouseLeave={(e) => (e.currentTarget.style.borderColor = border)}
                         >
                           <UserPlus style={{ width: '11px', height: '11px', color: muted }} />
@@ -298,7 +298,7 @@ function GroupDetailModal({
                           <span style={{ fontSize: '11px', color: muted }}>{fmtCompact(p)} · {openCount} deals · {fmtPct(wr)} WR</span>
                         </div>
                         <div style={{ height: '6px', borderRadius: '3px', backgroundColor: isDark ? '#1a1a18' : '#e8e4dc', overflow: 'hidden' }}>
-                          <div style={{ height: '100%', width: `${(p / maxPipe) * 100}%`, borderRadius: '3px', background: 'linear-gradient(90deg, #2c5545, #3d7a62)', transition: 'width 0.4s' }} />
+                          <div style={{ height: '100%', width: `${(p / maxPipe) * 100}%`, borderRadius: '3px', background: 'linear-gradient(90deg, #e31e24, #3d7a62)', transition: 'width 0.4s' }} />
                         </div>
                       </div>
                     ))}
@@ -366,7 +366,7 @@ function GroupDetailModal({
                       disabled={!renameDraft.trim() || renameDraft === team.name}
                       style={{
                         height: '36px', padding: '0 16px', fontSize: '13px', fontWeight: 700,
-                        background: renameDraft.trim() && renameDraft !== team.name ? 'linear-gradient(135deg, #2c5545, #3d7a62)' : (isDark ? '#1a1a18' : '#e8e4dc'),
+                        background: renameDraft.trim() && renameDraft !== team.name ? 'linear-gradient(135deg, #e31e24, #3d7a62)' : (isDark ? '#1a1a18' : '#e8e4dc'),
                         color: renameDraft.trim() && renameDraft !== team.name ? '#fff' : muted,
                         border: 'none', borderRadius: '8px', cursor: 'pointer',
                       }}>
@@ -483,7 +483,7 @@ function GroupCard({
           {members.slice(0, 5).map((owner) => (
             <div key={owner.id} title={owner.name} style={{
               width: '26px', height: '26px', borderRadius: '50%', marginRight: '-6px',
-              backgroundColor: owner.avatar_color || '#2c5545',
+              backgroundColor: owner.avatar_color || '#e31e24',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: '10px', fontWeight: 700, color: '#fff',
               border: `2px solid ${cardBg}`,
@@ -598,7 +598,7 @@ export function TeamsPage() {
           <button type="button" onClick={() => setShowForm((v) => !v)} style={{
             display: 'flex', alignItems: 'center', gap: '7px',
             height: '38px', padding: '0 18px', fontSize: '13px', fontWeight: 700,
-            background: showForm ? (isDark ? '#1a1a18' : '#e8e4dc') : 'linear-gradient(135deg, #2c5545 0%, #3d7a62 100%)',
+            background: showForm ? (isDark ? '#1a1a18' : '#e8e4dc') : 'linear-gradient(135deg, #e31e24 0%, #3d7a62 100%)',
             color: showForm ? muted : '#ffffff',
             border: 'none', borderRadius: '10px', cursor: 'pointer',
             boxShadow: showForm ? 'none' : '0 2px 8px rgba(44,85,69,0.35)',
@@ -632,7 +632,7 @@ export function TeamsPage() {
             />
             <button type="button" onClick={handleCreate} disabled={creating || !newName.trim()} style={{
               height: '38px', padding: '0 18px', fontSize: '13px', fontWeight: 700,
-              background: newName.trim() ? 'linear-gradient(135deg, #2c5545 0%, #3d7a62 100%)' : (isDark ? '#1a1a18' : '#e8e4dc'),
+              background: newName.trim() ? 'linear-gradient(135deg, #e31e24 0%, #3d7a62 100%)' : (isDark ? '#1a1a18' : '#e8e4dc'),
               color: newName.trim() ? '#fff' : muted,
               border: 'none', borderRadius: '8px', cursor: newName.trim() ? 'pointer' : 'not-allowed',
               boxShadow: newName.trim() ? '0 2px 6px rgba(44,85,69,0.3)' : 'none',
@@ -665,7 +665,7 @@ export function TeamsPage() {
               <button type="button" onClick={() => setShowForm(true)} style={{
                 display: 'flex', alignItems: 'center', gap: '7px',
                 height: '40px', padding: '0 20px', fontSize: '13px', fontWeight: 700,
-                background: 'linear-gradient(135deg, #2c5545 0%, #3d7a62 100%)',
+                background: 'linear-gradient(135deg, #e31e24 0%, #3d7a62 100%)',
                 color: '#ffffff', border: 'none', borderRadius: '10px', cursor: 'pointer',
                 boxShadow: '0 2px 10px rgba(44,85,69,0.35)',
               }}>

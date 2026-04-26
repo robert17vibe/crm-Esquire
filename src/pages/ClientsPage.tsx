@@ -104,7 +104,7 @@ export function ClientsPage() {
         backgroundColor: isDark ? '#0d0c0a' : '#f5f4f0',
       }}>
         <div>
-          <p style={{ fontSize: '13px', fontWeight: 700, color: text, letterSpacing: '-0.01em' }}>Clientes</p>
+          <p style={{ fontSize: '13px', fontWeight: 700, color: text, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Clientes</p>
           <p style={{ fontSize: '10px', color: muted, marginTop: '2px' }}>
             {`${filtered.length} empresas · ${fmt(totalPipeline)} em pipeline · ${fmt(totalWon)} fechado`}
           </p>
@@ -124,11 +124,11 @@ export function ClientsPage() {
                 height: '30px', paddingLeft: '26px', paddingRight: '10px',
                 fontSize: '12px', width: '200px',
                 backgroundColor: inputBg, border: `1px solid ${inputBorder}`,
-                borderRadius: '6px', color: text, outline: 'none',
+                borderRadius: '4px', color: text, outline: 'none',
               }}
             />
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', fontWeight: 600, color: '#2c5545', backgroundColor: isDark ? 'rgba(44,85,69,0.15)' : '#dcfce7', border: '1px solid rgba(44,85,69,0.25)', borderRadius: '6px', padding: '5px 10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', fontWeight: 600, color: '#e31e24', backgroundColor: isDark ? 'rgba(227,30,36,0.10)' : '#fde8e9', border: '1px solid rgba(227,30,36,0.25)', borderRadius: '4px', padding: '5px 10px' }}>
             <Activity style={{ width: '12px', height: '12px' }} />
             {filtered.filter((c) => c.active > 0).length} ativos
           </div>
@@ -139,16 +139,16 @@ export function ClientsPage() {
       <div style={{ padding: '12px 20px 0', display: 'flex', gap: '10px', flexShrink: 0 }}>
         {[
           { label: 'Empresas',  value: String(filtered.length), icon: Building2, color: '#4a7c8a' },
-          { label: 'Pipeline',  value: fmt(totalPipeline), icon: TrendingUp, color: '#2c5545' },
+          { label: 'Pipeline',  value: fmt(totalPipeline), icon: TrendingUp, color: '#e31e24' },
           { label: 'Fechado',   value: fmt(totalWon), icon: DollarSign, color: '#2d9e6b' },
         ].map(({ label, value, icon: Icon, color }) => (
           <div key={label} style={{
-            flex: 1, padding: '10px 14px', borderRadius: '10px',
+            flex: 1, padding: '10px 14px', borderRadius: '6px',
             backgroundColor: cardBg, border: `1px solid ${border}`,
             display: 'flex', alignItems: 'center', gap: '10px',
           }}>
             <div style={{
-              width: '32px', height: '32px', borderRadius: '8px', flexShrink: 0,
+              width: '32px', height: '32px', borderRadius: '4px', flexShrink: 0,
               backgroundColor: `${color}14`, border: `1px solid ${color}25`,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
@@ -175,7 +175,7 @@ export function ClientsPage() {
             </p>
           </div>
         ) : (
-          <div style={{ minWidth: '640px', backgroundColor: cardBg, borderRadius: '12px', border: `1px solid ${border}`, overflow: 'hidden' }}>
+          <div style={{ minWidth: '640px', backgroundColor: cardBg, borderRadius: '6px', border: `1px solid ${border}`, overflow: 'hidden' }}>
             {/* Column headers */}
             <div style={{
               display: 'grid', gridTemplateColumns: 'minmax(180px, 2fr) minmax(80px, 110px) minmax(60px, 80px) minmax(100px, 120px) minmax(100px, 120px) 32px',
@@ -219,7 +219,7 @@ export function ClientsPage() {
                     {/* Company */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
                       <div style={{
-                        width: '36px', height: '36px', borderRadius: '10px', flexShrink: 0,
+                        width: '36px', height: '36px', borderRadius: '4px', flexShrink: 0,
                         backgroundColor: stage ? `${stage.color}18` : trackBg,
                         border: `1px solid ${stage ? `${stage.color}30` : border}`,
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -234,7 +234,7 @@ export function ClientsPage() {
                           {stage && (
                             <span style={{
                               fontSize: '9px', fontWeight: 700, color: stage.color,
-                              backgroundColor: `${stage.color}14`, borderRadius: '4px', padding: '1px 6px',
+                              backgroundColor: `${stage.color}14`, borderRadius: '3px', padding: '1px 6px',
                               border: `1px solid ${stage.color}25`,
                             }}>
                               {stage.label}
@@ -319,14 +319,14 @@ export function ClientsPage() {
                               backgroundColor: 'transparent', border: 'none', cursor: 'pointer',
                               textAlign: 'left', marginBottom: '2px',
                             }}
-                            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = hoverBg)}
-                            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = hoverBg; const arrow = e.currentTarget.querySelector<HTMLElement>('[data-arrow]'); if (arrow) arrow.style.color = '#e31e24' }}
+                            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; const arrow = e.currentTarget.querySelector<HTMLElement>('[data-arrow]'); if (arrow) arrow.style.color = muted }}
                           >
                             {/* Stage pill */}
                             {dealStage && (
                               <span style={{
                                 fontSize: '9px', fontWeight: 700, color: dealStage.color,
-                                backgroundColor: `${dealStage.color}18`, borderRadius: '4px',
+                                backgroundColor: `${dealStage.color}18`, borderRadius: '3px',
                                 padding: '2px 8px', flexShrink: 0, whiteSpace: 'nowrap',
                                 border: `1px solid ${dealStage.color}25`,
                               }}>
@@ -358,7 +358,7 @@ export function ClientsPage() {
                             <p style={{ fontSize: '12px', fontWeight: 600, color: deal.stage_id === 'closed_won' ? '#2d9e6b' : text, fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
                               {Number(deal.value) > 0 ? fmtFull(Number(deal.value)) : '—'}
                             </p>
-                            <ArrowRight style={{ width: '10px', height: '10px', color: muted, flexShrink: 0 }} />
+                            <ArrowRight data-arrow="" style={{ width: '10px', height: '10px', color: muted, flexShrink: 0 }} />
                           </button>
                         )
                       })}

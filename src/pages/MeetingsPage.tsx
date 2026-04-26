@@ -27,7 +27,7 @@ function TranscriptBlock({ text, isDark }: { text: string; isDark: boolean }) {
   return (
     <div style={{
       backgroundColor: bg, border: `1px solid ${border}`,
-      borderRadius: '6px', padding: '12px 14px', marginTop: '10px',
+      borderRadius: '4px', padding: '12px 14px', marginTop: '10px',
     }}>
       <p style={{ fontSize: '9px', fontWeight: 700, color: isDark ? '#4a4a48' : '#a09890', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '8px' }}>
         Transcrição — Plaud Note
@@ -55,7 +55,7 @@ function MeetingCard({ meeting, isDark }: { meeting: DealMeeting; isDark: boolea
   const tagBg   = isDark ? '#1e1e1c' : '#f0eeea'
 
   return (
-    <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '8px', overflow: 'hidden' }}>
+    <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '6px', overflow: 'hidden' }}>
 
       {/* ── Header row ── */}
       <div
@@ -67,11 +67,11 @@ function MeetingCard({ meeting, isDark }: { meeting: DealMeeting; isDark: boolea
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
           <div style={{
             width: '36px', height: '36px', borderRadius: '8px', flexShrink: 0,
-            backgroundColor: meeting.plaud_note_id ? '#2c554514' : tagBg,
-            border: `1px solid ${meeting.plaud_note_id ? '#2c554530' : border}`,
+            backgroundColor: meeting.plaud_note_id ? '#e31e2414' : tagBg,
+            border: `1px solid ${meeting.plaud_note_id ? '#e31e2430' : border}`,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
-            <Mic style={{ width: '16px', height: '16px', color: meeting.plaud_note_id ? '#2c5545' : muted }} />
+            <Mic style={{ width: '16px', height: '16px', color: meeting.plaud_note_id ? '#e31e24' : muted }} />
           </div>
 
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -79,8 +79,8 @@ function MeetingCard({ meeting, isDark }: { meeting: DealMeeting; isDark: boolea
               <p style={{ fontSize: '13px', fontWeight: 700, color: text }}>{meeting.title}</p>
               {meeting.plaud_note_id && (
                 <span style={{
-                  fontSize: '9px', fontWeight: 700, color: '#2c5545',
-                  backgroundColor: '#2c554514', border: '1px solid #2c554530',
+                  fontSize: '9px', fontWeight: 700, color: '#e31e24',
+                  backgroundColor: '#e31e2414', border: '1px solid #e31e2430',
                   borderRadius: '3px', padding: '1px 6px', letterSpacing: '0.06em', textTransform: 'uppercase',
                 }}>
                   Plaud Note
@@ -102,7 +102,7 @@ function MeetingCard({ meeting, isDark }: { meeting: DealMeeting; isDark: boolea
                   onClick={(e) => { e.stopPropagation(); navigate(`/deal/${deal.id}`) }}
                   style={{
                     display: 'flex', alignItems: 'center', gap: '3px',
-                    fontSize: '11px', fontWeight: 600, color: '#2c5545',
+                    fontSize: '11px', fontWeight: 600, color: '#e31e24',
                     background: 'none', border: 'none', cursor: 'pointer', padding: 0,
                   }}
                 >
@@ -146,7 +146,7 @@ function MeetingCard({ meeting, isDark }: { meeting: DealMeeting; isDark: boolea
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                   {meeting.key_points.map((pt, i) => (
                     <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '7px' }}>
-                      <span style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#2c5545', flexShrink: 0, marginTop: '6px' }} />
+                      <span style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#e31e24', flexShrink: 0, marginTop: '6px' }} />
                       <p style={{ fontSize: '12px', color: text, lineHeight: 1.5 }}>{pt}</p>
                     </div>
                   ))}
@@ -186,7 +186,7 @@ function MeetingCard({ meeting, isDark }: { meeting: DealMeeting; isDark: boolea
               <button
                 type="button"
                 onClick={() => setShowTranscript((v) => !v)}
-                style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', fontWeight: 600, color: '#2c5545', background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginTop: '4px' }}
+                style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', fontWeight: 600, color: '#e31e24', background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginTop: '4px' }}
               >
                 <Mic style={{ width: '11px', height: '11px' }} />
                 {showTranscript ? 'Ocultar transcrição' : 'Ver transcrição Plaud'}
@@ -223,15 +223,15 @@ export function MeetingsPage() {
         borderBottom: `1px solid ${border}`, flexShrink: 0,
       }}>
         <div>
-          <p style={{ fontSize: '13px', fontWeight: 700, color: text, letterSpacing: '-0.01em' }}>Reuniões</p>
+          <p style={{ fontSize: '13px', fontWeight: 700, color: text, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Reuniões</p>
           <p style={{ fontSize: '10px', color: muted, marginTop: '2px' }}>
             {meetings.length} reuniões · {withPlaud} com transcrição Plaud
           </p>
         </div>
         <span style={{
           display: 'flex', alignItems: 'center', gap: '5px',
-          fontSize: '11px', fontWeight: 600, color: '#2c5545',
-          backgroundColor: '#2c554514', border: '1px solid #2c554530',
+          fontSize: '11px', fontWeight: 600, color: '#e31e24',
+          backgroundColor: '#e31e2414', border: '1px solid #e31e2430',
           borderRadius: '6px', padding: '5px 10px',
         }}>
           <Mic style={{ width: '12px', height: '12px' }} />

@@ -6,7 +6,7 @@ import { useTeamNotificationStore, type NotifType } from '@/store/useTeamNotific
 
 const TYPE_CFG: Record<NotifType, { label: string; color: string; bg: string; bgDark: string; icon: React.ComponentType<{ style?: React.CSSProperties }> }> = {
   info:         { label: 'Informação',  color: '#2563eb', bg: '#eff6ff', bgDark: '#1e2d4a', icon: Info         },
-  announcement: { label: 'Aviso',       color: '#2c5545', bg: '#f0fdf4', bgDark: '#1a2e24', icon: Megaphone    },
+  announcement: { label: 'Aviso',       color: '#e31e24', bg: '#f0fdf4', bgDark: '#1a2e24', icon: Megaphone    },
   warning:      { label: 'Atenção',     color: '#b45309', bg: '#fffbeb', bgDark: '#2d2010', icon: AlertTriangle },
   urgent:       { label: 'Urgente',     color: '#dc2626', bg: '#fef2f2', bgDark: '#2d1515', icon: Zap          },
 }
@@ -74,7 +74,7 @@ function CreateDrawer({ isDark, teams, onClose }: {
         <div style={{ padding: '20px 20px 16px', borderBottom: `1px solid ${border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div style={{ width: '36px', height: '36px', borderRadius: '10px', backgroundColor: isDark ? '#1a2e24' : '#dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Bell style={{ width: '16px', height: '16px', color: '#2c5545' }} />
+              <Bell style={{ width: '16px', height: '16px', color: '#e31e24' }} />
             </div>
             <div>
               <p style={{ fontSize: '14px', fontWeight: 700, color: text }}>Nova Notificação</p>
@@ -203,7 +203,7 @@ export function AdminNotificationsPage() {
       {/* Header */}
       <div style={{ height: '56px', minHeight: '56px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 24px', borderBottom: `1px solid ${border}`, backgroundColor: cardBg, flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Bell style={{ width: '16px', height: '16px', color: '#2c5545' }} />
+          <Bell style={{ width: '16px', height: '16px', color: '#e31e24' }} />
           <p style={{ fontSize: '14px', fontWeight: 700, color: text }}>Notificações da Equipa</p>
           <span style={{ fontSize: '10px', fontWeight: 700, color: muted, backgroundColor: isDark ? '#1c1c1a' : '#f0ede8', padding: '2px 7px', borderRadius: '999px' }}>
             {notifications.length} ativas
@@ -211,7 +211,7 @@ export function AdminNotificationsPage() {
         </div>
         <button type="button" onClick={() => setShowCreate(true)} style={{
           height: '32px', padding: '0 14px', borderRadius: '8px', border: 'none',
-          backgroundColor: '#2c5545', color: '#fff', fontSize: '12px', fontWeight: 700,
+          backgroundColor: '#e31e24', color: '#fff', fontSize: '12px', fontWeight: 700,
           cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px',
         }}>
           <Plus style={{ width: '13px', height: '13px' }} />
@@ -230,7 +230,7 @@ export function AdminNotificationsPage() {
               padding: '6px 14px', borderRadius: '8px 8px 0 0', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: active ? 700 : 500,
               backgroundColor: active ? bg : 'transparent',
               color: active ? (cfg ? cfg.color : text) : muted,
-              borderBottom: active ? `2px solid ${cfg ? cfg.color : '#2c5545'}` : '2px solid transparent',
+              borderBottom: active ? `2px solid ${cfg ? cfg.color : '#e31e24'}` : '2px solid transparent',
               transition: 'all 0.15s',
               display: 'flex', alignItems: 'center', gap: '5px',
             }}>
@@ -251,7 +251,7 @@ export function AdminNotificationsPage() {
               <Bell style={{ width: '20px', height: '20px', color: muted }} />
             </div>
             <p style={{ fontSize: '13px', color: muted, fontWeight: 500 }}>Nenhuma notificação ativa</p>
-            <button type="button" onClick={() => setShowCreate(true)} style={{ fontSize: '12px', color: '#2c5545', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>
+            <button type="button" onClick={() => setShowCreate(true)} style={{ fontSize: '12px', color: '#e31e24', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>
               Criar primeira notificação →
             </button>
           </div>

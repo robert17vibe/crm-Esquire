@@ -57,7 +57,7 @@ const ARR_LABELS: Record<string, string> = {
 }
 
 const ACT_COLORS: Record<string, string> = {
-  call: '#4a90d9', email: '#78909c', meeting: '#2c5545', task: '#2d9e6b', note: '#b45309',
+  call: '#4a90d9', email: '#78909c', meeting: '#e31e24', task: '#2d9e6b', note: '#b45309',
 }
 const ACT_ICONS: Record<string, LucideIcon> = {
   call: Phone, email: Mail, meeting: Video, task: CheckSquare, note: FileText,
@@ -108,7 +108,7 @@ function LinkField({ label, icon: Icon, href, external, children, muted }: {
         href={href}
         target={external ? '_blank' : undefined}
         rel={external ? 'noopener noreferrer' : undefined}
-        style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: 500, color: '#2c5545', textDecoration: 'none' }}
+        style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: 500, color: '#e31e24', textDecoration: 'none' }}
       >
         <Icon style={{ width: '13px', height: '13px', color: muted, flexShrink: 0 }} />
         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{children}</span>
@@ -154,7 +154,7 @@ function buildTimeline(activities: DealActivity[], meetings: DealMeeting[]): Tim
 
 function StandaloneMeetingEntry({ meeting, isDark }: { meeting: DealMeeting; isDark: boolean }) {
   const [expanded, setExpanded] = useState(false)
-  const color  = '#2c5545'
+  const color  = '#e31e24'
   const text   = isDark ? '#e8e4dc' : '#1a1814'
   const muted  = isDark ? '#6b6560' : '#8a857d'
   const cardBg = isDark ? '#1a1a18' : '#f8f7f4'
@@ -259,8 +259,8 @@ function ActivityEntry({ activity, meeting, isDark }: {
               </span>
               {meeting?.plaud_note_id && (
                 <span style={{
-                  fontSize: '9px', fontWeight: 700, color: '#2c5545',
-                  backgroundColor: '#2c554514', borderRadius: '3px',
+                  fontSize: '9px', fontWeight: 700, color: '#e31e24',
+                  backgroundColor: '#e31e2414', borderRadius: '3px',
                   padding: '1px 5px', textTransform: 'uppercase', letterSpacing: '0.06em',
                 }}>
                   Plaud
@@ -289,7 +289,7 @@ function ActivityEntry({ activity, meeting, isDark }: {
               onClick={() => setExpanded((v) => !v)}
               style={{
                 display: 'flex', alignItems: 'center', gap: '4px',
-                fontSize: '11px', fontWeight: 600, color: '#2c5545',
+                fontSize: '11px', fontWeight: 600, color: '#e31e24',
                 background: 'none', border: 'none', cursor: 'pointer', padding: 0,
               }}
             >
@@ -311,7 +311,7 @@ function ActivityEntry({ activity, meeting, isDark }: {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                       {meeting.key_points.map((pt, i) => (
                         <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
-                          <span style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#2c5545', flexShrink: 0, marginTop: '6px' }} />
+                          <span style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#e31e24', flexShrink: 0, marginTop: '6px' }} />
                           <p style={{ fontSize: '12px', color: text, lineHeight: 1.5 }}>{pt}</p>
                         </div>
                       ))}
@@ -412,9 +412,9 @@ function AddActivityForm({ dealId, owner, onClose, isDark }: {
         {TYPES.map((t) => (
           <button key={t.value} type="button" onClick={() => setType(t.value)} style={{
             fontSize: '11px', fontWeight: 600, padding: '4px 10px', borderRadius: '5px',
-            border: `1px solid ${type === t.value ? ACT_COLORS[t.value] : border}`,
-            backgroundColor: type === t.value ? `${ACT_COLORS[t.value]}18` : 'transparent',
-            color: type === t.value ? ACT_COLORS[t.value] : isDark ? '#6b6560' : '#8a857d',
+            border: `1px solid ${type === t.value ? '#e31e24' : border}`,
+            backgroundColor: type === t.value ? 'rgba(227,30,36,0.08)' : 'transparent',
+            color: type === t.value ? '#e31e24' : isDark ? '#6b6560' : '#8a857d',
             cursor: 'pointer',
           }}>{t.label}</button>
         ))}
@@ -426,9 +426,9 @@ function AddActivityForm({ dealId, owner, onClose, isDark }: {
       <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
         <button type="button" onClick={onClose} style={{ fontSize: '12px', fontWeight: 600, color: isDark ? '#6b6560' : '#8a857d', background: 'none', border: 'none', cursor: 'pointer', padding: '6px 10px' }}>Cancelar</button>
         <button type="button" onClick={handleSave} disabled={saving || !subject.trim()} style={{
-          fontSize: '12px', fontWeight: 600, padding: '6px 14px', borderRadius: '6px',
-          backgroundColor: subject.trim() ? (isDark ? '#f0ede5' : '#1a1814') : (isDark ? '#2a2a28' : '#e4e0da'),
-          color: subject.trim() ? (isDark ? '#0f0e0c' : '#f0ede5') : (isDark ? '#4a4a48' : '#a09890'),
+          fontSize: '12px', fontWeight: 600, padding: '6px 14px', borderRadius: '4px',
+          backgroundColor: subject.trim() ? '#e31e24' : (isDark ? '#2a2a28' : '#e4e0da'),
+          color: subject.trim() ? '#fff' : (isDark ? '#4a4a48' : '#a09890'),
           border: 'none', cursor: subject.trim() ? 'pointer' : 'not-allowed',
         }}>{saving ? 'Salvando...' : 'Registrar'}</button>
       </div>
@@ -480,8 +480,8 @@ function NotesSection({ dealId, owner, isDark, border, text, muted }: {
           style={{
             height: '32px', padding: '0 16px', fontSize: '12px', fontWeight: 500,
             borderRadius: '6px', border: 'none',
-            backgroundColor: note.trim() ? (isDark ? '#e8e4dc' : '#1a1814') : (isDark ? '#2a2a28' : '#e4e0da'),
-            color: note.trim() ? (isDark ? '#0f0e0c' : '#f0ede5') : muted,
+            backgroundColor: note.trim() ? '#e31e24' : (isDark ? '#2a2a28' : '#e4e0da'),
+            color: note.trim() ? '#fff' : muted,
             cursor: note.trim() ? 'pointer' : 'not-allowed',
           }}
         >
@@ -556,7 +556,7 @@ function ProposalTab({ deal, isDark, border, text, muted, inputBg }: {
             Copiar texto
           </button>
           <button type="button" onClick={handleSave}
-            style={{ fontSize: '12px', fontWeight: 600, padding: '6px 14px', borderRadius: '6px', border: 'none', backgroundColor: isDark ? '#f0ede5' : '#1a1814', color: isDark ? '#0f0e0c' : '#f0ede5', cursor: 'pointer' }}>
+            style={{ fontSize: '12px', fontWeight: 600, padding: '6px 14px', borderRadius: '4px', border: 'none', backgroundColor: '#e31e24', color: '#fff', cursor: 'pointer' }}>
             {saved ? '✓ Salvo' : 'Salvar rascunho'}
           </button>
         </div>
@@ -706,7 +706,7 @@ export function DealDetailPage() {
         <p style={{ fontSize: '15px', fontWeight: 700, color: '#8a857d' }}>
           {'Lead não encontrado'}
         </p>
-        <button type="button" onClick={() => navigate('/pipeline')} style={{ fontSize: '13px', fontWeight: 600, color: '#2c5545', background: 'none', border: 'none', cursor: 'pointer' }}>
+        <button type="button" onClick={() => navigate('/pipeline')} style={{ fontSize: '13px', fontWeight: 600, color: '#e31e24', background: 'none', border: 'none', cursor: 'pointer' }}>
           Voltar ao Pipeline
         </button>
       </div>
@@ -770,9 +770,9 @@ export function DealDetailPage() {
             disabled={deal.stage_id === 'closed_won'}
             style={{
               height: '30px', padding: '0 14px', borderRadius: 'var(--radius-sm)',
-              border: 'none', backgroundColor: deal.stage_id === 'closed_won' ? '#2d9e6b22' : '#2d9e6b',
+              border: 'none', backgroundColor: deal.stage_id === 'closed_won' ? '#16a34a22' : '#16a34a',
               fontSize: '12px', fontWeight: 600,
-              color: deal.stage_id === 'closed_won' ? '#2d9e6b' : '#fff',
+              color: deal.stage_id === 'closed_won' ? '#16a34a' : '#fff',
               cursor: deal.stage_id === 'closed_won' ? 'default' : 'pointer',
             }}>
             {deal.stage_id === 'closed_won' ? '✓ Ganho' : 'Marcar Ganho'}
@@ -783,7 +783,7 @@ export function DealDetailPage() {
             style={{
               height: '30px', padding: '0 14px', borderRadius: 'var(--radius-sm)',
               border: '1px solid var(--line)', backgroundColor: 'transparent',
-              fontSize: '12px', fontWeight: 500, color: deal.stage_id === 'closed_lost' ? '#c53030' : 'var(--ink-muted)',
+              fontSize: '12px', fontWeight: 500, color: deal.stage_id === 'closed_lost' ? '#dc2626' : 'var(--ink-muted)',
               cursor: deal.stage_id === 'closed_lost' ? 'default' : 'pointer',
             }}>
             {deal.stage_id === 'closed_lost' ? '✗ Perdido' : 'Marcar Perdido'}
@@ -1126,8 +1126,8 @@ export function DealDetailPage() {
                       }}
                       style={{
                         fontSize: '11px', fontWeight: 600, padding: '4px 10px', borderRadius: '5px',
-                        backgroundColor: nextActLabel.trim() && nextActDate ? (isDark ? '#f0ede5' : '#1a1814') : (isDark ? '#2a2a28' : '#e4e0da'),
-                        color: nextActLabel.trim() && nextActDate ? (isDark ? '#0f0e0c' : '#f0ede5') : muted,
+                        backgroundColor: nextActLabel.trim() && nextActDate ? '#e31e24' : (isDark ? '#2a2a28' : '#e4e0da'),
+                        color: nextActLabel.trim() && nextActDate ? '#fff' : muted,
                         border: 'none', cursor: nextActLabel.trim() && nextActDate ? 'pointer' : 'not-allowed',
                       }}
                     >{savingNextAct ? 'Salvando...' : 'Salvar'}</button>
@@ -1252,9 +1252,9 @@ export function DealDetailPage() {
               <button key={tab.id} type="button" onClick={() => setActiveTab(tab.id)}
                 style={{
                   height: '100%', padding: '0 14px', fontSize: '13px', fontWeight: activeTab === tab.id ? 600 : 500,
-                  color: activeTab === tab.id ? text : muted,
+                  color: activeTab === tab.id ? '#e31e24' : muted,
                   backgroundColor: 'transparent', border: 'none', cursor: 'pointer',
-                  borderBottom: activeTab === tab.id ? `2px solid ${text}` : '2px solid transparent',
+                  borderBottom: activeTab === tab.id ? '2px solid #e31e24' : '2px solid transparent',
                   transition: 'color 0.15s, border-color 0.15s',
                   marginBottom: '-1px', whiteSpace: 'nowrap',
                 }}
@@ -1271,9 +1271,9 @@ export function DealDetailPage() {
                   style={{
                     display: 'flex', alignItems: 'center', gap: '5px',
                     fontSize: '11px', fontWeight: 600,
-                    color: showQuickTask ? muted : '#2c5545',
-                    backgroundColor: showQuickTask ? 'transparent' : (isDark ? '#1a2e22' : '#e6f2ee'),
-                    border: `1px solid ${showQuickTask ? border : '#2c554530'}`, borderRadius: '6px',
+                    color: showQuickTask ? muted : '#e31e24',
+                    backgroundColor: showQuickTask ? 'transparent' : (isDark ? '#1a2e22' : 'rgba(227,30,36,0.08)'),
+                    border: `1px solid ${showQuickTask ? border : '#e31e2430'}`, borderRadius: '6px',
                     padding: '4px 10px', cursor: 'pointer',
                   }}
                 >
@@ -1440,7 +1440,7 @@ export function DealDetailPage() {
                       ].map(({ label, value }) => (
                         <button key={value} type="button"
                           onClick={() => setQuickTaskDate(quickTaskDate === value ? '' : value)}
-                          style={{ height: '24px', padding: '0 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 500, cursor: 'pointer', backgroundColor: quickTaskDate === value ? '#2c5545' : 'transparent', color: quickTaskDate === value ? '#fff' : muted, border: `1px solid ${quickTaskDate === value ? '#2c5545' : border}` }}
+                          style={{ height: '24px', padding: '0 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 500, cursor: 'pointer', backgroundColor: quickTaskDate === value ? '#e31e24' : 'transparent', color: quickTaskDate === value ? '#fff' : muted, border: `1px solid ${quickTaskDate === value ? '#e31e24' : border}` }}
                         >{label}</button>
                       ))}
                       <button type="button"
@@ -1453,7 +1453,7 @@ export function DealDetailPage() {
                             setQuickTaskTitle(''); setQuickTaskDate(''); setShowQuickTask(false)
                           } finally { setSavingQuickTask(false) }
                         }}
-                        style={{ height: '24px', padding: '0 10px', borderRadius: '4px', fontSize: '10px', fontWeight: 600, cursor: 'pointer', backgroundColor: '#2c5545', color: '#fff', border: 'none', marginLeft: 'auto', opacity: quickTaskTitle.trim() ? 1 : 0.5 }}
+                        style={{ height: '24px', padding: '0 10px', borderRadius: '4px', fontSize: '10px', fontWeight: 600, cursor: 'pointer', backgroundColor: '#e31e24', color: '#fff', border: 'none', marginLeft: 'auto', opacity: quickTaskTitle.trim() ? 1 : 0.5 }}
                       >{savingQuickTask ? '...' : 'Criar tarefa'}</button>
                     </div>
                   </div>

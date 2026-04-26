@@ -296,12 +296,13 @@ export function EmailPage() {
           <button
             type="button"
             style={{
-              width: '100%', height: '34px', borderRadius: '8px',
-              backgroundColor: isDark ? '#f0ede5' : '#0f0e0c',
-              color: isDark ? '#0f0e0c' : '#f0ede5',
+              width: '100%', height: '34px', borderRadius: '4px',
+              backgroundColor: '#e31e24',
+              color: '#ffffff',
               border: 'none', cursor: 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              gap: '6px', fontSize: '12px', fontWeight: 700,
+              gap: '6px', fontSize: '11px', fontWeight: 700,
+              textTransform: 'uppercase', letterSpacing: '0.06em',
               transition: 'opacity 0.15s ease',
             }}
             onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.85')}
@@ -346,11 +347,12 @@ export function EmailPage() {
                 onClick={() => { setActiveFolder(key); setSelectedId(null); setShowReply(false) }}
                 style={{
                   display: 'flex', alignItems: 'center', gap: '8px',
-                  height: '32px', padding: '0 10px', borderRadius: '7px',
-                  border: 'none', cursor: 'pointer', width: '100%', textAlign: 'left',
+                  height: '32px', padding: '0 10px', borderRadius: '0',
+                  border: 'none', borderLeft: isActive ? '2px solid #e31e24' : '2px solid transparent',
+                  cursor: 'pointer', width: '100%', textAlign: 'left',
                   fontSize: '12px', fontWeight: isActive ? 600 : 500,
-                  color: isActive ? text : muted,
-                  backgroundColor: isActive ? (isDark ? '#1e1e1c' : '#eeece8') : 'transparent',
+                  color: isActive ? '#e31e24' : muted,
+                  backgroundColor: isActive ? (isDark ? 'rgba(227,30,36,0.07)' : 'rgba(227,30,36,0.05)') : 'transparent',
                   transition: 'background-color 0.12s ease',
                 }}
                 onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.backgroundColor = hoverBg }}
@@ -361,7 +363,7 @@ export function EmailPage() {
                 {badge > 0 && (
                   <span style={{
                     fontSize: '9px', fontWeight: 700, minWidth: '18px', height: '16px',
-                    borderRadius: '99px', backgroundColor: '#2c5545', color: '#fff',
+                    borderRadius: '3px', backgroundColor: '#e31e24', color: '#fff',
                     display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px',
                   }}>
                     {badge > 9 ? '9+' : badge}
@@ -454,10 +456,10 @@ export function EmailPage() {
                     display: 'flex', alignItems: 'flex-start', gap: '10px',
                     width: '100%', padding: '11px 16px', textAlign: 'left',
                     border: 'none', borderBottom: `1px solid ${border}`, cursor: 'pointer',
-                    borderLeft: isSelected ? '3px solid #2c5545' : '3px solid transparent',
+                    borderLeft: isSelected ? '3px solid #e31e24' : '3px solid transparent',
                     paddingLeft: isSelected ? '13px' : '16px',
                     backgroundColor: isSelected
-                      ? (isDark ? '#0d1a14' : '#f0f7f3')
+                      ? (isDark ? 'rgba(227,30,36,0.08)' : '#f0f7f3')
                       : !email.read
                         ? (isDark ? '#161614' : '#fafaf8')
                         : 'transparent',
@@ -487,7 +489,7 @@ export function EmailPage() {
                     )}
                   </div>
                   {!email.read && (
-                    <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#2c5545', flexShrink: 0, marginTop: '6px' }} />
+                    <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#e31e24', flexShrink: 0, marginTop: '6px' }} />
                   )}
                 </button>
               )
@@ -550,7 +552,7 @@ export function EmailPage() {
             {/* Reply compose area */}
             {showReply && (
               <div style={{
-                margin: '0 24px 16px', borderRadius: '10px',
+                margin: '0 24px 16px', borderRadius: '4px',
                 border: `1px solid ${border}`,
                 backgroundColor: isDark ? '#111110' : '#fafaf8',
                 overflow: 'hidden',
@@ -580,9 +582,10 @@ export function EmailPage() {
                   <button type="button"
                     style={{
                       display: 'flex', alignItems: 'center', gap: '5px',
-                      height: '30px', padding: '0 14px', borderRadius: '7px',
-                      backgroundColor: '#2c5545', color: '#fff', border: 'none',
-                      fontSize: '12px', fontWeight: 600, cursor: 'pointer',
+                      height: '30px', padding: '0 14px', borderRadius: '4px',
+                      backgroundColor: '#e31e24', color: '#fff', border: 'none',
+                      fontSize: '11px', fontWeight: 700, cursor: 'pointer',
+                      textTransform: 'uppercase', letterSpacing: '0.06em',
                     }}
                     onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.85')}
                     onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
@@ -592,9 +595,9 @@ export function EmailPage() {
                   </button>
                   <button type="button" onClick={() => setShowReply(false)}
                     style={{
-                      height: '30px', padding: '0 12px', borderRadius: '7px',
+                      height: '30px', padding: '0 12px', borderRadius: '4px',
                       backgroundColor: 'transparent', border: `1px solid ${border}`,
-                      color: muted, fontSize: '12px', cursor: 'pointer',
+                      color: muted, fontSize: '11px', cursor: 'pointer',
                     }}>
                     Cancelar
                   </button>
@@ -609,11 +612,12 @@ export function EmailPage() {
                 onClick={() => setShowReply((v) => !v)}
                 style={{
                   display: 'flex', alignItems: 'center', gap: '6px',
-                  height: '32px', padding: '0 14px', borderRadius: '8px',
-                  backgroundColor: showReply ? (isDark ? '#0d1a14' : '#f0f7f3') : '#2c5545',
-                  color: showReply ? '#2c5545' : '#fff',
-                  border: showReply ? '1px solid #2c5545' : 'none',
-                  cursor: 'pointer', fontSize: '12px', fontWeight: 600,
+                  height: '32px', padding: '0 14px', borderRadius: '4px',
+                  backgroundColor: showReply ? (isDark ? 'rgba(227,30,36,0.08)' : '#f0f7f3') : '#e31e24',
+                  color: showReply ? '#e31e24' : '#fff',
+                  border: showReply ? '1px solid #e31e24' : 'none',
+                  cursor: 'pointer', fontSize: '11px', fontWeight: 700,
+                  textTransform: 'uppercase', letterSpacing: '0.06em',
                   transition: 'all 0.15s ease',
                 }}
                 onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.85')}
@@ -630,13 +634,14 @@ export function EmailPage() {
                 <button key={label} type="button"
                   style={{
                     display: 'flex', alignItems: 'center', gap: '6px',
-                    height: '32px', padding: '0 12px', borderRadius: '8px',
+                    height: '32px', padding: '0 12px', borderRadius: '4px',
                     backgroundColor: 'transparent', color: muted,
-                    border: `1px solid ${border}`, cursor: 'pointer', fontSize: '12px', fontWeight: 500,
-                    transition: 'background-color 0.12s ease',
+                    border: `1px solid ${border}`, cursor: 'pointer', fontSize: '11px', fontWeight: 600,
+                    textTransform: 'uppercase', letterSpacing: '0.05em',
+                    transition: 'border-color 0.12s ease, color 0.12s ease',
                   }}
-                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = hoverBg)}
-                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#e31e24'; e.currentTarget.style.color = '#e31e24' }}
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = border; e.currentTarget.style.color = muted }}
                 >
                   <Icon style={{ width: '12px', height: '12px' }} />
                   {label}

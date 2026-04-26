@@ -17,7 +17,7 @@ interface UserRow {
 }
 
 const AVATAR_COLORS = [
-  '#2c5545','#1d4ed8','#7c3aed','#b45309','#be185d',
+  '#e31e24','#1d4ed8','#7c3aed','#b45309','#be185d',
   '#0e7490','#065f46','#92400e','#6b21a8','#9f1239',
 ]
 
@@ -97,7 +97,7 @@ function InviteDrawer({ isDark, teams, onClose, onCreated }: {
         <div style={{ padding: '20px 20px 16px', borderBottom: `1px solid ${border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div style={{ width: '36px', height: '36px', borderRadius: '10px', backgroundColor: isDark ? '#1a2e24' : '#dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Plus style={{ width: '16px', height: '16px', color: '#2c5545' }} />
+              <Plus style={{ width: '16px', height: '16px', color: '#e31e24' }} />
             </div>
             <div>
               <p style={{ fontSize: '14px', fontWeight: 700, color: text }}>Novo Utilizador</p>
@@ -166,7 +166,7 @@ function InviteDrawer({ isDark, teams, onClose, onCreated }: {
           <button type="button" onClick={onClose} style={{ flex: 1, height: '38px', borderRadius: '8px', border: `1px solid ${border}`, backgroundColor: 'transparent', color: muted, fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
             Cancelar
           </button>
-          <button type="button" onClick={handleCreate} disabled={saving} style={{ flex: 2, height: '38px', borderRadius: '8px', border: 'none', backgroundColor: '#2c5545', color: '#fff', fontSize: '13px', fontWeight: 700, cursor: 'pointer', opacity: saving ? 0.7 : 1 }}>
+          <button type="button" onClick={handleCreate} disabled={saving} style={{ flex: 2, height: '38px', borderRadius: '8px', border: 'none', backgroundColor: '#e31e24', color: '#fff', fontSize: '13px', fontWeight: 700, cursor: 'pointer', opacity: saving ? 0.7 : 1 }}>
             {saving ? 'A criar...' : 'Criar Utilizador'}
           </button>
         </div>
@@ -253,10 +253,10 @@ export function AdminUsersPage() {
       {/* Header */}
       <div style={{ height: '56px', minHeight: '56px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 24px', borderBottom: `1px solid ${border}`, backgroundColor: cardBg, flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Shield style={{ width: '16px', height: '16px', color: '#2c5545' }} />
+          <Shield style={{ width: '16px', height: '16px', color: '#e31e24' }} />
           <p style={{ fontSize: '14px', fontWeight: 700, color: text }}>Gestão de Utilizadores</p>
           <div style={{ display: 'flex', gap: '6px', marginLeft: '4px' }}>
-            <span style={{ fontSize: '10px', fontWeight: 700, color: '#2c5545', backgroundColor: isDark ? '#1a2e24' : '#dcfce7', padding: '2px 7px', borderRadius: '999px' }}>{activeCount} ativos</span>
+            <span style={{ fontSize: '10px', fontWeight: 700, color: '#e31e24', backgroundColor: isDark ? '#1a2e24' : '#dcfce7', padding: '2px 7px', borderRadius: '999px' }}>{activeCount} ativos</span>
             {disabledCount > 0 && <span style={{ fontSize: '10px', fontWeight: 700, color: '#ef4444', backgroundColor: isDark ? '#2d1515' : '#fee2e2', padding: '2px 7px', borderRadius: '999px' }}>{disabledCount} suspensos</span>}
           </div>
         </div>
@@ -268,7 +268,7 @@ export function AdminUsersPage() {
           </div>
           <button type="button" onClick={() => setShowInvite(true)} style={{
             height: '32px', padding: '0 14px', borderRadius: '8px', border: 'none',
-            backgroundColor: '#2c5545', color: '#fff', fontSize: '12px', fontWeight: 700,
+            backgroundColor: '#e31e24', color: '#fff', fontSize: '12px', fontWeight: 700,
             cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px',
           }}>
             <Plus style={{ width: '13px', height: '13px' }} />
@@ -312,7 +312,7 @@ export function AdminUsersPage() {
                 >
                   {/* User info */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
-                    <div style={{ width: '34px', height: '34px', borderRadius: '50%', backgroundColor: user.avatar_color || '#2c5545', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '11px', fontWeight: 700, flexShrink: 0 }}>
+                    <div style={{ width: '34px', height: '34px', borderRadius: '50%', backgroundColor: user.avatar_color || '#e31e24', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '11px', fontWeight: 700, flexShrink: 0 }}>
                       {initials}
                     </div>
                     <div style={{ minWidth: 0 }}>
@@ -355,7 +355,7 @@ export function AdminUsersPage() {
                   <button type="button" onClick={() => toggleAdmin(user)} disabled={saving === user.id || isDisabled}
                     style={{
                       width: '36px', height: '20px', borderRadius: '99px', border: 'none', cursor: 'pointer',
-                      backgroundColor: user.is_admin ? '#2c5545' : (isDark ? '#2a2a28' : '#d1d5db'),
+                      backgroundColor: user.is_admin ? '#e31e24' : (isDark ? '#2a2a28' : '#d1d5db'),
                       position: 'relative', transition: 'background-color 0.2s', flexShrink: 0,
                       opacity: (saving === user.id || isDisabled) ? 0.5 : 1,
                     }}>
@@ -382,7 +382,7 @@ export function AdminUsersPage() {
                         boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
                       }}>
                         <button type="button" onClick={() => toggleDisable(user)}
-                          style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '8px 10px', borderRadius: '7px', border: 'none', backgroundColor: 'transparent', cursor: 'pointer', fontSize: '12px', fontWeight: 500, color: isDisabled ? '#2c5545' : '#ef4444', textAlign: 'left' }}
+                          style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '8px 10px', borderRadius: '7px', border: 'none', backgroundColor: 'transparent', cursor: 'pointer', fontSize: '12px', fontWeight: 500, color: isDisabled ? '#e31e24' : '#ef4444', textAlign: 'left' }}
                           onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = isDark ? '#252522' : '#f5f4f0')}
                           onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}>
                           {isDisabled

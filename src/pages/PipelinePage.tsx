@@ -96,9 +96,6 @@ export function PipelinePage() {
   const filterBg     = isDark ? '#111111' : '#f5f4f1'
   const filterBorder = isDark ? '#2a2a2a' : '#e0ddd8'
   const filterText   = isDark ? '#888888' : '#6b6560'
-  const newLeadBg    = isDark ? '#f0ede5' : '#0f0e0c'
-  const newLeadText  = isDark ? '#0f0e0c' : '#f0ede5'
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
 
@@ -112,7 +109,7 @@ export function PipelinePage() {
 
         {/* Left: title */}
         <div>
-          <p style={{ fontSize: '13px', fontWeight: 700, color: isDark ? '#e8e4dc' : '#1a1814', letterSpacing: '-0.01em' }}>Jornada</p>
+          <p style={{ fontSize: '13px', fontWeight: 700, color: isDark ? '#e8e4dc' : '#1a1814', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Jornada</p>
           <p style={{ fontSize: '10px', color: isDark ? '#6b6560' : '#8a857d', marginTop: '1px' }}>
             {deals.length} leads
           </p>
@@ -133,8 +130,8 @@ export function PipelinePage() {
                   style={{
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     width: '32px', height: '32px', borderRadius: '8px', cursor: 'pointer',
-                    backgroundColor: prioritizeNew ? (isDark ? '#1a1500' : '#fef9c3') : filterBg,
-                    border: `1px solid ${prioritizeNew ? (isDark ? '#713f12' : '#eab308') : filterBorder}`,
+                    backgroundColor: prioritizeNew ? 'rgba(227,30,36,0.08)' : filterBg,
+                    border: `1px solid ${prioritizeNew ? '#e31e24' : filterBorder}`,
                     flexShrink: 0, transition: 'background-color 0.15s ease, border-color 0.15s ease',
                   }}
                 >
@@ -143,8 +140,8 @@ export function PipelinePage() {
                     onAnimationEnd={() => setZapAnimating(false)}
                     style={{
                       width: '16px', height: '16px',
-                      color: prioritizeNew ? '#eab308' : filterText,
-                      fill: prioritizeNew ? '#eab308' : 'none',
+                      color: prioritizeNew ? '#e31e24' : filterText,
+                      fill: prioritizeNew ? '#e31e24' : 'none',
                       transition: 'color 0.2s ease, fill 0.2s ease',
                     }}
                   />
@@ -170,15 +167,15 @@ export function PipelinePage() {
               <Tooltip.Trigger asChild>
                 <button type="button" onClick={() => setShowNewModal(true)} style={{
                   display: 'flex', alignItems: 'center', gap: '6px',
-                  height: '32px', padding: '0 12px', borderRadius: '8px',
-                  backgroundColor: newLeadBg, border: 'none', cursor: 'pointer',
-                  flexShrink: 0, transition: 'opacity 0.15s ease',
-                  fontSize: '12px', fontWeight: 600, color: newLeadText,
+                  backgroundColor: '#e31e24', color: '#fff', borderRadius: '4px',
+                  padding: '0 16px', height: '34px', fontSize: '10px', fontWeight: 700,
+                  letterSpacing: '0.08em', textTransform: 'uppercase', border: 'none',
+                  cursor: 'pointer', flexShrink: 0, transition: 'opacity 0.15s ease',
                 }}
                   onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.85')}
                   onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
                 >
-                  <Plus style={{ width: '14px', height: '14px', color: newLeadText }} />
+                  <Plus style={{ width: '14px', height: '14px', color: '#fff' }} />
                   Novo lead
                 </button>
               </Tooltip.Trigger>
@@ -204,7 +201,7 @@ export function PipelinePage() {
           <p style={{ fontSize: '13px', fontWeight: 600, color: filterText }}>Nenhum deal encontrado</p>
           <p style={{ fontSize: '12px', color: filterText }}>Tente outros termos ou limpe os filtros</p>
           <button type="button" onClick={() => { clearFilters() }}
-            style={{ fontSize: '12px', fontWeight: 600, color: '#2c5545', background: 'none', border: 'none', cursor: 'pointer', marginTop: '4px' }}>
+            style={{ fontSize: '12px', fontWeight: 600, color: '#e31e24', background: 'none', border: 'none', cursor: 'pointer', marginTop: '4px' }}>
             Limpar filtros
           </button>
         </div>

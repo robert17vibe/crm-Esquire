@@ -44,7 +44,7 @@ type ModalState = { open: boolean; date?: string; event?: CalendarEvent; startTi
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const BRAND = '#2c5545'
+const BRAND = '#e31e24'
 
 const MONTHS_PT  = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
 const DAYS_SHORT = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb']
@@ -57,7 +57,7 @@ const EVENT_TYPE_CFG: Record<string, {
   label: string; color: string; bg: string; bgDark: string
   icon: React.ComponentType<{ style?: React.CSSProperties }>
 }> = {
-  meeting:  { label: 'Reunião',  color: BRAND,     bg: '#2c554518', bgDark: '#2c554535', icon: Mic         },
+  meeting:  { label: 'Reunião',  color: BRAND,     bg: '#e31e2418', bgDark: '#e31e2435', icon: Mic         },
   call:     { label: 'Ligação',  color: '#b45309', bg: '#b4530918', bgDark: '#b4530935', icon: Phone       },
   task:     { label: 'Tarefa',   color: '#2563eb', bg: '#2563eb18', bgDark: '#2563eb35', icon: CheckSquare },
   reminder: { label: 'Lembrete',color: '#7c3aed', bg: '#7c3aed18', bgDark: '#7c3aed35', icon: Bell        },
@@ -158,16 +158,16 @@ function MiniCalendar({ year, month, selectedDay, eventsByDate, todayStr, isDark
   return (
     <div style={{ background: isDark ? '#111110' : '#ffffff', borderRadius: '18px', padding: '14px 12px 12px', border: `1px solid ${isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)'}` }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-        <button type="button" onClick={onPrev} style={{ background: isDark ? '#1c1c1a' : '#f0ede8', border: 'none', cursor: 'pointer', color: muted, display: 'flex', padding: '5px', borderRadius: '10px', transition: 'background 0.15s' }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = text; (e.currentTarget as HTMLElement).style.background = isDark ? '#252522' : '#e8e4de' }}
+        <button type="button" onClick={onPrev} style={{ background: isDark ? '#1c1c1a' : '#f0ede8', border: 'none', cursor: 'pointer', color: muted, display: 'flex', padding: '5px', borderRadius: '10px', transition: 'color 0.12s, background 0.15s' }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = '#e31e24'; (e.currentTarget as HTMLElement).style.background = isDark ? '#252522' : '#e8e4de' }}
           onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = muted; (e.currentTarget as HTMLElement).style.background = isDark ? '#1c1c1a' : '#f0ede8' }}>
           <ChevronLeft style={{ width: '12px', height: '12px' }} />
         </button>
         <span style={{ fontSize: '12px', fontWeight: 700, color: text, letterSpacing: '-0.01em' }}>
           {MONTHS_PT[month]} <span style={{ color: muted, fontWeight: 500 }}>{year}</span>
         </span>
-        <button type="button" onClick={onNext} style={{ background: isDark ? '#1c1c1a' : '#f0ede8', border: 'none', cursor: 'pointer', color: muted, display: 'flex', padding: '5px', borderRadius: '10px', transition: 'background 0.15s' }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = text; (e.currentTarget as HTMLElement).style.background = isDark ? '#252522' : '#e8e4de' }}
+        <button type="button" onClick={onNext} style={{ background: isDark ? '#1c1c1a' : '#f0ede8', border: 'none', cursor: 'pointer', color: muted, display: 'flex', padding: '5px', borderRadius: '10px', transition: 'color 0.12s, background 0.15s' }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = '#e31e24'; (e.currentTarget as HTMLElement).style.background = isDark ? '#252522' : '#e8e4de' }}
           onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = muted; (e.currentTarget as HTMLElement).style.background = isDark ? '#1c1c1a' : '#f0ede8' }}>
           <ChevronRight style={{ width: '12px', height: '12px' }} />
         </button>
@@ -188,11 +188,11 @@ function MiniCalendar({ year, month, selectedDay, eventsByDate, todayStr, isDark
             <button key={i} type="button" onClick={() => onSelectDay(ds)} style={{
               display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
               height: '32px', gap: '2px', background: 'none', border: 'none', cursor: 'pointer', borderRadius: '10px',
-              backgroundColor: isSelected ? BRAND : isToday ? (isDark ? '#1a2e24' : `${BRAND}14`) : 'transparent',
+              backgroundColor: isSelected ? BRAND : isToday ? (isDark ? 'rgba(227,30,36,0.10)' : `${BRAND}14`) : 'transparent',
               transition: 'background-color 0.15s',
             }}
               onMouseEnter={(e) => { if (!isSelected) (e.currentTarget as HTMLElement).style.backgroundColor = isDark ? '#222220' : '#f0eeea' }}
-              onMouseLeave={(e) => { if (!isSelected) (e.currentTarget as HTMLElement).style.backgroundColor = isToday ? (isDark ? '#1a2e24' : `${BRAND}14`) : 'transparent' }}>
+              onMouseLeave={(e) => { if (!isSelected) (e.currentTarget as HTMLElement).style.backgroundColor = isToday ? (isDark ? 'rgba(227,30,36,0.10)' : `${BRAND}14`) : 'transparent' }}>
               <span style={{
                 fontSize: '11px', fontWeight: isToday || isSelected ? 700 : 400, lineHeight: 1,
                 color: isSelected ? '#fff' : isToday ? BRAND : isCurrentMonth ? text : faint,
@@ -525,7 +525,7 @@ function WeekView({ weekDays, eventsByDate: _eventsByDate, meetings, calendarEve
           const [, , dd] = d.split('-').map(Number)
           const isToday = d === todayStr
           return (
-            <div key={d} style={{ borderLeft: `1px solid ${border}`, padding: '12px 8px 10px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', backgroundColor: isToday ? (isDark ? '#0c1a10' : `${BRAND}08`) : 'transparent' }}>
+            <div key={d} style={{ borderLeft: `1px solid ${border}`, padding: '12px 8px 10px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', backgroundColor: isToday ? (isDark ? 'rgba(227,30,36,0.10)' : `${BRAND}08`) : 'transparent' }}>
               <span style={{ fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: isToday ? BRAND : muted }}>{DS[i]}</span>
               <div style={{ width: '34px', height: '34px', borderRadius: '50%', backgroundColor: isToday ? BRAND : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <span style={{ fontSize: '16px', fontWeight: 700, color: isToday ? '#fff' : text, lineHeight: 1 }}>{dd}</span>
@@ -548,7 +548,7 @@ function WeekView({ weekDays, eventsByDate: _eventsByDate, meetings, calendarEve
           {weekDays.map((d, ci) => {
             const isToday = d === todayStr
             return (
-              <div key={d} style={{ position: 'relative', borderLeft: `1px solid ${border}`, backgroundColor: isToday ? (isDark ? '#0c1a1060' : `${BRAND}05`) : 'transparent' }}>
+              <div key={d} style={{ position: 'relative', borderLeft: `1px solid ${border}`, backgroundColor: isToday ? (isDark ? 'rgba(227,30,36,0.06)' : `${BRAND}05`) : 'transparent' }}>
                 {hours.map((h) => (
                   <div key={h} style={{ position: 'absolute', top: `${(h - HOUR_START) * SLOT_H}px`, left: 0, right: 0, height: '1px', backgroundColor: isDark ? '#1a1a18' : '#f0eeea' }} />
                 ))}
@@ -931,11 +931,15 @@ export function CalendarPage() {
             <p style={{ fontSize: '10px', color: muted, marginTop: '1px' }}>{upcoming.length} eventos nos próximos 30 dias</p>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <button type="button" onClick={prevWeek} style={{ display: 'flex', background: 'none', border: `1px solid ${border}`, borderRadius: '6px', cursor: 'pointer', padding: '4px 7px', color: muted }}>
+            <button type="button" onClick={prevWeek} style={{ display: 'flex', background: 'none', border: `1px solid ${border}`, borderRadius: '6px', cursor: 'pointer', padding: '4px 7px', color: muted, transition: 'color 0.12s' }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = '#e31e24' }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = muted }}>
               <ChevronLeft style={{ width: '13px', height: '13px' }} />
             </button>
             <span style={{ fontSize: '12px', fontWeight: 600, color: text, minWidth: '160px', textAlign: 'center' }}>{weekLabel}</span>
-            <button type="button" onClick={nextWeek} style={{ display: 'flex', background: 'none', border: `1px solid ${border}`, borderRadius: '6px', cursor: 'pointer', padding: '4px 7px', color: muted }}>
+            <button type="button" onClick={nextWeek} style={{ display: 'flex', background: 'none', border: `1px solid ${border}`, borderRadius: '6px', cursor: 'pointer', padding: '4px 7px', color: muted, transition: 'color 0.12s' }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = '#e31e24' }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = muted }}>
               <ChevronRight style={{ width: '13px', height: '13px' }} />
             </button>
             {selectedDay !== todayStr && (
@@ -946,7 +950,7 @@ export function CalendarPage() {
           </div>
         </div>
         <button type="button" onClick={() => setShowMeeting(true)}
-          style={{ display: 'flex', alignItems: 'center', gap: '6px', height: '32px', padding: '0 16px', borderRadius: '8px', border: 'none', cursor: 'pointer', backgroundColor: isDark ? '#e8e4dc' : '#1a1814', color: isDark ? '#0f0e0c' : '#f0ede5', fontSize: '12px', fontWeight: 600, transition: 'opacity 0.15s' }}
+          style={{ display: 'flex', alignItems: 'center', gap: '6px', height: '32px', padding: '0 16px', borderRadius: '4px', border: 'none', cursor: 'pointer', backgroundColor: '#e31e24', color: '#fff', fontSize: '12px', fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', transition: 'opacity 0.15s' }}
           onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.85')}
           onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}>
           <Plus style={{ width: '13px', height: '13px' }} />

@@ -404,10 +404,10 @@ export function DashboardPage() {
   const coverageAccent = coverage >= 100 ? '#2d9e6b' : coverage >= 70 ? '#b45309' : (isDark ? '#fc8181' : '#c53030')
 
   const kpiDefs: Record<string, { label: string; value: string; sub?: string; icon: typeof TrendingUp; accent: string; sparkline: number[] }> = useMemo(() => ({
-    pipeline: { label: 'Pipeline Total',    value: fmt(pipelineTotal), sub: `${valueDeals.length} deals ativos`, icon: TrendingUp, accent: '#2c5545', sparkline: sparkPipeline },
+    pipeline: { label: 'Pipeline Total',    value: fmt(pipelineTotal), sub: `${valueDeals.length} deals ativos`, icon: TrendingUp, accent: '#e31e24', sparkline: sparkPipeline },
     commit:   { label: 'Commit Trimestral', value: fmt(commitTotal),   sub: `${commitDeals.length} em fechamento`, icon: Briefcase, accent: '#4a7c8a', sparkline: sparkPipeline },
     coverage: { label: 'Cobertura de Meta', value: `${coverage.toFixed(0)}%`, sub: `Meta Q: ${fmt(quarterlyGoal)}`, icon: Target, accent: coverageAccent, sparkline: sparkPipeline },
-    winrate:  { label: 'Win Rate',          value: `${winRate}%`, sub: `${closedWon.length} ganhos · ${closedLost.length} perdidos`, icon: Award, accent: '#2d9e6b', sparkline: sparkWon },
+    winrate:  { label: 'Win Rate',          value: `${winRate}%`, sub: `${closedWon.length} ganhos · ${closedLost.length} perdidos`, icon: Award, accent: '#e31e24', sparkline: sparkWon },
     ticket:   { label: 'Ticket Médio',      value: fmt(avgTicket), sub: 'média dos ativos com valor', icon: DollarSign, accent: '#8b6914', sparkline: sparkPipeline },
     cycle:    { label: 'Ciclo Médio',       value: `${avgCycle}d`, sub: 'dias no estágio atual', icon: Clock, accent: '#78909c', sparkline: sparkCount },
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -572,11 +572,12 @@ export function DashboardPage() {
         type="button"
         onClick={() => setActiveTab(id)}
         style={{
-          padding: '5px 14px', borderRadius: '6px',
-          fontSize: '12px', fontWeight: active ? 700 : 500,
-          color: active ? (isDark ? '#e8e4dc' : '#1a1814') : muted,
-          backgroundColor: active ? (isDark ? '#1e1e1c' : '#edecea') : 'transparent',
-          border: 'none', cursor: 'pointer',
+          padding: '5px 14px', borderRadius: 0,
+          fontSize: '11px', fontWeight: 700,
+          color: active ? '#e31e24' : muted,
+          backgroundColor: 'transparent',
+          border: 'none', borderBottom: active ? '2px solid #e31e24' : '2px solid transparent',
+          cursor: 'pointer', letterSpacing: '0.06em', textTransform: 'uppercase',
           transition: 'all 0.15s ease',
         }}
       >
@@ -670,7 +671,7 @@ export function DashboardPage() {
                   <span style={{ fontSize: '11px', fontWeight: 700, color: text, fontVariantNumeric: 'tabular-nums' }}>{fmt(weightedPipeline)}</span>
                 </div>
                 <div style={{ height: '8px', borderRadius: '99px', backgroundColor: trackBg, overflow: 'hidden' }}>
-                  <div style={{ height: '100%', borderRadius: '99px', width: `${forecastPct}%`, background: 'linear-gradient(90deg, #2c5545, #4a9080)', transition: 'width 0.6s ease' }} />
+                  <div style={{ height: '100%', borderRadius: '99px', width: `${forecastPct}%`, background: 'linear-gradient(90deg, #e31e24, #e31e24)', transition: 'width 0.6s ease' }} />
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '5px' }}>
                   <span style={{ fontSize: '10px', color: muted }}>{forecastPct.toFixed(0)}% da meta</span>
@@ -745,7 +746,7 @@ export function DashboardPage() {
                   const isCurrent = key === new Date().toISOString().slice(0, 7)
                   return (
                     <div key={key} title={`${label}: ${fmt(value)}`} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px' }}>
-                      <div style={{ width: '100%', height: `${barH}px`, backgroundColor: isCurrent ? '#4a9080' : '#2c5545', borderRadius: '3px 3px 0 0', opacity: isCurrent ? 1 : 0.7, transition: 'height 0.4s ease' }} />
+                      <div style={{ width: '100%', height: `${barH}px`, backgroundColor: isCurrent ? '#e31e24' : 'rgba(227,30,36,0.25)', borderRadius: '3px 3px 0 0', opacity: 1, transition: 'height 0.4s ease' }} />
                       <span style={{ fontSize: '9px', color: isCurrent ? text : muted, fontWeight: isCurrent ? 600 : 400, textTransform: 'capitalize' }}>{label}</span>
                     </div>
                   )
@@ -797,7 +798,7 @@ export function DashboardPage() {
                 <p style={{ fontSize: '11px', fontWeight: 700, color: text }}>Próximas Ações</p>
                 <button type="button" onClick={() => navigate('/pipeline')}
                   style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '10px', fontWeight: 600, color: muted, background: 'none', border: 'none', cursor: 'pointer', transition: 'color 0.15s ease' }}
-                  onMouseEnter={(e) => (e.currentTarget.style.color = '#2c5545')}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = '#e31e24')}
                   onMouseLeave={(e) => (e.currentTarget.style.color = muted)}
                 >
                   Ver pipeline <ArrowRight style={{ width: '10px', height: '10px' }} />
@@ -968,7 +969,7 @@ export function DashboardPage() {
                       const isCurrent = key === new Date().toISOString().slice(0, 7)
                       return (
                         <div key={key} title={`${label}: ${fmt(value)}`} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px' }}>
-                          <div style={{ width: '100%', height: `${barH}px`, backgroundColor: isCurrent ? '#2d9e6b' : '#4a9080', borderRadius: '3px 3px 0 0', opacity: isCurrent ? 1 : 0.75, transition: 'height 0.4s ease' }} />
+                          <div style={{ width: '100%', height: `${barH}px`, backgroundColor: isCurrent ? '#2d9e6b' : '#e31e24', borderRadius: '3px 3px 0 0', opacity: isCurrent ? 1 : 0.75, transition: 'height 0.4s ease' }} />
                           <span style={{ fontSize: '9px', color: isCurrent ? text : muted, fontWeight: isCurrent ? 600 : 400, textTransform: 'capitalize' }}>{label}</span>
                         </div>
                       )
@@ -1081,11 +1082,10 @@ export function DashboardPage() {
             </p>
           </div>
 
-          {/* Tab pills */}
+          {/* Tab underlines */}
           <div style={{
-            display: 'flex', alignItems: 'center', gap: '2px',
-            backgroundColor: isDark ? '#111110' : '#f0eeea',
-            borderRadius: '8px', padding: '3px',
+            display: 'flex', alignItems: 'center', gap: '0',
+            borderBottom: `1px solid ${border}`,
           }}>
             <TabPill id="operacao"   label="Operação" />
             <TabPill id="resultados" label="Resultados" />
@@ -1098,20 +1098,21 @@ export function DashboardPage() {
             onClick={() => setShowWidgetModal(true)}
             title="Gerenciar widgets"
             style={{
-              height: '28px', padding: '0 10px', borderRadius: '6px', border: `1px solid ${border}`,
-              backgroundColor: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center',
-              justifyContent: 'center', color: muted, fontSize: '11px', fontWeight: 600, gap: '4px',
-              transition: 'all 0.15s ease',
+              height: '28px', padding: '0 12px', borderRadius: '4px', border: '1px solid #e31e24',
+              backgroundColor: '#e31e24', cursor: 'pointer', display: 'flex', alignItems: 'center',
+              justifyContent: 'center', color: '#fff', fontSize: '10px', fontWeight: 700, gap: '4px',
+              letterSpacing: '0.08em', textTransform: 'uppercase',
+              transition: 'opacity 0.15s ease',
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#2c5545'; e.currentTarget.style.color = '#2c5545' }}
-            onMouseLeave={(e) => { e.currentTarget.style.borderColor = border; e.currentTarget.style.color = muted }}
+            onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.85' }}
+            onMouseLeave={(e) => { e.currentTarget.style.opacity = '1' }}
           >
             + Widgets
           </button>
           <span style={{
-            fontSize: '10px', fontWeight: 700, color: '#2c5545',
-            backgroundColor: isDark ? '#1a2e22' : '#e6f2ee',
-            border: `1px solid ${isDark ? '#2c5545' : '#b8d9ce'}`,
+            fontSize: '10px', fontWeight: 700, color: '#e31e24',
+            backgroundColor: isDark ? '#1a2e22' : 'rgba(227,30,36,0.08)',
+            border: `1px solid ${isDark ? '#e31e24' : 'rgba(227,30,36,0.20)'}`,
             borderRadius: '4px', padding: '3px 10px',
             letterSpacing: '0.06em', textTransform: 'uppercase',
           }}>
@@ -1166,7 +1167,7 @@ export function DashboardPage() {
                 <div key={w.id}
                   style={{
                     display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 12px',
-                    borderRadius: '7px', border: `1px solid ${enabled ? '#2c5545' : border}`,
+                    borderRadius: '7px', border: `1px solid ${enabled ? '#e31e24' : border}`,
                     backgroundColor: enabled ? (isDark ? '#0e1f17' : '#f0faf4') : 'transparent',
                   }}
                 >
@@ -1182,7 +1183,7 @@ export function DashboardPage() {
                       style={{
                         flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
                         width: '22px', height: '22px', borderRadius: '4px',
-                        border: '1px solid #2c5545', backgroundColor: '#2c5545',
+                        border: '1px solid #e31e24', backgroundColor: '#e31e24',
                         cursor: 'pointer', color: '#fff', fontSize: '11px',
                       }}
                       title="Remover widget"
@@ -1211,7 +1212,7 @@ export function DashboardPage() {
               Restaurar padrão
             </button>
             <button type="button" onClick={() => setShowWidgetModal(false)}
-              style={{ fontSize: '11px', fontWeight: 600, color: '#fff', backgroundColor: '#2c5545', border: 'none', borderRadius: '6px', padding: '6px 14px', cursor: 'pointer' }}>
+              style={{ fontSize: '11px', fontWeight: 600, color: '#fff', backgroundColor: '#e31e24', border: 'none', borderRadius: '6px', padding: '6px 14px', cursor: 'pointer' }}>
               Fechar
             </button>
           </div>

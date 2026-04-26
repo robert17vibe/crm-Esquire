@@ -89,9 +89,9 @@ function TaskQuickAdd({ dealId, isDark, onClose }: { dealId: string; isDark: boo
           <button key={label} type="button" onClick={() => save(date)} disabled={!title.trim() || saving}
             style={{
               flex: 1, height: '26px', fontSize: '10px', fontWeight: 600,
-              backgroundColor: title.trim() ? (isDark ? '#0d1a14' : '#f0f7f3') : (isDark ? '#111110' : '#f5f4f0'),
-              color: title.trim() ? (isDark ? '#a0c4b4' : '#2c5545') : muted,
-              border: `1px solid ${title.trim() ? (isDark ? '#1e4a38' : '#a3d9c0') : border}`,
+              backgroundColor: title.trim() ? (isDark ? 'rgba(227,30,36,0.08)' : '#f0f7f3') : (isDark ? '#111110' : '#f5f4f0'),
+              color: title.trim() ? (isDark ? 'rgba(227,30,36,0.50)' : '#e31e24') : muted,
+              border: `1px solid ${title.trim() ? (isDark ? 'rgba(227,30,36,0.15)' : '#a3d9c0') : border}`,
               borderRadius: '5px', cursor: title.trim() ? 'pointer' : 'not-allowed',
             }}>{label}</button>
         ))}
@@ -322,15 +322,15 @@ export function DealCard({ deal, isOverlay = false, dimmed = false, showScore = 
           style={{
             position: 'absolute', top: '6px', right: '6px',
             width: '18px', height: '18px', borderRadius: '4px',
-            backgroundColor: showQuickAdd ? (isDark ? '#1e4a38' : '#d1fae5') : 'transparent',
-            border: `1px solid ${showQuickAdd ? (isDark ? '#2c5545' : '#6ee7b7') : 'transparent'}`,
+            backgroundColor: showQuickAdd ? (isDark ? 'rgba(227,30,36,0.15)' : 'rgba(227,30,36,0.10)') : 'transparent',
+            border: `1px solid ${showQuickAdd ? (isDark ? '#e31e24' : '#6ee7b7') : 'transparent'}`,
             cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: showQuickAdd ? '#2c5545' : textMuted,
+            color: showQuickAdd ? '#e31e24' : textMuted,
             opacity: showQuickAdd ? 1 : 0,
             transition: 'opacity 0.1s, background-color 0.1s',
             zIndex: 10,
           }}
-          onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.backgroundColor = isDark ? '#1e4a38' : '#d1fae5'; e.currentTarget.style.borderColor = isDark ? '#2c5545' : '#6ee7b7' }}
+          onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.backgroundColor = isDark ? 'rgba(227,30,36,0.15)' : 'rgba(227,30,36,0.10)'; e.currentTarget.style.borderColor = isDark ? '#e31e24' : '#6ee7b7' }}
           onMouseLeave={(e) => { if (!showQuickAdd) { e.currentTarget.style.opacity = '0'; e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.borderColor = 'transparent' } }}
         >
           <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor">

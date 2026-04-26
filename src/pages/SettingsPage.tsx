@@ -22,7 +22,7 @@ function Toggle({ checked, onChange, isDark }: { checked: boolean; onChange: (v:
       onClick={() => onChange(!checked)}
       style={{
         width: '40px', height: '22px', borderRadius: '11px', flexShrink: 0,
-        backgroundColor: checked ? '#2c5545' : (isDark ? '#2a2a28' : '#d4d0ca'),
+        backgroundColor: checked ? '#e31e24' : (isDark ? '#2a2a28' : '#d4d0ca'),
         border: 'none', cursor: 'pointer', padding: '2px', position: 'relative',
         transition: 'background-color 0.2s ease',
       }}
@@ -97,7 +97,7 @@ function Row({
 }
 
 const AVATAR_COLORS = [
-  '#2c5545', '#1e40af', '#7c3aed', '#b45309', '#be185d',
+  '#e31e24', '#1e40af', '#7c3aed', '#b45309', '#be185d',
   '#0f766e', '#dc2626', '#0369a1', '#4d7c0f', '#92400e',
 ]
 
@@ -160,10 +160,10 @@ export function SettingsPage() {
   }
 
   const displayInitials = (profile?.full_name || 'U').split(' ').map((p) => p[0]).slice(0, 2).join('').toUpperCase()
-  const displayColor    = profile?.avatar_color ?? '#2c5545'
+  const displayColor    = profile?.avatar_color ?? '#e31e24'
 
   const inputStyle: React.CSSProperties = {
-    height: '32px', borderRadius: '6px',
+    height: '32px', borderRadius: '4px',
     border: `1px solid ${isDark ? '#2a2a28' : '#d4d0ca'}`,
     backgroundColor: isDark ? '#111110' : '#f5f4f0',
     color: text, fontSize: '12px', fontWeight: 500,
@@ -176,10 +176,11 @@ export function SettingsPage() {
       onClick={onClick}
       disabled={loading}
       style={{
-        height: '32px', padding: '0 12px', borderRadius: '6px',
-        backgroundColor: saved ? '#2d9e6b' : '#2c5545',
+        height: '32px', padding: '0 12px', borderRadius: '4px',
+        backgroundColor: saved ? '#2d9e6b' : '#e31e24',
         color: '#ffffff', border: 'none', cursor: loading ? 'not-allowed' : 'pointer',
-        fontSize: '12px', fontWeight: 600, flexShrink: 0,
+        fontSize: '11px', fontWeight: 700, flexShrink: 0,
+        textTransform: 'uppercase' as const, letterSpacing: '0.06em',
         display: 'flex', alignItems: 'center', gap: '4px',
         transition: 'background-color 0.2s ease',
         opacity: loading ? 0.7 : 1,
@@ -199,7 +200,7 @@ export function SettingsPage() {
         borderBottom: `1px solid ${border}`, flexShrink: 0,
       }}>
         <div>
-          <p style={{ fontSize: '13px', fontWeight: 700, color: text, letterSpacing: '-0.01em' }}>Configurações</p>
+          <p style={{ fontSize: '12px', fontWeight: 700, color: text, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Configurações</p>
           <p style={{ fontSize: '10px', color: muted, marginTop: '2px' }}>Preferências do CRM Esquire</p>
         </div>
       </div>
@@ -216,15 +217,16 @@ export function SettingsPage() {
             onClick={() => setActiveTab(tab.id)}
             style={{
               height: '32px', padding: '0 14px',
-              borderRadius: '10px 10px 0 0',
-              border: activeTab === tab.id ? `1px solid ${border}` : '1px solid transparent',
-              borderBottom: activeTab === tab.id ? `1px solid ${isDark ? '#141412' : '#ffffff'}` : '1px solid transparent',
+              borderRadius: '0',
+              border: 'none',
+              borderBottom: activeTab === tab.id ? '2px solid #e31e24' : '2px solid transparent',
               marginBottom: activeTab === tab.id ? '-1px' : '0',
-              backgroundColor: activeTab === tab.id ? (isDark ? '#141412' : '#ffffff') : 'transparent',
-              fontSize: '12px', fontWeight: activeTab === tab.id ? 600 : 500,
-              color: activeTab === tab.id ? text : muted,
+              backgroundColor: 'transparent',
+              fontSize: '11px', fontWeight: activeTab === tab.id ? 700 : 500,
+              textTransform: 'uppercase', letterSpacing: '0.06em',
+              color: activeTab === tab.id ? '#e31e24' : muted,
               cursor: 'pointer',
-              transition: 'color 0.15s ease',
+              transition: 'color 0.15s ease, border-color 0.15s ease',
             }}
           >
             {tab.label}
@@ -242,7 +244,7 @@ export function SettingsPage() {
               <div style={{ padding: '16px', borderBottom: `1px solid ${border}` }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
                   <div style={{
-                    width: '56px', height: '56px', borderRadius: '50%', flexShrink: 0,
+                    width: '56px', height: '56px', borderRadius: '4px', flexShrink: 0,
                     backgroundColor: displayColor,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     color: '#fff', fontSize: '18px', fontWeight: 700,
@@ -256,8 +258,8 @@ export function SettingsPage() {
                     <span style={{
                       display: 'inline-block', marginTop: '5px',
                       fontSize: '9px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase',
-                      color: '#2c5545', backgroundColor: isDark ? '#1a2e22' : '#e6f2ee',
-                      border: `1px solid ${isDark ? '#2c5545' : '#b8d9ce'}`,
+                      color: '#e31e24', backgroundColor: isDark ? '#1a2e22' : 'rgba(227,30,36,0.08)',
+                      border: `1px solid ${isDark ? '#e31e24' : 'rgba(227,30,36,0.20)'}`,
                       borderRadius: '4px', padding: '1px 6px',
                     }}>
                       {profile?.role === 'admin' ? 'Admin' : 'Usuário'}
@@ -346,17 +348,17 @@ export function SettingsPage() {
                 <div style={{ display: 'flex', gap: '6px' }}>
                   <button type="button"
                     onClick={() => { resetSettings(); setGoalInput(String(15_000_000)); setShowReset(false) }}
-                    style={{ height: '28px', padding: '0 12px', borderRadius: '8px', backgroundColor: '#dc2626', color: '#fff', border: 'none', cursor: 'pointer', fontSize: '11px', fontWeight: 600 }}>
+                    style={{ height: '28px', padding: '0 12px', borderRadius: '4px', backgroundColor: '#e31e24', color: '#fff', border: 'none', cursor: 'pointer', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                     Confirmar
                   </button>
                   <button type="button" onClick={() => setShowReset(false)}
-                    style={{ height: '28px', padding: '0 10px', borderRadius: '8px', backgroundColor: 'transparent', border: `1px solid ${isDark ? '#2a2a28' : '#d4d0ca'}`, color: muted, cursor: 'pointer', fontSize: '11px', fontWeight: 500 }}>
+                    style={{ height: '28px', padding: '0 10px', borderRadius: '4px', backgroundColor: 'transparent', border: `1px solid ${isDark ? '#2a2a28' : '#d4d0ca'}`, color: muted, cursor: 'pointer', fontSize: '11px', fontWeight: 500 }}>
                     Cancelar
                   </button>
                 </div>
               ) : (
                 <button type="button" onClick={() => setShowReset(true)}
-                  style={{ height: '28px', padding: '0 12px', borderRadius: '8px', backgroundColor: 'transparent', border: `1px solid ${isDark ? '#2a2a28' : '#d4d0ca'}`, color: muted, cursor: 'pointer', fontSize: '11px', fontWeight: 500, transition: 'all 0.15s ease' }}>
+                  style={{ height: '28px', padding: '0 12px', borderRadius: '4px', backgroundColor: 'transparent', border: `1px solid ${isDark ? '#2a2a28' : '#d4d0ca'}`, color: muted, cursor: 'pointer', fontSize: '11px', fontWeight: 500, transition: 'all 0.15s ease' }}>
                   Restaurar
                 </button>
               )}
@@ -469,7 +471,7 @@ function IntegracaoSection({ isDark }: { isDark: boolean }) {
               <p style={{ fontSize: '13px', fontWeight: 600, color: text }}>
                 Webhooks de saída
                 {configs.length > 0 && (
-                  <span style={{ marginLeft: '8px', fontSize: '10px', fontWeight: 700, padding: '1px 7px', borderRadius: '20px', backgroundColor: isDark ? '#1e2e28' : '#d1fae5', color: '#065f46' }}>
+                  <span style={{ marginLeft: '8px', fontSize: '10px', fontWeight: 700, padding: '1px 7px', borderRadius: '20px', backgroundColor: isDark ? '#1e2e28' : 'rgba(227,30,36,0.10)', color: '#065f46' }}>
                     {configs.length} activo{configs.length !== 1 ? 's' : ''}
                   </span>
                 )}
@@ -483,11 +485,12 @@ function IntegracaoSection({ isDark }: { isDark: boolean }) {
             style={{
               display: 'flex', alignItems: 'center', gap: '5px',
               height: '30px', padding: '0 12px',
-              fontSize: '12px', fontWeight: 600,
-              background: showForm ? 'transparent' : 'linear-gradient(135deg, #2c5545 0%, #3d7a62 100%)',
+              fontSize: '11px', fontWeight: 700,
+              textTransform: 'uppercase' as const, letterSpacing: '0.06em',
+              background: showForm ? 'transparent' : '#e31e24',
               color: showForm ? muted : '#ffffff',
               border: showForm ? `1px solid ${border}` : 'none',
-              borderRadius: '7px', cursor: 'pointer',
+              borderRadius: '4px', cursor: 'pointer',
               boxShadow: showForm ? 'none' : '0 1px 6px rgba(44,85,69,0.3)',
               transition: 'all 0.15s ease', flexShrink: 0,
             }}
@@ -506,7 +509,7 @@ function IntegracaoSection({ isDark }: { isDark: boolean }) {
                 <input
                   type="url" value={url} onChange={(e) => setUrl(e.target.value)}
                   placeholder="https://hooks.zapier.com/..."
-                  style={{ width: '100%', height: '34px', padding: '0 10px', fontSize: '12px', border: `1px solid ${border}`, borderRadius: '6px', background: inputBg, color: text, outline: 'none', boxSizing: 'border-box' }}
+                  style={{ width: '100%', height: '34px', padding: '0 10px', fontSize: '12px', border: `1px solid ${border}`, borderRadius: '4px', background: inputBg, color: text, outline: 'none', boxSizing: 'border-box' }}
                 />
               </div>
               <div>
@@ -514,7 +517,7 @@ function IntegracaoSection({ isDark }: { isDark: boolean }) {
                 <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
                   {ALL_EVENTS.map((ev) => (
                     <label key={ev} style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '12px', color: text }}>
-                      <input type="checkbox" checked={selectedEvents.includes(ev)} onChange={() => toggleEvent(ev)} style={{ accentColor: '#2c5545' }} />
+                      <input type="checkbox" checked={selectedEvents.includes(ev)} onChange={() => toggleEvent(ev)} style={{ accentColor: '#e31e24' }} />
                       {EVENT_LABELS[ev]}
                     </label>
                   ))}
@@ -525,7 +528,7 @@ function IntegracaoSection({ isDark }: { isDark: boolean }) {
                 <input
                   type="text" value={secret} onChange={(e) => setSecret(e.target.value)}
                   placeholder="Token secreto para verificação"
-                  style={{ width: '100%', height: '34px', padding: '0 10px', fontSize: '12px', border: `1px solid ${border}`, borderRadius: '6px', background: inputBg, color: text, outline: 'none', boxSizing: 'border-box' }}
+                  style={{ width: '100%', height: '34px', padding: '0 10px', fontSize: '12px', border: `1px solid ${border}`, borderRadius: '4px', background: inputBg, color: text, outline: 'none', boxSizing: 'border-box' }}
                 />
               </div>
               <div style={{ display: 'flex', gap: '8px' }}>
@@ -533,8 +536,9 @@ function IntegracaoSection({ isDark }: { isDark: boolean }) {
                   type="button" onClick={handleAdd}
                   disabled={saving || !url.trim() || !selectedEvents.length}
                   style={{
-                    height: '32px', padding: '0 16px', borderRadius: '6px', border: 'none',
-                    background: url.trim() && selectedEvents.length ? 'linear-gradient(135deg, #2c5545 0%, #3d7a62 100%)' : (isDark ? '#1a1a18' : '#e8e4dc'),
+                    height: '32px', padding: '0 16px', borderRadius: '4px', border: 'none',
+                    textTransform: 'uppercase', letterSpacing: '0.06em',
+                    background: url.trim() && selectedEvents.length ? '#e31e24' : (isDark ? '#1a1a18' : '#e8e4dc'),
                     color: url.trim() && selectedEvents.length ? '#fff' : muted,
                     fontSize: '12px', fontWeight: 600, cursor: 'pointer',
                   }}
@@ -563,7 +567,7 @@ function IntegracaoSection({ isDark }: { isDark: boolean }) {
               </p>
             </div>
             <label style={{ display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer', fontSize: '11px', color: muted, flexShrink: 0 }}>
-              <input type="checkbox" checked={cfg.active} onChange={(e) => toggleWebhook(cfg.id, e.target.checked)} style={{ accentColor: '#2c5545' }} />
+              <input type="checkbox" checked={cfg.active} onChange={(e) => toggleWebhook(cfg.id, e.target.checked)} style={{ accentColor: '#e31e24' }} />
               Ativo
             </label>
             <button
