@@ -494,77 +494,293 @@ function NotesSection({ dealId, owner, isDark, border, text, muted }: {
 
 // ─── Proposal tab ────────────────────────────────────────────────────────────
 
+interface ProposalLine {
+  id: string
+  description: string
+  unit: string
+  qty: number
+  unit_price: number
+}
+
+function fmtBRL(v: number) {
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(v)
+}
+
 function ProposalTab({ deal, isDark, border, text, muted, inputBg }: {
   deal: Deal; isDark: boolean; border: string; text: string; muted: string; inputBg: string
 }) {
-  const storageKey = `esq_proposal_${deal.id}`
-  const [title, setTitle]     = useState(() => { try { return JSON.parse(localStorage.getItem(storageKey) ?? '{}').title ?? deal.title } catch { return deal.title } })
-  const [validity, setValidity] = useState(() => { try { return JSON.parse(localStorage.getItem(storageKey) ?? '{}').validity ?? '' } catch { return '' } })
-  const [scope, setScope]     = useState(() => { try { return JSON.parse(localStorage.getItem(storageKey) ?? '{}').scope ?? '' } catch { return '' } })
-  const [saved, setSaved]     = useState(false)
+  const storageKey = `esq_proposal_v2_${deal.id}`
+
+  function load<T>(key: string, fallback: T): T {
+    try { const d = JSON.parse(localStorage.getItem(storageKey) ?? '{}'); return d[key] ?? fallback } catch { return fallback }
+  }
+
+  const [intro,    setIntro]    = useState(() => load('intro', ''))
+  const [validity, setValidity] = useState(() => load('validity', ''))
+  const [payment,  setPayment]  = useState(() => load('payment', ''))
+  const [terms,    setTerms]    = useState(() => load('terms', ''))
+  const [lines,    setLines]    = useState<ProposalLine[]>(() => load('lines', []))
+  const [saved,    setSaved]    = useState(false)
+  const [preview,  setPreview]  = useState(false)
+
+  const total = lines.reduce((s, l) => s + l.qty * l.unit_price, 0)
+
+  function addLine() {
+    setLines((prev) => [...prev, { id: `l-${Date.now()}`, description: '', unit: 'un', qty: 1, unit_price: 0 }])
+  }
+
+  function updateLine(id: string, patch: Partial<ProposalLine>) {
+    setLines((prev) => prev.map((l) => l.id === id ? { ...l, ...patch } : l))
+  }
+
+  function removeLine(id: string) {
+    setLines((prev) => prev.filter((l) => l.id !== id))
+  }
 
   function handleSave() {
-    localStorage.setItem(storageKey, JSON.stringify({ title, validity, scope }))
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
+    localStorage.setItem(storageKey, JSON.stringify({ intro, validity, payment, terms, lines }))
+    setSaved(true); setTimeout(() => setSaved(false), 2000)
   }
 
   function handleCopy() {
-    const txt = `PROPOSTA COMERCIAL\n\nTítulo: ${title}\nEmpresa: ${deal.company_name ?? '—'}\nValor: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(deal.value)}\nValidade: ${validity || '—'}\n\nEscopo:\n${scope || '—'}`
+    const linesTxt = lines.map((l) => `  • ${l.description} (${l.qty} ${l.unit}) — ${fmtBRL(l.qty * l.unit_price)}`).join('\n')
+    const txt = [
+      'PROPOSTA COMERCIAL — ESQUIRE',
+      '─'.repeat(40),
+      `Cliente: ${deal.company_name}`,
+      `Contacto: ${deal.contact_name ?? '—'}`,
+      `Data: ${new Date().toLocaleDateString('pt-BR')}`,
+      validity ? `Validade: ${new Date(validity).toLocaleDateString('pt-BR')}` : '',
+      '',
+      intro ? `Apresentação:\n${intro}\n` : '',
+      'Serviços / Entregáveis:',
+      linesTxt || '  (sem itens)',
+      '',
+      `TOTAL: ${fmtBRL(total)}`,
+      '',
+      payment ? `Condições de pagamento:\n${payment}` : '',
+      terms   ? `\nTermos e condições:\n${terms}` : '',
+    ].filter(Boolean).join('\n')
     navigator.clipboard.writeText(txt).catch(() => {})
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
+    setSaved(true); setTimeout(() => setSaved(false), 2000)
   }
 
-  return (
-    <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-      <div style={{ backgroundColor: isDark ? '#1a1a18' : '#f8f7f4', border: `1px solid ${border}`, borderRadius: '8px', padding: '16px 18px' }}>
-        <p style={{ fontSize: '10px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '14px' }}>Rascunho de Proposta</p>
+  const inp: React.CSSProperties = { backgroundColor: inputBg, border: `1px solid ${border}`, borderRadius: '4px', color: text, outline: 'none', fontSize: '12px', fontFamily: 'inherit', padding: '0 8px', height: '30px', boxSizing: 'border-box' }
+  const lbl: React.CSSProperties = { fontSize: '10px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: '5px' }
+  const section: React.CSSProperties = { backgroundColor: isDark ? '#111110' : '#ffffff', border: `1px solid ${border}`, borderRadius: '8px', padding: '16px 18px' }
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <div>
-            <p style={{ fontSize: '10px', fontWeight: 600, color: muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '4px' }}>Título</p>
-            <input type="text" value={title} onChange={(e) => setTitle(e.target.value)}
-              style={{ width: '100%', height: '34px', padding: '0 10px', fontSize: '13px', fontWeight: 500, backgroundColor: inputBg, border: `1px solid ${border}`, borderRadius: '6px', color: text, outline: 'none', boxSizing: 'border-box' }} />
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+  if (preview) {
+    return (
+      <div style={{ padding: '20px 24px' }}>
+        <div style={{ backgroundColor: '#ffffff', border: '1px solid #e4e0da', borderRadius: '8px', overflow: 'hidden' }}>
+          {/* Preview header */}
+          <div style={{ backgroundColor: '#0d0d0b', padding: '24px 28px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
             <div>
-              <p style={{ fontSize: '10px', fontWeight: 600, color: muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '4px' }}>Valor</p>
-              <p style={{ fontSize: '14px', fontWeight: 700, color: '#2d9e6b', fontVariantNumeric: 'tabular-nums' }}>
-                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(deal.value)}
-              </p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
+                <div style={{ width: '3px', height: '28px', backgroundColor: '#e31e24', borderRadius: '2px' }} />
+                <p style={{ fontFamily: '"Playfair Display", Georgia, serif', fontStyle: 'italic', fontWeight: 700, fontSize: '22px', color: '#fff', lineHeight: 1 }}>Esquire</p>
+              </div>
+              <p style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.3em', textTransform: 'uppercase', color: '#6b6560', marginLeft: '13px' }}>CRM</p>
             </div>
-            <div>
-              <p style={{ fontSize: '10px', fontWeight: 600, color: muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '4px' }}>Validade</p>
-              <input type="date" value={validity} onChange={(e) => setValidity(e.target.value)}
-                style={{ width: '100%', height: '30px', padding: '0 8px', fontSize: '12px', backgroundColor: inputBg, border: `1px solid ${border}`, borderRadius: '5px', color: text, outline: 'none', colorScheme: isDark ? 'dark' : 'light', boxSizing: 'border-box' }} />
+            <div style={{ textAlign: 'right' }}>
+              <p style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#6b6560', marginBottom: '3px' }}>Proposta Comercial</p>
+              <p style={{ fontSize: '11px', color: '#a09890' }}>{new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}</p>
             </div>
           </div>
 
-          <div>
-            <p style={{ fontSize: '10px', fontWeight: 600, color: muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '4px' }}>Escopo / Observações</p>
-            <textarea value={scope} onChange={(e) => setScope(e.target.value)} rows={6}
-              placeholder="Descreva o escopo, entregáveis, condições especiais..."
-              style={{ width: '100%', padding: '10px 12px', fontSize: '12px', lineHeight: 1.6, backgroundColor: inputBg, border: `1px solid ${border}`, borderRadius: '6px', color: text, outline: 'none', resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+          {/* Red rule */}
+          <div style={{ height: '3px', backgroundColor: '#e31e24' }} />
+
+          <div style={{ padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            {/* Client */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+              <div>
+                <p style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#8a857d', marginBottom: '6px' }}>Para</p>
+                <p style={{ fontSize: '15px', fontWeight: 700, color: '#0d0d0b', lineHeight: 1.2 }}>{deal.company_name}</p>
+                {deal.contact_name && <p style={{ fontSize: '12px', color: '#6b6560', marginTop: '2px' }}>{deal.contact_name}</p>}
+                {deal.contact_email && <p style={{ fontSize: '11px', color: '#8a857d', marginTop: '1px' }}>{deal.contact_email}</p>}
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                {validity && (
+                  <>
+                    <p style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#8a857d', marginBottom: '4px' }}>Válida até</p>
+                    <p style={{ fontSize: '13px', fontWeight: 600, color: '#0d0d0b' }}>{new Date(validity + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}</p>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Intro */}
+            {intro && (
+              <div>
+                <p style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#8a857d', marginBottom: '8px' }}>Apresentação</p>
+                <p style={{ fontSize: '12px', color: '#3a3632', lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>{intro}</p>
+              </div>
+            )}
+
+            {/* Services table */}
+            {lines.length > 0 && (
+              <div>
+                <p style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#8a857d', marginBottom: '10px' }}>Serviços / Entregáveis</p>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '2px solid #0d0d0b' }}>
+                      {['Descrição', 'Qtd', 'Unid.', 'Valor Unit.', 'Total'].map((h) => (
+                        <th key={h} style={{ padding: '6px 8px', textAlign: h === 'Descrição' ? 'left' : 'right', fontSize: '9px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#6b6560' }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {lines.map((l, i) => (
+                      <tr key={l.id} style={{ borderBottom: `1px solid ${i === lines.length - 1 ? '#0d0d0b' : '#e4e0da'}` }}>
+                        <td style={{ padding: '10px 8px', color: '#0d0d0b', fontWeight: 500 }}>{l.description || '—'}</td>
+                        <td style={{ padding: '10px 8px', textAlign: 'right', color: '#3a3632', fontVariantNumeric: 'tabular-nums' }}>{l.qty}</td>
+                        <td style={{ padding: '10px 8px', textAlign: 'right', color: '#6b6560' }}>{l.unit}</td>
+                        <td style={{ padding: '10px 8px', textAlign: 'right', color: '#3a3632', fontVariantNumeric: 'tabular-nums' }}>{fmtBRL(l.unit_price)}</td>
+                        <td style={{ padding: '10px 8px', textAlign: 'right', fontWeight: 700, color: '#0d0d0b', fontVariantNumeric: 'tabular-nums' }}>{fmtBRL(l.qty * l.unit_price)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '12px', paddingTop: '12px', borderTop: '3px solid #0d0d0b' }}>
+                  <div style={{ textAlign: 'right' }}>
+                    <p style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#8a857d', marginBottom: '3px' }}>Total</p>
+                    <p style={{ fontSize: '22px', fontWeight: 700, color: '#0d0d0b', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em' }}>{fmtBRL(total)}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Payment + Terms */}
+            {(payment || terms) && (
+              <div style={{ display: 'grid', gridTemplateColumns: payment && terms ? '1fr 1fr' : '1fr', gap: '20px', paddingTop: '16px', borderTop: '1px solid #e4e0da' }}>
+                {payment && (
+                  <div>
+                    <p style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#8a857d', marginBottom: '6px' }}>Condições de Pagamento</p>
+                    <p style={{ fontSize: '12px', color: '#3a3632', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{payment}</p>
+                  </div>
+                )}
+                {terms && (
+                  <div>
+                    <p style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#8a857d', marginBottom: '6px' }}>Termos e Condições</p>
+                    <p style={{ fontSize: '12px', color: '#3a3632', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{terms}</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Footer */}
+            <div style={{ borderTop: '1px solid #e4e0da', paddingTop: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+              <p style={{ fontSize: '10px', color: '#a09890' }}>Documento gerado pelo Esquire CRM</p>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ width: '120px', borderTop: '1px solid #0d0d0b', paddingTop: '6px' }}>
+                  <p style={{ fontSize: '10px', color: '#6b6560' }}>Assinatura</p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '16px' }}>
-          <button type="button" onClick={handleCopy}
-            style={{ fontSize: '12px', fontWeight: 600, padding: '6px 14px', borderRadius: '6px', border: `1px solid ${border}`, backgroundColor: 'transparent', color: muted, cursor: 'pointer' }}>
+        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '14px' }}>
+          <button type="button" onClick={() => setPreview(false)} style={{ fontSize: '12px', fontWeight: 600, padding: '7px 16px', borderRadius: '4px', border: `1px solid ${border}`, backgroundColor: 'transparent', color: muted, cursor: 'pointer' }}>
+            ← Editar
+          </button>
+          <button type="button" onClick={handleCopy} style={{ fontSize: '12px', fontWeight: 600, padding: '7px 16px', borderRadius: '4px', border: `1px solid ${border}`, backgroundColor: 'transparent', color: text, cursor: 'pointer' }}>
             Copiar texto
           </button>
-          <button type="button" onClick={handleSave}
-            style={{ fontSize: '12px', fontWeight: 600, padding: '6px 14px', borderRadius: '4px', border: 'none', backgroundColor: '#e31e24', color: '#fff', cursor: 'pointer' }}>
-            {saved ? '✓ Salvo' : 'Salvar rascunho'}
+          <button type="button" onClick={() => window.print()} style={{ fontSize: '12px', fontWeight: 600, padding: '7px 16px', borderRadius: '4px', border: 'none', backgroundColor: '#e31e24', color: '#fff', cursor: 'pointer' }}>
+            Imprimir / PDF
           </button>
         </div>
       </div>
+    )
+  }
 
-      <p style={{ fontSize: '11px', color: muted, fontStyle: 'italic', textAlign: 'center' }}>
-        Rascunho salvo localmente neste dispositivo
-      </p>
+  return (
+    <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+
+      {/* Apresentação */}
+      <div style={section}>
+        <p style={{ fontSize: '11px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '12px' }}>Apresentação</p>
+        <textarea value={intro} onChange={(e) => setIntro(e.target.value)} rows={3}
+          placeholder="Breve apresentação da proposta, contexto da negociação..."
+          style={{ ...inp, width: '100%', height: 'auto', padding: '8px 10px', lineHeight: 1.6, resize: 'vertical' }} />
+      </div>
+
+      {/* Serviços */}
+      <div style={section}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+          <p style={{ fontSize: '11px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Serviços / Entregáveis</p>
+          <button type="button" onClick={addLine} style={{ fontSize: '11px', fontWeight: 700, color: '#e31e24', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 0', letterSpacing: '0.04em' }}>
+            + Adicionar item
+          </button>
+        </div>
+
+        {lines.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '20px 0' }}>
+            <p style={{ fontSize: '12px', color: muted }}>Nenhum item adicionado.</p>
+            <button type="button" onClick={addLine} style={{ marginTop: '8px', fontSize: '12px', fontWeight: 600, color: '#e31e24', background: 'none', border: 'none', cursor: 'pointer' }}>
+              Adicionar primeiro item →
+            </button>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            {/* Header */}
+            <div style={{ display: 'grid', gridTemplateColumns: '3fr 60px 60px 100px 20px', gap: '6px', paddingBottom: '4px', borderBottom: `1px solid ${border}` }}>
+              {['Descrição', 'Qtd', 'Unid.', 'Valor unit.', ''].map((h) => (
+                <p key={h} style={{ fontSize: '9px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{h}</p>
+              ))}
+            </div>
+            {lines.map((l) => (
+              <div key={l.id} style={{ display: 'grid', gridTemplateColumns: '3fr 60px 60px 100px 20px', gap: '6px', alignItems: 'center' }}>
+                <input value={l.description} onChange={(e) => updateLine(l.id, { description: e.target.value })} placeholder="Descrição do serviço" style={{ ...inp, width: '100%' }} />
+                <input type="number" min={1} value={l.qty} onChange={(e) => updateLine(l.id, { qty: Number(e.target.value) })} style={{ ...inp, width: '100%', textAlign: 'right' }} />
+                <input value={l.unit} onChange={(e) => updateLine(l.id, { unit: e.target.value })} placeholder="un" style={{ ...inp, width: '100%', textAlign: 'center' }} />
+                <input type="number" min={0} value={l.unit_price || ''} onChange={(e) => updateLine(l.id, { unit_price: Number(e.target.value) })} placeholder="0" style={{ ...inp, width: '100%', textAlign: 'right' }} />
+                <button type="button" onClick={() => removeLine(l.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: muted, fontSize: '14px', lineHeight: 1, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+              </div>
+            ))}
+            {/* Total */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '8px', borderTop: `1px solid ${border}`, gap: '12px', alignItems: 'center' }}>
+              <p style={{ fontSize: '10px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Total</p>
+              <p style={{ fontSize: '16px', fontWeight: 700, color: isDark ? '#6ee7b7' : '#16a34a', fontVariantNumeric: 'tabular-nums' }}>{fmtBRL(total)}</p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Condições */}
+      <div style={section}>
+        <p style={{ fontSize: '11px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '12px' }}>Condições</p>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+          <div>
+            <label style={lbl}>Validade da proposta</label>
+            <input type="date" value={validity} onChange={(e) => setValidity(e.target.value)} style={{ ...inp, width: '100%', colorScheme: isDark ? 'dark' : 'light' }} />
+          </div>
+          <div>
+            <label style={lbl}>Condições de pagamento</label>
+            <input value={payment} onChange={(e) => setPayment(e.target.value)} placeholder="Ex: 50% entrada, 50% na entrega" style={{ ...inp, width: '100%' }} />
+          </div>
+        </div>
+        <div style={{ marginTop: '10px' }}>
+          <label style={lbl}>Termos e condições</label>
+          <textarea value={terms} onChange={(e) => setTerms(e.target.value)} rows={3}
+            placeholder="Condições gerais, prazo de entrega, garantias..."
+            style={{ ...inp, width: '100%', height: 'auto', padding: '8px 10px', lineHeight: 1.6, resize: 'vertical' }} />
+        </div>
+      </div>
+
+      {/* Actions */}
+      <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+        <button type="button" onClick={() => { handleSave(); setPreview(true) }} style={{ fontSize: '12px', fontWeight: 600, padding: '7px 16px', borderRadius: '4px', border: `1px solid ${border}`, backgroundColor: 'transparent', color: text, cursor: 'pointer' }}>
+          Pré-visualizar
+        </button>
+        <button type="button" onClick={handleSave} style={{ fontSize: '12px', fontWeight: 700, padding: '7px 18px', borderRadius: '4px', border: 'none', backgroundColor: '#e31e24', color: '#fff', cursor: 'pointer' }}>
+          {saved ? '✓ Salvo' : 'Salvar proposta'}
+        </button>
+      </div>
+
+      <p style={{ fontSize: '10px', color: muted, textAlign: 'center' }}>Rascunho guardado localmente neste dispositivo</p>
     </div>
   )
 }
@@ -941,10 +1157,16 @@ export function DealDetailPage() {
               </div>
             </div>
 
-            {/* Expected close */}
+            {/* Last activity / expected close */}
+            <div style={{ marginBottom: '10px' }}>
+              <p style={{ fontSize: '10px', fontWeight: 600, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '3px' }}>Último contacto</p>
+              <p style={{ fontSize: '13px', fontWeight: 500, color: deal.last_activity_at ? text : muted }}>
+                {deal.last_activity_at ? formatDate(deal.last_activity_at) : 'Sem atividade'}
+              </p>
+            </div>
             {deal.expected_close && (
               <div style={{ marginBottom: '10px' }}>
-                <p style={{ fontSize: '10px', fontWeight: 600, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '3px' }}>Previsão de fecho</p>
+                <p style={{ fontSize: '10px', fontWeight: 600, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '3px' }}>Data de fecho</p>
                 <p style={{ fontSize: '13px', fontWeight: 500, color: text }}>{formatDate(deal.expected_close)}</p>
               </div>
             )}

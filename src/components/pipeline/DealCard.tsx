@@ -128,16 +128,6 @@ export function DealCard({ deal, isOverlay = false, dimmed = false, showScore = 
   const today       = new Date().toISOString().slice(0, 10)
   const isOverdue   = !isSpecial && !!deal.next_activity?.due_date && deal.next_activity.due_date < today
 
-  // SLA: lead stage + created >2h ago + no activity
-  const isSLABreach = !isSpecial && deal.stage_id === 'leads' && !deal.last_activity_at &&
-    (Date.now() - new Date(deal.created_at).getTime()) > 2 * 3600 * 1000
-
-  // Competitor mentioned in notes
-  const isCompetitorMentioned = !isSpecial && !!(deal.notes?.match(/concorrente|salesforce|pipedrive|hubspot|rdstation|moskit/i))
-
-  // Proposal stage with no activity for 5+ days
-  const isProposalOverdue = !isSpecial && deal.stage_id === 'proposal' &&
-    (() => { const ref = deal.last_activity_at ?? deal.created_at; return (Date.now() - new Date(ref).getTime()) > 5 * 86_400_000 })()
 
   // ── theme tokens ──
   const cardBg     = isWon  ? (isDark ? '#0a1f0e' : '#f0faf4')
@@ -192,32 +182,13 @@ export function DealCard({ deal, isOverlay = false, dimmed = false, showScore = 
 
       <div style={{ flex: 1, padding: '12px 14px', display: 'flex', flexDirection: 'column', overflow: 'hidden', gap: '5px' }}>
 
-        {/* Row 1: badges + score + days */}
+        {/* Row 1: badges + days */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0, minHeight: '16px' }}>
           {isNew && (
             <span style={{
               fontSize: '8px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase',
               color: '#fff', backgroundColor: 'var(--brand)', borderRadius: 'var(--radius-full)', padding: '1px 6px', flexShrink: 0,
             }}>NOVO</span>
-          )}
-          {isSLABreach && (
-            <span title="SLA: sem contato há mais de 2h" style={{
-              fontSize: '8px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase',
-              color: '#fff', backgroundColor: '#b45309', borderRadius: 'var(--radius-full)', padding: '1px 6px', flexShrink: 0,
-            }}>SLA</span>
-          )}
-          {isProposalOverdue && (
-            <span title="Proposta sem resposta há 5+ dias" style={{
-              fontSize: '8px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase',
-              color: '#fff', backgroundColor: '#7c3aed', borderRadius: 'var(--radius-full)', padding: '1px 6px', flexShrink: 0,
-            }}>PROP</span>
-          )}
-          {isCompetitorMentioned && (
-            <span title="Competidor mencionado" style={{
-              fontSize: '8px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase',
-              color: '#b45309', backgroundColor: isDark ? 'rgba(180,83,9,0.15)' : '#fef3c7',
-              borderRadius: 'var(--radius-full)', padding: '1px 6px', flexShrink: 0,
-            }}>⚔</span>
           )}
           <div style={{ flex: 1 }} />
           {score !== null && (
@@ -251,8 +222,15 @@ export function DealCard({ deal, isOverlay = false, dimmed = false, showScore = 
           {deal.title}
         </p>
 
-        {/* Divider */}
-        <div style={{ height: '1px', background: 'var(--line)', flexShrink: 0, marginTop: '1px' }} />
+        {/* Divider + valor */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0, marginTop: '1px' }}>
+          <div style={{ flex: 1, height: '1px', background: 'var(--line)' }} />
+          {deal.value > 0 && (
+            <span style={{ fontSize: '11px', fontWeight: 700, color: isLost ? textMuted : (isDark ? '#6ee7b7' : '#16a34a'), fontVariantNumeric: 'tabular-nums', flexShrink: 0, letterSpacing: '-0.01em' }}>
+              {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(deal.value)}
+            </span>
+          )}
+        </div>
 
         {/* Row 4: prob bar + avatars */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '7px', flexShrink: 0 }}>
