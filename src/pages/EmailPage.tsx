@@ -244,6 +244,11 @@ export function EmailPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [showReply, setShowReply] = useState(false)
   const [replyText, setReplyText] = useState('')
+  const [showCompose, setShowCompose] = useState(false)
+  const [composeTo, setComposeTo] = useState('')
+  const [composeSubject, setComposeSubject] = useState('')
+  const [composeBody, setComposeBody] = useState('')
+  const [composeSent, setComposeSent] = useState(false)
 
   const border   = isDark ? '#242422' : '#e4e0da'
   const text     = isDark ? '#e8e4dc' : '#1a1814'
@@ -295,6 +300,7 @@ export function EmailPage() {
         <div style={{ padding: '12px 12px 8px' }}>
           <button
             type="button"
+            onClick={() => { setShowCompose(true); setComposeSent(false); setComposeTo(''); setComposeSubject(''); setComposeBody('') }}
             style={{
               width: '100%', height: '34px', borderRadius: '4px',
               backgroundColor: '#e31e24',
@@ -671,6 +677,57 @@ export function EmailPage() {
           </div>
         )}
       </div>
+
+      {/* ── Compose Modal ── */}
+      {showCompose && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 60, display: 'flex', alignItems: 'flex-end', justifyContent: 'flex-end', padding: '20px', pointerEvents: 'none' }}>
+          <div style={{ width: '480px', backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '14px', boxShadow: '0 24px 80px rgba(0,0,0,0.35)', display: 'flex', flexDirection: 'column', pointerEvents: 'all', overflow: 'hidden' }}>
+            {/* Header */}
+            <div style={{ padding: '14px 16px', backgroundColor: isDark ? '#1a1a18' : '#1a1814', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: '13px', fontWeight: 700, color: '#fff' }}>Nova mensagem</span>
+              <button type="button" onClick={() => setShowCompose(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.6)', padding: '2px', display: 'flex' }}>
+                <X style={{ width: '14px', height: '14px' }} />
+              </button>
+            </div>
+            {composeSent ? (
+              <div style={{ padding: '40px 20px', textAlign: 'center' }}>
+                <p style={{ fontSize: '32px', marginBottom: '12px' }}>✓</p>
+                <p style={{ fontSize: '14px', fontWeight: 700, color: text }}>Mensagem enviada</p>
+                <p style={{ fontSize: '12px', color: muted, marginTop: '4px' }}>O email foi colocado na caixa de enviados.</p>
+                <button type="button" onClick={() => setShowCompose(false)} style={{ marginTop: '16px', fontSize: '12px', fontWeight: 600, color: '#e31e24', background: 'none', border: 'none', cursor: 'pointer' }}>Fechar</button>
+              </div>
+            ) : (
+              <>
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  {[
+                    { label: 'Para', value: composeTo, onChange: setComposeTo, placeholder: 'destinatario@email.com' },
+                    { label: 'Assunto', value: composeSubject, onChange: setComposeSubject, placeholder: 'Assunto da mensagem' },
+                  ].map(({ label, value, onChange, placeholder }) => (
+                    <div key={label} style={{ display: 'flex', alignItems: 'center', borderBottom: `1px solid ${border}` }}>
+                      <span style={{ width: '60px', padding: '10px 16px', fontSize: '12px', color: muted, flexShrink: 0 }}>{label}</span>
+                      <input type="text" value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
+                        style={{ flex: 1, border: 'none', outline: 'none', backgroundColor: 'transparent', fontSize: '13px', color: text, padding: '10px 12px 10px 0', fontFamily: 'inherit' }} />
+                    </div>
+                  ))}
+                </div>
+                <textarea value={composeBody} onChange={(e) => setComposeBody(e.target.value)}
+                  placeholder="Escreva a sua mensagem..."
+                  style={{ flex: 1, minHeight: '160px', border: 'none', outline: 'none', backgroundColor: 'transparent', fontSize: '13px', color: text, padding: '14px 16px', resize: 'none', fontFamily: 'inherit', lineHeight: 1.6 }} />
+                <div style={{ padding: '12px 16px', borderTop: `1px solid ${border}`, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <button type="button"
+                    disabled={!composeTo.trim() || !composeSubject.trim()}
+                    onClick={() => setComposeSent(true)}
+                    style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '0 18px', height: '34px', borderRadius: '4px', backgroundColor: (!composeTo.trim() || !composeSubject.trim()) ? (isDark ? '#2a2a28' : '#e4e0da') : '#e31e24', color: (!composeTo.trim() || !composeSubject.trim()) ? muted : '#fff', border: 'none', cursor: (!composeTo.trim() || !composeSubject.trim()) ? 'not-allowed' : 'pointer', fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                    <Send style={{ width: '12px', height: '12px' }} />
+                    Enviar
+                  </button>
+                  <button type="button" onClick={() => setShowCompose(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: muted, fontSize: '12px', padding: '6px 10px' }}>Cancelar</button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
     </div>
   )

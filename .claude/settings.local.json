@@ -29,7 +29,8 @@
       "Bash(npx vercel *)",
       "Bash(npx supabase *)",
       "Bash(git checkout *)",
-      "WebFetch(domain:www.esquirebrasil.com.br)"
+      "WebFetch(domain:www.esquirebrasil.com.br)",
+      "Bash(supabase --version)"
     ]
   }
 }

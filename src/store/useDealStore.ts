@@ -179,7 +179,7 @@ export const useDealStore = create<DealStore>((set, get) => {
 
     try {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { id: _id, owner: _owner, company_id: _cid, days_in_stage: _ds, ...payload } = optimistic
+      const { id: _id, company_id: _cid, days_in_stage: _ds, deleted_at: _da, stage_changed_at: _sca, ...payload } = optimistic
       const confirmed = await insertDeal(payload)
       const next = get().deals.map((d) => (d.id === optimistic.id ? confirmed : d))
       setDeals(next)

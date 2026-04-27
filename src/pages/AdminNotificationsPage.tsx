@@ -38,6 +38,7 @@ function CreateDrawer({ isDark, teams, onClose }: {
   const [teamId,  setTeamId]  = useState('')
   const [expires, setExpires] = useState('')
   const [saving,  setSaving]  = useState(false)
+  const [error,   setError]   = useState('')
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) { if (e.key === 'Escape') onClose() }
@@ -48,15 +49,21 @@ function CreateDrawer({ isDark, teams, onClose }: {
   async function handleCreate() {
     if (!title.trim()) return
     setSaving(true)
-    await createNotif({
-      title: title.trim(),
-      body: body.trim() || undefined,
-      type,
-      team_id: teamId || null,
-      expires_at: expires ? new Date(expires).toISOString() : null,
-    })
-    onClose()
-    setSaving(false)
+    setError('')
+    try {
+      await createNotif({
+        title: title.trim(),
+        body: body.trim() || undefined,
+        type,
+        team_id: teamId || null,
+        expires_at: expires ? new Date(expires).toISOString() : null,
+      })
+      onClose()
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Erro ao enviar notificação')
+    } finally {
+      setSaving(false)
+    }
   }
 
   const inp: React.CSSProperties = {
@@ -148,13 +155,20 @@ function CreateDrawer({ isDark, teams, onClose }: {
         </div>
 
         {/* Footer */}
-        <div style={{ padding: '16px 20px', borderTop: `1px solid ${border}`, display: 'flex', gap: '10px' }}>
-          <button type="button" onClick={onClose} style={{ flex: 1, height: '38px', borderRadius: '8px', border: `1px solid ${border}`, backgroundColor: 'transparent', color: muted, fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
-            Cancelar
-          </button>
-          <button type="button" onClick={handleCreate} disabled={saving || !title.trim()} style={{ flex: 2, height: '38px', borderRadius: '8px', border: 'none', backgroundColor: TYPE_CFG[type].color, color: '#fff', fontSize: '13px', fontWeight: 700, cursor: 'pointer', opacity: (saving || !title.trim()) ? 0.6 : 1 }}>
-            {saving ? 'A enviar...' : 'Enviar Notificação'}
-          </button>
+        <div style={{ padding: '16px 20px', borderTop: `1px solid ${border}`, display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          {error && (
+            <p style={{ fontSize: '12px', color: '#ef4444', backgroundColor: isDark ? '#2d1515' : '#fff5f5', border: '1px solid #fecaca', borderRadius: '6px', padding: '8px 12px' }}>
+              {error}
+            </p>
+          )}
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button type="button" onClick={onClose} style={{ flex: 1, height: '38px', borderRadius: '8px', border: `1px solid ${border}`, backgroundColor: 'transparent', color: muted, fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
+              Cancelar
+            </button>
+            <button type="button" onClick={handleCreate} disabled={saving || !title.trim()} style={{ flex: 2, height: '38px', borderRadius: '8px', border: 'none', backgroundColor: TYPE_CFG[type].color, color: '#fff', fontSize: '13px', fontWeight: 700, cursor: 'pointer', opacity: (saving || !title.trim()) ? 0.6 : 1 }}>
+              {saving ? 'A enviar...' : 'Enviar Notificação'}
+            </button>
+          </div>
         </div>
       </div>
     </div>

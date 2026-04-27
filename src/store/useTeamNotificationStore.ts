@@ -47,11 +47,12 @@ export const useTeamNotificationStore = create<TeamNotifStore>((set, get) => ({
 
   create: async (payload) => {
     const { data: me } = await supabase.auth.getUser()
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('team_notifications')
       .insert({ ...payload, created_by: me?.user?.id })
       .select()
       .single()
+    if (error) throw new Error(error.message)
     if (data) set((s) => ({ notifications: [data as TeamNotification, ...s.notifications] }))
   },
 

@@ -50,27 +50,19 @@ function InviteDrawer({ isDark, teams, onClose, onCreated }: {
     if (!email.trim()) { setError('Email obrigatório'); return }
     setSaving(true); setError('')
     try {
-      // Create auth user via admin API through edge function (or direct if service role available)
-      // For MVP: insert profile directly and send magic link
       const tempPassword = Math.random().toString(36).slice(-10) + 'Aa1!'
-      const { data: authData, error: authErr } = await supabase.auth.admin.createUser({
-        email: email.trim(),
-        password: tempPassword,
-        email_confirm: true,
-        user_metadata: { full_name: name.trim() || email.split('@')[0] },
-      })
-      if (authErr) throw authErr
-      if (authData.user) {
-        await supabase.from('profiles').upsert({
-          id: authData.user.id,
+      const { data, error: fnErr } = await supabase.functions.invoke('create-user', {
+        body: {
           email: email.trim(),
+          password: tempPassword,
           full_name: name.trim() || email.split('@')[0],
           is_admin: role === 'admin',
           avatar_color: color,
           team_id: teamId || null,
-          invited_at: new Date().toISOString(),
-        })
-      }
+        },
+      })
+      if (fnErr) throw new Error(fnErr.message)
+      if (data?.error) throw new Error(data.error)
       onCreated()
       onClose()
     } catch (e: unknown) {
