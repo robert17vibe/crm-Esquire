@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, Kanban, Users, Mic, CalendarDays, CheckSquare, Settings, LogOut, Users2, Shield, Bell, Mail, Megaphone } from 'lucide-react'
+import { LayoutDashboard, Kanban, Users, Mic, CalendarDays, CheckSquare, Settings, LogOut, Users2, Shield, Mail, Megaphone } from 'lucide-react'
+import esquireLogo from '@/assets/esquire_logo.png'
 import { useAuthStore } from '@/store/useAuthStore'
 import { useTaskStore } from '@/store/useTaskStore'
 import { useNotificationStore, type AppNotification } from '@/store/useNotificationStore'
@@ -261,7 +262,6 @@ export function Sidebar() {
 
   const notifications = useNotificationStore((s) => s.notifications)
   const unreadCount   = useMemo(() => notifications.filter((n) => !n.read).length, [notifications])
-  const [showNotif, setShowNotif] = useState(false)
 
   const displayName     = profile?.full_name || 'Robert Ferreira'
   const displayRole     = profile?.is_admin ? 'ADMIN' : 'USER'
@@ -278,13 +278,6 @@ export function Sidebar() {
 
   const sidebarW = collapsed ? 56 : 228
 
-  const [footerBottom, setFooterBottom] = useState(80)
-  const footerRef = (el: HTMLDivElement | null) => {
-    if (el) {
-      const r = el.getBoundingClientRect()
-      setFooterBottom(window.innerHeight - r.top)
-    }
-  }
 
   const isAdmin = profile?.is_admin ?? false
 
@@ -307,40 +300,18 @@ export function Sidebar() {
         }}
       >
 
-        {/* ── Logo — Esquire wordmark ── */}
+        {/* ── Logo ── */}
         <div style={{
-          height: '60px', minHeight: '60px', flexShrink: 0,
+          height: '56px', minHeight: '56px', flexShrink: 0,
           display: 'flex', alignItems: 'center',
           padding: collapsed ? '0' : '0 16px',
           justifyContent: collapsed ? 'center' : 'flex-start',
-          gap: '10px',
           borderBottom: '1px solid rgba(255,255,255,0.07)',
         }}>
-          <EsquireLogo size={28} />
-          {!collapsed && (
-            <div>
-              <div style={{
-                fontFamily: '"Playfair Display", "Libre Baskerville", Georgia, serif',
-                fontSize: '17px',
-                fontStyle: 'italic',
-                fontWeight: 700,
-                color: '#ffffff',
-                lineHeight: 1,
-                letterSpacing: '-0.01em',
-              }}>
-                Esquire
-              </div>
-              <div style={{
-                fontSize: '8px',
-                fontWeight: 700,
-                letterSpacing: '0.18em',
-                textTransform: 'uppercase',
-                color: 'rgba(255,255,255,0.30)',
-                marginTop: '2px',
-              }}>
-                CRM
-              </div>
-            </div>
+          {collapsed ? (
+            <EsquireLogo size={26} />
+          ) : (
+            <img src={esquireLogo} alt="Esquire" style={{ height: '22px', objectFit: 'contain' }} />
           )}
         </div>
 
@@ -370,12 +341,10 @@ export function Sidebar() {
           {/* Admin section */}
           {isAdmin && (
             <>
-              <div style={{ margin: '12px 16px 8px', height: '1px', backgroundColor: 'rgba(255,255,255,0.07)' }} />
+              <div style={{ margin: '4px 0' }} />
               {!collapsed && (
-                <div style={{ padding: '0 16px', marginBottom: '6px' }}>
-                  <span style={{ fontSize: '8px', fontWeight: 800, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.18)' }}>
-                    Admin
-                  </span>
+                <div style={{ padding: '4px 16px 4px' }}>
+                  <span style={{ fontSize: '8px', fontWeight: 800, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.25)' }}>Admin</span>
                 </div>
               )}
               {[
@@ -390,49 +359,11 @@ export function Sidebar() {
         </nav>
 
         {/* ── Footer ── */}
-        <div ref={footerRef} style={{
+        <div style={{
           borderTop: '1px solid rgba(255,255,255,0.07)',
           padding: collapsed ? '12px 0' : '8px 0 12px',
           display: 'flex', flexDirection: 'column',
         }}>
-
-          {/* Notifications */}
-          <button
-            type="button"
-            onClick={() => setShowNotif((v) => !v)}
-            title={collapsed ? 'Notificações' : undefined}
-            style={{
-              display: 'flex', alignItems: 'center',
-              height: '36px', width: '100%',
-              padding: collapsed ? '0' : '0 16px',
-              justifyContent: collapsed ? 'center' : 'flex-start',
-              gap: collapsed ? 0 : '10px',
-              fontSize: '10px', fontWeight: 700, letterSpacing: '0.10em', textTransform: 'uppercase',
-              background: showNotif ? 'rgba(227,30,36,0.12)' : 'none',
-              border: 'none', cursor: 'pointer',
-              color: showNotif ? '#ffffff' : 'rgba(255,255,255,0.45)',
-              borderLeft: showNotif ? '2px solid #e31e24' : '2px solid transparent',
-              transition: 'all 0.12s ease',
-            }}
-            onMouseEnter={(e) => { if (!showNotif) { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = 'rgba(255,255,255,0.80)' } }}
-            onMouseLeave={(e) => { if (!showNotif) { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = 'rgba(255,255,255,0.45)' } }}
-          >
-            <div style={{ position: 'relative', flexShrink: 0 }}>
-              <Bell style={{ width: '14px', height: '14px', color: showNotif ? '#e31e24' : 'rgba(255,255,255,0.35)' }} />
-              {unreadCount > 0 && (
-                <span style={{
-                  position: 'absolute', top: '-3px', right: '-3px',
-                  fontSize: '7px', fontWeight: 800, color: '#fff',
-                  backgroundColor: '#e31e24', borderRadius: '3px',
-                  padding: '0 2px', minWidth: '10px', textAlign: 'center', lineHeight: 1.6,
-                }}>{unreadCount > 9 ? '9+' : unreadCount}</span>
-              )}
-            </div>
-            {!collapsed && <span style={{ flex: 1 }}>Notificações</span>}
-          </button>
-
-          {/* thin rule */}
-          {!collapsed && <div style={{ height: '1px', backgroundColor: 'rgba(255,255,255,0.05)', margin: '0 16px' }} />}
 
           {/* Settings */}
           <NavLink
@@ -518,9 +449,6 @@ export function Sidebar() {
         {collapsed ? '›' : '‹'}
       </button>
 
-      {showNotif && (
-        <NotificationPanel onClose={() => setShowNotif(false)} bottom={footerBottom} />
-      )}
     </>
   )
 }

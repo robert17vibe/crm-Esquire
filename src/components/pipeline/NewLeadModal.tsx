@@ -223,7 +223,7 @@ export function NewLeadModal({ open, onClose, onCreated }: Props) {
     formState: { errors, isSubmitting },
   } = useForm<NewLeadFormValues>({
     resolver: zodResolver(newLeadSchema),
-    defaultValues: { stage_id: 'leads', owner_id: '', value: 0 },
+    defaultValues: { stage_id: 'leads', owner_id: owners[0]?.id ?? '', value: 0 },
   })
 
   useEffect(() => {

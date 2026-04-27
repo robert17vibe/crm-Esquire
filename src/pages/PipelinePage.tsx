@@ -126,7 +126,7 @@ export function PipelinePage() {
                   ref={zapRef}
                   type="button"
                   onClick={handleZapClick}
-                  title={prioritizeNew ? 'Desativar priorização de novos leads' : 'Priorizar novos leads'}
+                  title={prioritizeNew ? 'Desativar score de leads' : 'Ativar score de leads'}
                   style={{
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     width: '32px', height: '32px', borderRadius: '8px', cursor: 'pointer',
@@ -154,7 +154,7 @@ export function PipelinePage() {
                   backgroundColor: isDark ? '#e8e4dc' : '#1a1814',
                   borderRadius: '5px', padding: '4px 8px', zIndex: 50, userSelect: 'none',
                 }}>
-                  {prioritizeNew ? 'Desativar priorização' : 'Priorizar novos leads'}
+                  {prioritizeNew ? 'Desativar score' : 'Mostrar score dos leads'}
                   <Tooltip.Arrow style={{ fill: isDark ? '#e8e4dc' : '#1a1814' }} />
                 </Tooltip.Content>
               </Tooltip.Portal>
@@ -220,7 +220,7 @@ export function PipelinePage() {
             onDeleteDeal={(id) => { deleteDeal(id) }}
             onStageChange={(id, stageId) => { moveDeal(id, stageId) }}
             onLossReasonConfirmed={(id, reason) => { setLossReason(id, reason) }}
-            showScore={false}
+            showScore={prioritizeNew}
             highlightNew={prioritizeNew}
             onAddDeal={() => setShowNewModal(true)}
           />

@@ -1,21 +1,17 @@
-import { useState, useRef } from 'react'
-import { Bell, Moon, Sun, Settings, LogOut, User, AlertTriangle, Clock, Search } from 'lucide-react'
+import { useState, useRef, useEffect } from 'react'
+import { Bell, Moon, Sun, Settings, LogOut, User, AlertTriangle, Clock, Search, Megaphone } from 'lucide-react'
 import type { NotificationType } from '@/store/useNotificationStore'
 import { useNavigate } from 'react-router-dom'
 import { useThemeStore } from '@/store/useThemeStore'
 import { useAuthStore } from '@/store/useAuthStore'
 import { useNotificationStore } from '@/store/useNotificationStore'
+import { useTeamNotificationStore } from '@/store/useTeamNotificationStore'
 
 // ─── Notification Panel ───────────────────────────────────────────────────────
 
-function NotificationPanel({
-  onClose,
-  isDark,
-}: {
-  onClose: () => void
-  isDark: boolean
-}) {
-  const { notifications, markAllRead, markRead } = useNotificationStore()
+function NotificationPanel({ onClose, isDark }: { onClose: () => void; isDark: boolean }) {
+  const { notifications: dealNotifs, markAllRead, markRead } = useNotificationStore()
+  const { notifications: teamNotifs, readIds, markRead: markTeamRead, fetch: fetchTeam } = useTeamNotificationStore()
   const navigate = useNavigate()
 
   const bg     = isDark ? '#161614' : '#ffffff'
@@ -24,17 +20,14 @@ function NotificationPanel({
   const muted  = isDark ? '#6b6560' : '#8a857d'
   const hover  = isDark ? '#1e1e1c' : '#f5f4f0'
 
-  const unread = notifications.filter((n) => !n.read)
+  useEffect(() => { fetchTeam().catch(() => {}) }, [fetchTeam])
 
-  function handleClickNotification(n: typeof notifications[0]) {
-    markRead(n.id)
-    navigate(`/deal/${n.dealId}`)
-    onClose()
-  }
+  const unreadDeal = dealNotifs.filter((n) => !n.read).length
+  const unreadTeam = teamNotifs.filter((n) => !readIds.has(n.id)).length
+  const totalUnread = unreadDeal + unreadTeam
 
   function fmtTime(iso: string) {
-    const d = new Date(iso)
-    const now = new Date()
+    const d = new Date(iso), now = new Date()
     const diff = Math.floor((now.getTime() - d.getTime()) / 60000)
     if (diff < 1) return 'agora'
     if (diff < 60) return `${diff}min`
@@ -42,98 +35,102 @@ function NotificationPanel({
     return new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short' }).format(d)
   }
 
+  const TEAM_TYPE_CFG: Record<string, { color: string; bg: string }> = {
+    info:         { color: '#2563eb', bg: isDark ? '#172554' : '#eff6ff' },
+    warning:      { color: '#d97706', bg: isDark ? '#2a1a0a' : '#fef3c7' },
+    urgent:       { color: '#dc2626', bg: isDark ? '#2d1515' : '#fee2e2' },
+    announcement: { color: '#7c3aed', bg: isDark ? '#1e1040' : '#f5f3ff' },
+  }
+
   return (
     <>
       <div className="fixed inset-0 z-40" onPointerDown={onClose} />
-      <div
-        style={{
-          position: 'absolute', top: 'calc(100% + 8px)', right: 0,
-          width: '320px', maxHeight: '420px',
-          backgroundColor: bg, border: `1px solid ${border}`,
-          borderRadius: '12px', zIndex: 50,
-          boxShadow: isDark ? '0 12px 40px rgba(0,0,0,0.5)' : '0 12px 32px rgba(0,0,0,0.12)',
-          display: 'flex', flexDirection: 'column',
-          overflow: 'hidden',
-        }}
-      >
+      <div style={{ position: 'absolute', top: 'calc(100% + 8px)', right: 0, width: '340px', maxHeight: '480px', backgroundColor: bg, border: `1px solid ${border}`, borderRadius: '12px', zIndex: 50, boxShadow: isDark ? '0 12px 40px rgba(0,0,0,0.5)' : '0 12px 32px rgba(0,0,0,0.12)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         {/* Header */}
-        <div style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '14px 16px 12px',
-          borderBottom: `1px solid ${border}`, flexShrink: 0,
-        }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px 12px', borderBottom: `1px solid ${border}`, flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <p style={{ fontSize: '13px', fontWeight: 700, color: text }}>Notificações</p>
-            {unread.length > 0 && (
-              <span style={{
-                fontSize: '9px', fontWeight: 700, color: '#fff',
-                backgroundColor: '#dc2626', borderRadius: '99px',
-                padding: '1px 6px',
-              }}>{unread.length}</span>
-            )}
+            {totalUnread > 0 && <span style={{ fontSize: '9px', fontWeight: 700, color: '#fff', backgroundColor: '#dc2626', borderRadius: '99px', padding: '1px 6px' }}>{totalUnread}</span>}
           </div>
-          {unread.length > 0 && (
-            <button
-              type="button"
-              onClick={markAllRead}
-              style={{ fontSize: '11px', fontWeight: 600, color: muted, background: 'none', border: 'none', cursor: 'pointer' }}
-            >
-              Marcar todas como lidas
-            </button>
-          )}
+          {totalUnread > 0 && <button type="button" onClick={() => { markAllRead(); teamNotifs.forEach((n) => { if (!readIds.has(n.id)) markTeamRead(n.id) }) }} style={{ fontSize: '11px', fontWeight: 600, color: muted, background: 'none', border: 'none', cursor: 'pointer' }}>Marcar todas como lidas</button>}
         </div>
 
-        {/* List */}
         <div style={{ overflowY: 'auto', flex: 1 }}>
-          {notifications.length === 0 ? (
+          {/* Comunicados de equipa */}
+          {teamNotifs.length > 0 && (
+            <>
+              <div style={{ padding: '8px 16px 4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Megaphone style={{ width: '10px', height: '10px', color: muted }} />
+                <span style={{ fontSize: '9px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Comunicados</span>
+              </div>
+              {teamNotifs.map((n) => {
+                const isRead = readIds.has(n.id)
+                const cfg = TEAM_TYPE_CFG[n.type] ?? TEAM_TYPE_CFG.info
+                return (
+                  <button key={n.id} type="button"
+                    onClick={() => { if (!isRead) markTeamRead(n.id) }}
+                    style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', width: '100%', padding: '10px 16px', textAlign: 'left', backgroundColor: isRead ? 'transparent' : (isDark ? '#1a1a18' : '#f8f7f4'), border: 'none', cursor: isRead ? 'default' : 'pointer', borderBottom: `1px solid ${border}`, transition: 'background-color 0.1s' }}
+                    onMouseEnter={(e) => { if (!isRead) e.currentTarget.style.backgroundColor = hover }}
+                    onMouseLeave={(e) => { if (!isRead) e.currentTarget.style.backgroundColor = isDark ? '#1a1a18' : '#f8f7f4' }}
+                  >
+                    <div style={{ width: '26px', height: '26px', borderRadius: '50%', flexShrink: 0, backgroundColor: cfg.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Megaphone style={{ width: '11px', height: '11px', color: cfg.color }} />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontSize: '12px', fontWeight: isRead ? 500 : 700, color: text, lineHeight: 1.3 }}>{n.title}</p>
+                      {n.body && <p style={{ fontSize: '11px', color: muted, marginTop: '2px', lineHeight: 1.4, whiteSpace: 'pre-wrap' }}>{n.body}</p>}
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px', flexShrink: 0 }}>
+                      <span style={{ fontSize: '10px', color: muted }}>{fmtTime(n.created_at)}</span>
+                      {!isRead && <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: cfg.color }} />}
+                    </div>
+                  </button>
+                )
+              })}
+            </>
+          )}
+
+          {/* Notificações de deal */}
+          {dealNotifs.length > 0 && (
+            <>
+              {teamNotifs.length > 0 && <div style={{ padding: '8px 16px 4px', display: 'flex', alignItems: 'center', gap: '6px', borderTop: `1px solid ${border}` }}>
+                <Bell style={{ width: '10px', height: '10px', color: muted }} />
+                <span style={{ fontSize: '9px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Pipeline</span>
+              </div>}
+              {dealNotifs.slice(0, 15).map((n) => {
+                const cfg: Record<NotificationType, { icon: typeof User; color: string; bg: string; label: string }> = {
+                  new_deal:         { icon: User,          color: '#2c5545', bg: isDark ? '#1e2e24' : '#e6f2ee', label: 'Novo lead criado' },
+                  overdue_activity: { icon: AlertTriangle, color: '#c53030', bg: isDark ? '#2d1515' : '#fee2e2', label: 'Atividade vencida' },
+                  sla_breach:       { icon: Clock,         color: '#b45309', bg: isDark ? '#2a1a0a' : '#fef3c7', label: 'SLA em risco' },
+                }
+                const { icon: Icon, color, bg: ibg, label } = cfg[n.type] ?? cfg.new_deal
+                return (
+                  <button key={n.id} type="button"
+                    onClick={() => { markRead(n.id); navigate(`/deal/${n.dealId}`); onClose() }}
+                    style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', width: '100%', padding: '10px 16px', textAlign: 'left', backgroundColor: n.read ? 'transparent' : (isDark ? '#1a1a18' : '#f8f7f4'), border: 'none', cursor: 'pointer', borderBottom: `1px solid ${border}`, transition: 'background-color 0.1s' }}
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = hover)}
+                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = n.read ? 'transparent' : (isDark ? '#1a1a18' : '#f8f7f4'))}>
+                    <div style={{ width: '26px', height: '26px', borderRadius: '50%', flexShrink: 0, backgroundColor: ibg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Icon style={{ width: '11px', height: '11px', color }} />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontSize: '12px', fontWeight: n.read ? 500 : 700, color: text, lineHeight: 1.3 }}>{label}</p>
+                      <p style={{ fontSize: '11px', color: muted, marginTop: '1px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n.dealName}</p>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px', flexShrink: 0 }}>
+                      <span style={{ fontSize: '10px', color: muted }}>{fmtTime(n.createdAt)}</span>
+                      {!n.read && <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#2c5545' }} />}
+                    </div>
+                  </button>
+                )
+              })}
+            </>
+          )}
+
+          {dealNotifs.length === 0 && teamNotifs.length === 0 && (
             <div style={{ padding: '32px 16px', textAlign: 'center' }}>
               <p style={{ fontSize: '12px', color: muted }}>Nenhuma notificação</p>
             </div>
-          ) : (
-            notifications.slice(0, 20).map((n) => (
-              <button
-                key={n.id}
-                type="button"
-                onClick={() => handleClickNotification(n)}
-                style={{
-                  display: 'flex', alignItems: 'flex-start', gap: '10px',
-                  width: '100%', padding: '12px 16px', textAlign: 'left',
-                  backgroundColor: n.read ? 'transparent' : (isDark ? '#1a1a18' : '#f8f7f4'),
-                  border: 'none', cursor: 'pointer',
-                  borderBottom: `1px solid ${border}`,
-                  transition: 'background-color 0.1s ease',
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = hover)}
-                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = n.read ? 'transparent' : (isDark ? '#1a1a18' : '#f8f7f4'))}
-              >
-                {(() => {
-                  const cfg: Record<NotificationType, { icon: typeof User; color: string; bg: string; label: string }> = {
-                    new_deal:         { icon: User,          color: '#2c5545', bg: isDark ? '#1e2e24' : '#e6f2ee', label: 'Novo lead criado' },
-                    overdue_activity: { icon: AlertTriangle, color: '#c53030', bg: isDark ? '#2d1515' : '#fee2e2', label: 'Atividade vencida' },
-                    sla_breach:       { icon: Clock,         color: '#b45309', bg: isDark ? '#2a1a0a' : '#fef3c7', label: 'SLA em risco' },
-                  }
-                  const { icon: Icon, color, bg, label } = cfg[n.type] ?? cfg.new_deal
-                  return (
-                    <>
-                      <div style={{ width: '28px', height: '28px', borderRadius: '50%', flexShrink: 0, backgroundColor: bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <Icon style={{ width: '12px', height: '12px', color }} />
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <p style={{ fontSize: '12px', fontWeight: n.read ? 500 : 700, color: text, lineHeight: 1.3 }}>{label}</p>
-                        <p style={{ fontSize: '11px', color: muted, marginTop: '1px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n.dealName}</p>
-                        {n.meta && <p style={{ fontSize: '10px', color, marginTop: '1px' }}>{n.meta}</p>}
-                      </div>
-                    </>
-                  )
-                })()}
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px', flexShrink: 0 }}>
-                  <span style={{ fontSize: '10px', color: muted }}>{fmtTime(n.createdAt)}</span>
-                  {!n.read && (
-                    <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#2c5545' }} />
-                  )}
-                </div>
-              </button>
-            ))
           )}
         </div>
       </div>
@@ -259,7 +256,8 @@ function UserMenu({ onClose, isDark }: { onClose: () => void; isDark: boolean })
 export function Header({ onOpenSearch }: { onOpenSearch?: () => void }) {
   const { isDark, toggle } = useThemeStore()
   const profile  = useAuthStore((s) => s.profile)
-  const notifications = useNotificationStore((s) => s.notifications)
+  const notifications     = useNotificationStore((s) => s.notifications)
+  const { notifications: teamNotifs, readIds: teamReadIds } = useTeamNotificationStore()
 
   const [showNotif, setShowNotif] = useState(false)
   const [showUser,  setShowUser]  = useState(false)
@@ -267,7 +265,7 @@ export function Header({ onOpenSearch }: { onOpenSearch?: () => void }) {
   const notifRef = useRef<HTMLDivElement>(null)
   const userRef  = useRef<HTMLDivElement>(null)
 
-  const unreadCount = notifications.filter((n) => !n.read).length
+  const unreadCount = notifications.filter((n) => !n.read).length + teamNotifs.filter((n) => !teamReadIds.has(n.id)).length
 
   const displayColor    = profile?.avatar_color ?? '#e31e24'
   const displayName     = profile?.full_name || 'Usuário'

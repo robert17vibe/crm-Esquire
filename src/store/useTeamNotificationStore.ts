@@ -34,15 +34,18 @@ export const useTeamNotificationStore = create<TeamNotifStore>((set, get) => ({
 
   fetch: async () => {
     set({ isLoading: true })
-    const [{ data: notifs }, { data: reads }] = await Promise.all([
-      supabase.from('team_notifications').select('*').order('created_at', { ascending: false }),
-      supabase.from('notification_reads').select('notification_id'),
-    ])
-    set({
-      notifications: (notifs ?? []) as TeamNotification[],
-      readIds: new Set((reads ?? []).map((r: { notification_id: string }) => r.notification_id)),
-      isLoading: false,
-    })
+    try {
+      const [{ data: notifs, error: e1 }, { data: reads }] = await Promise.all([
+        supabase.from('team_notifications').select('*').order('created_at', { ascending: false }),
+        supabase.from('notification_reads').select('notification_id'),
+      ])
+      if (e1) { set({ isLoading: false }); return }
+      set({
+        notifications: (notifs ?? []) as TeamNotification[],
+        readIds: new Set((reads ?? []).map((r: { notification_id: string }) => r.notification_id)),
+        isLoading: false,
+      })
+    } catch { set({ isLoading: false }) }
   },
 
   create: async (payload) => {
@@ -52,8 +55,13 @@ export const useTeamNotificationStore = create<TeamNotifStore>((set, get) => ({
       .insert({ ...payload, created_by: me?.user?.id })
       .select()
       .single()
-    if (error) throw new Error(error.message)
-    if (data) set((s) => ({ notifications: [data as TeamNotification, ...s.notifications] }))
+    if (error) {
+      throw new Error(error.message)
+    }
+    if (data) set((s) => {
+      if (s.notifications.some((n) => n.id === (data as TeamNotification).id)) return s
+      return { notifications: [data as TeamNotification, ...s.notifications] }
+    })
   },
 
   archive: async (id) => {
@@ -80,7 +88,10 @@ export const useTeamNotificationStore = create<TeamNotifStore>((set, get) => ({
       .channel('team-notifications-rt')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'team_notifications' }, (payload) => {
         const n = payload.new as TeamNotification
-        set((s) => ({ notifications: [n, ...s.notifications] }))
+        set((s) => {
+          if (s.notifications.some((x) => x.id === n.id)) return s
+          return { notifications: [n, ...s.notifications] }
+        })
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'team_notifications' }, (payload) => {
         const n = payload.new as TeamNotification

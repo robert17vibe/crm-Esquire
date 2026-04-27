@@ -51,8 +51,9 @@ export const useNotificationStore = create<NotificationStore>((set, get) => ({
 
   // Only adds alert if there's no existing unread alert of same type for this deal
   addAlertIfNew: (dealId, dealName, type, meta) => {
+    // check read OR unread — once seen, never re-adds the same alert
     const existing = get().notifications.find(
-      (n) => n.dealId === dealId && n.type === type && !n.read,
+      (n) => n.dealId === dealId && n.type === type,
     )
     if (existing) return
     const n: AppNotification = {

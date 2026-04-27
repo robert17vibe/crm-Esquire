@@ -515,13 +515,14 @@ function ProposalTab({ deal, isDark, border, text, muted, inputBg }: {
     try { const d = JSON.parse(localStorage.getItem(storageKey) ?? '{}'); return d[key] ?? fallback } catch { return fallback }
   }
 
-  const [intro,    setIntro]    = useState(() => load('intro', ''))
-  const [validity, setValidity] = useState(() => load('validity', ''))
-  const [payment,  setPayment]  = useState(() => load('payment', ''))
-  const [terms,    setTerms]    = useState(() => load('terms', ''))
-  const [lines,    setLines]    = useState<ProposalLine[]>(() => load('lines', []))
-  const [saved,    setSaved]    = useState(false)
-  const [preview,  setPreview]  = useState(false)
+  const [intro,      setIntro]      = useState(() => load('intro', ''))
+  const [validity,   setValidity]   = useState(() => load('validity', ''))
+  const [payment,    setPayment]    = useState(() => load('payment', ''))
+  const [terms,      setTerms]      = useState(() => load('terms', ''))
+  const [lines,      setLines]      = useState<ProposalLine[]>(() => load('lines', []))
+  const [freeValue,  setFreeValue]  = useState<string>(() => load('freeValue', ''))
+  const [saved,      setSaved]      = useState(false)
+  const [preview,    setPreview]    = useState(false)
 
   const total = lines.reduce((s, l) => s + l.qty * l.unit_price, 0)
 
@@ -538,7 +539,7 @@ function ProposalTab({ deal, isDark, border, text, muted, inputBg }: {
   }
 
   function handleSave() {
-    localStorage.setItem(storageKey, JSON.stringify({ intro, validity, payment, terms, lines }))
+    localStorage.setItem(storageKey, JSON.stringify({ intro, validity, payment, terms, lines, freeValue }))
     setSaved(true); setTimeout(() => setSaved(false), 2000)
   }
 
@@ -557,6 +558,7 @@ function ProposalTab({ deal, isDark, border, text, muted, inputBg }: {
       linesTxt || '  (sem itens)',
       '',
       `TOTAL: ${fmtBRL(total)}`,
+      freeValue ? `Valor negociado: ${freeValue}` : '',
       '',
       payment ? `Condições de pagamento:\n${payment}` : '',
       terms   ? `\nTermos e condições:\n${terms}` : '',
@@ -648,6 +650,14 @@ function ProposalTab({ deal, isDark, border, text, muted, inputBg }: {
                     <p style={{ fontSize: '22px', fontWeight: 700, color: '#0d0d0b', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em' }}>{fmtBRL(total)}</p>
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* Valor negociado */}
+            {freeValue && (
+              <div style={{ paddingTop: '12px', borderTop: '1px solid #e4e0da' }}>
+                <p style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#8a857d', marginBottom: '4px' }}>Valor Negociado</p>
+                <p style={{ fontSize: '16px', fontWeight: 700, color: '#0d0d0b' }}>{freeValue}</p>
               </div>
             )}
 
@@ -761,6 +771,10 @@ function ProposalTab({ deal, isDark, border, text, muted, inputBg }: {
             <label style={lbl}>Condições de pagamento</label>
             <input value={payment} onChange={(e) => setPayment(e.target.value)} placeholder="Ex: 50% entrada, 50% na entrega" style={{ ...inp, width: '100%' }} />
           </div>
+        </div>
+        <div style={{ marginTop: '10px' }}>
+          <label style={lbl}>Valor negociado</label>
+          <input value={freeValue} onChange={(e) => setFreeValue(e.target.value)} placeholder="Ex: R$ 12.000,00 ou a definir em reunião" style={{ ...inp, width: '100%' }} />
         </div>
         <div style={{ marginTop: '10px' }}>
           <label style={lbl}>Termos e condições</label>
@@ -981,29 +995,6 @@ export function DealDetailPage() {
             <Mail style={{ width: '12px', height: '12px' }} />
             Email
           </a>
-          <button type="button"
-            onClick={() => moveDeal(deal.id, 'closed_won')}
-            disabled={deal.stage_id === 'closed_won'}
-            style={{
-              height: '30px', padding: '0 14px', borderRadius: 'var(--radius-sm)',
-              border: 'none', backgroundColor: deal.stage_id === 'closed_won' ? '#16a34a22' : '#16a34a',
-              fontSize: '12px', fontWeight: 600,
-              color: deal.stage_id === 'closed_won' ? '#16a34a' : '#fff',
-              cursor: deal.stage_id === 'closed_won' ? 'default' : 'pointer',
-            }}>
-            {deal.stage_id === 'closed_won' ? '✓ Ganho' : 'Marcar Ganho'}
-          </button>
-          <button type="button"
-            onClick={() => { setPendingLossStage(true); setLossReasonDraft('') }}
-            disabled={deal.stage_id === 'closed_lost'}
-            style={{
-              height: '30px', padding: '0 14px', borderRadius: 'var(--radius-sm)',
-              border: '1px solid var(--line)', backgroundColor: 'transparent',
-              fontSize: '12px', fontWeight: 500, color: deal.stage_id === 'closed_lost' ? '#dc2626' : 'var(--ink-muted)',
-              cursor: deal.stage_id === 'closed_lost' ? 'default' : 'pointer',
-            }}>
-            {deal.stage_id === 'closed_lost' ? '✗ Perdido' : 'Marcar Perdido'}
-          </button>
         </div>
       </div>
 
@@ -1369,61 +1360,6 @@ export function DealDetailPage() {
             </div>
           </div>
 
-          {/* ── Contatos card ── */}
-          <div className="card" style={{ padding: '14px 16px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-              <p className="section-header">Contatos ({deal.stakeholders?.length ?? 0})</p>
-              <button type="button" onClick={() => { setShowAddStakeholder((v) => !v); if (!showAddStakeholder) loadProfiles() }}
-                style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '10px', fontWeight: 600, color: showAddStakeholder ? muted : 'var(--brand)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px' }}>
-                {showAddStakeholder ? <><X style={{ width: '10px', height: '10px' }} />Fechar</> : <><Plus style={{ width: '10px', height: '10px' }} />Adicionar</>}
-              </button>
-            </div>
-            {showAddStakeholder && (
-              <div style={{ marginBottom: '10px', padding: '8px', backgroundColor: 'var(--surface-raised)', borderRadius: 'var(--radius-md)', border: '1px solid var(--line)' }}>
-                {loadingProfiles ? (
-                  <p style={{ fontSize: '11px', color: muted, textAlign: 'center', padding: '4px 0' }}>Carregando...</p>
-                ) : profiles.length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: '4px 0' }}>
-                    <p style={{ fontSize: '11px', color: muted, fontStyle: 'italic', marginBottom: '6px' }}>Nenhum perfil encontrado</p>
-                    <button type="button" onClick={() => loadProfiles(true)} style={{ fontSize: '10px', fontWeight: 600, color: 'var(--brand)', background: 'none', border: 'none', cursor: 'pointer' }}>Tentar novamente</button>
-                  </div>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '160px', overflowY: 'auto' }}>
-                    {profiles
-                      .map((p) => ({ ...p, displayName: p.full_name || p.email.split('@')[0] }))
-                      .filter((p) => !(deal.stakeholders ?? []).some((s) => s.name === p.displayName))
-                      .map((p) => (
-                        <button key={p.id} type="button" onClick={() => addStakeholder(p)}
-                          style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '5px 6px', borderRadius: 'var(--radius-sm)', border: 'none', backgroundColor: 'transparent', cursor: 'pointer', textAlign: 'left', width: '100%' }}
-                          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--surface-overlay)')}
-                          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}>
-                          <UserAvatarRow name={p.displayName} initials={getInitials(p.displayName)} color={p.avatar_color || getAvatarColor(p.id)} size="xs" textColor={text} />
-                        </button>
-                      ))}
-                  </div>
-                )}
-              </div>
-            )}
-            {(deal.stakeholders ?? []).length > 0 ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '7px' }}>
-                {deal.stakeholders!.map((s, i) => (
-                  <div key={`${s.name}-${i}`} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <div style={{ width: '24px', height: '24px', borderRadius: 'var(--radius-full)', backgroundColor: s.color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '7px', fontWeight: 700, flexShrink: 0 }}>{s.initials}</div>
-                    <span style={{ fontSize: '12px', fontWeight: 500, color: text, flex: 1 }}>{s.name}</span>
-                    <button type="button" title="Remover" onClick={() => removeStakeholder(i)}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: muted, padding: '2px', borderRadius: '3px', lineHeight: 1, flexShrink: 0 }}
-                      onMouseEnter={(e) => (e.currentTarget.style.color = '#c53030')}
-                      onMouseLeave={(e) => (e.currentTarget.style.color = muted)}>
-                      <X style={{ width: '11px', height: '11px' }} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p style={{ fontSize: '11px', color: muted, fontStyle: 'italic' }}>Nenhum contato mapeado</p>
-            )}
-          </div>
-
           {/* ── Saúde card ── */}
           <div className="card" style={{ padding: '14px 16px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '12px' }}>
@@ -1532,8 +1468,8 @@ export function DealDetailPage() {
                     <p style={{ fontSize: '22px', fontWeight: 700, color: '#2d9e6b', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em' }}>{formatCurrency(deal.value)}</p>
                   </div>
                   <div className="card" style={{ padding: '16px 18px' }}>
-                    <p className="section-header" style={{ marginBottom: '6px' }}>Previsão</p>
-                    <p style={{ fontSize: '22px', fontWeight: 700, color: text, letterSpacing: '-0.02em' }}>{deal.expected_close ? formatDate(deal.expected_close) : '—'}</p>
+                    <p className="section-header" style={{ marginBottom: '6px' }}>Probabilidade</p>
+                    <p style={{ fontSize: '22px', fontWeight: 700, color: deal.probability >= 70 ? '#16a34a' : deal.probability >= 35 ? '#f59e0b' : '#ef4444', letterSpacing: '-0.02em', fontVariantNumeric: 'tabular-nums' }}>{deal.probability}%</p>
                   </div>
                 </div>
 

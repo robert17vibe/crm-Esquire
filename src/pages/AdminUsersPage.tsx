@@ -61,10 +61,16 @@ function InviteDrawer({ isDark, teams, onClose, onCreated }: {
           team_id: teamId || null,
         },
       })
-      if (fnErr) throw new Error(fnErr.message)
+      if (fnErr) {
+        const msg = fnErr.message ?? ''
+        if (msg.toLowerCase().includes('failed to fetch') || msg.toLowerCase().includes('not found') || msg.includes('404')) {
+          throw new Error('Edge Function não deployada. Corre: supabase functions deploy create-user')
+        }
+        throw new Error(msg || 'Erro na Edge Function')
+      }
       if (data?.error) throw new Error(data.error)
-      onCreated()
       onClose()
+      setTimeout(() => onCreated(), 800)
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Erro ao criar utilizador')
     } finally {
@@ -197,11 +203,20 @@ export function AdminUsersPage() {
 
   async function loadUsers() {
     setLoading(true)
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('profiles')
       .select('id, full_name, email, is_admin, avatar_color, team_id, disabled_at, invited_at')
       .order('full_name')
-    setUsers((data ?? []) as UserRow[])
+    if (error) {
+      // email column may not exist yet — fallback without it
+      const { data: fallback } = await supabase
+        .from('profiles')
+        .select('id, full_name, is_admin, avatar_color, team_id, disabled_at, invited_at')
+        .order('full_name')
+      setUsers((fallback ?? []).map((u) => ({ email: '', ...u })) as UserRow[])
+    } else {
+      setUsers((data ?? []) as UserRow[])
+    }
     setLoading(false)
   }
 
@@ -267,7 +282,7 @@ export function AdminUsersPage() {
         </div>
       </div>
 
-      <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px' }}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px 40px' }}>
         {loading ? (
           <p style={{ fontSize: '13px', color: muted, textAlign: 'center', paddingTop: '40px' }}>A carregar...</p>
         ) : (

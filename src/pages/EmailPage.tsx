@@ -1,4 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
+import { useActivityStore } from '@/store/useActivityStore'
+import { useAuthStore } from '@/store/useAuthStore'
+import { useDealStore } from '@/store/useDealStore'
 import {
   Mail,
   Send,
@@ -7,12 +11,9 @@ import {
   Trash2,
   Tag,
   Reply,
-  Link2,
   Plus,
   Search,
   Forward,
-  Star,
-  MoreHorizontal,
   X,
 } from 'lucide-react'
 import { useThemeStore } from '@/store/useThemeStore'
@@ -20,7 +21,7 @@ import { useThemeStore } from '@/store/useThemeStore'
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type LabelKey = 'importante' | 'follow-up' | 'cliente' | 'interno' | 'proposta'
-type FolderKey = 'inbox' | 'sent' | 'drafts' | 'archived'
+type FolderKey = 'inbox' | 'sent' | 'drafts' | 'archived' | 'trash'
 
 interface EmailFrom {
   name: string
@@ -39,6 +40,7 @@ interface EmailThread {
   labels: LabelKey[]
   read: boolean
   folder: FolderKey
+  previousFolder?: FolderKey
 }
 
 // ─── Mock Data ────────────────────────────────────────────────────────────────
@@ -206,6 +208,7 @@ const FOLDERS: { key: FolderKey; label: string; icon: React.ComponentType<{ styl
   { key: 'sent',     label: 'Enviados',          icon: Send     },
   { key: 'drafts',   label: 'Rascunhos',         icon: FileText },
   { key: 'archived', label: 'Arquivados',        icon: Archive  },
+  { key: 'trash',    label: 'Lixeira',           icon: Trash2   },
 ]
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -238,8 +241,13 @@ function AvatarInitials({ initials, color, size = 32 }: { initials: string; colo
 // ─── EmailPage ────────────────────────────────────────────────────────────────
 
 export function EmailPage() {
-  const isDark = useThemeStore((s) => s.isDark)
+  const isDark       = useThemeStore((s) => s.isDark)
+  const addActivity  = useActivityStore((s) => s.addActivity)
+  const profile      = useAuthStore((s) => s.profile)
+  const deals        = useDealStore((s) => s.deals)
+  const [searchParams] = useSearchParams()
   const [activeFolder, setActiveFolder] = useState<FolderKey>('inbox')
+  const [activeLabel, setActiveLabel] = useState<LabelKey | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [showReply, setShowReply] = useState(false)
@@ -249,6 +257,52 @@ export function EmailPage() {
   const [composeSubject, setComposeSubject] = useState('')
   const [composeBody, setComposeBody] = useState('')
   const [composeSent, setComposeSent] = useState(false)
+  const [emails, setEmails] = useState<EmailThread[]>(() => {
+    try {
+      const saved = localStorage.getItem('esq_emails_state_v1')
+      if (saved) {
+        const parsed = JSON.parse(saved) as EmailThread[]
+        // merge saved state (folder, read, labels) onto MOCK_EMAILS so new mocks are included
+        return MOCK_EMAILS.map((m) => {
+          const s = parsed.find((p) => p.id === m.id)
+          return s ? { ...m, folder: s.folder, read: s.read, labels: s.labels, previousFolder: s.previousFolder } : m
+        })
+      }
+    } catch { /* ignore */ }
+    return MOCK_EMAILS
+  })
+  const [replySent, setReplySent] = useState(false)
+  const [showLabelMenu, setShowLabelMenu] = useState(false)
+
+  const owner = profile ? { id: profile.id, name: profile.full_name ?? '', initials: (profile.full_name ?? '?').split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase(), avatar_color: profile.avatar_color ?? '#6b6560' } : { id: '', name: '', initials: '?', avatar_color: '#6b6560' }
+
+  function saveEmails(next: EmailThread[]) {
+    try { localStorage.setItem('esq_emails_state_v1', JSON.stringify(next)) } catch { /* ignore */ }
+  }
+
+  function updateEmails(updater: (prev: EmailThread[]) => EmailThread[]) {
+    setEmails((prev) => { const next = updater(prev); saveEmails(next); return next })
+  }
+
+  // Abrir compose pré-preenchido se vier de ?to=
+  useEffect(() => {
+    const to = searchParams.get('to')
+    if (to) {
+      setComposeTo(to)
+      setShowCompose(true)
+    }
+  }, [searchParams])
+
+  function findDealByEmail(email: string) {
+    return deals.find((d) => d.contact_email === email)
+  }
+
+  function logEmail(toEmail: string, subject: string) {
+    const deal = findDealByEmail(toEmail)
+    if (deal && owner.id) {
+      addActivity(deal.id, { type: 'email', subject: subject || `Email para ${toEmail}`, owner })
+    }
+  }
 
   const border   = isDark ? '#242422' : '#e4e0da'
   const text     = isDark ? '#e8e4dc' : '#1a1814'
@@ -259,9 +313,10 @@ export function EmailPage() {
   const hoverBg  = isDark ? '#1c1c1a' : '#f8f7f4'
   const inputBg  = isDark ? '#111110' : '#f5f4f1'
 
-  const inboxUnread = MOCK_EMAILS.filter((e) => e.folder === 'inbox' && !e.read).length
+  const inboxUnread = emails.filter((e) => e.folder === 'inbox' && !e.read).length
 
-  const visibleEmails = MOCK_EMAILS.filter((e) => {
+  const visibleEmails = emails.filter((e) => {
+    if (activeLabel) return e.labels.includes(activeLabel)
     if (e.folder !== activeFolder) return false
     if (!searchQuery.trim()) return true
     const q = searchQuery.toLowerCase()
@@ -272,7 +327,44 @@ export function EmailPage() {
     )
   })
 
-  const selectedEmail = MOCK_EMAILS.find((e) => e.id === selectedId) ?? null
+  const selectedEmail = emails.find((e) => e.id === selectedId) ?? null
+
+  function archiveEmail(id: string) {
+    updateEmails((prev) => prev.map((e) => e.id === id ? { ...e, previousFolder: e.folder, folder: 'archived' as FolderKey } : e))
+    setSelectedId(null)
+  }
+
+  function deleteEmail(id: string) {
+    updateEmails((prev) => {
+      const email = prev.find((e) => e.id === id)
+      if (email?.folder === 'trash') {
+        // Restaurar para a pasta anterior, ou inbox se não houver
+        const restore = email.previousFolder ?? 'inbox'
+        return prev.map((e) => e.id === id ? { ...e, folder: restore, previousFolder: undefined } : e)
+      }
+      return prev.map((e) => e.id === id ? { ...e, previousFolder: e.folder, folder: 'trash' as FolderKey } : e)
+    })
+    setSelectedId(null)
+  }
+
+  function toggleLabel(id: string, label: LabelKey) {
+    updateEmails((prev) => prev.map((e) => e.id === id
+      ? { ...e, labels: e.labels.includes(label) ? e.labels.filter((l) => l !== label) : [...e.labels, label] }
+      : e
+    ))
+  }
+
+  function markRead(id: string) {
+    updateEmails((prev) => prev.map((e) => e.id === id ? { ...e, read: true } : e))
+  }
+
+  function forwardEmail(email: EmailThread) {
+    setComposeTo('')
+    setComposeSubject(`Fwd: ${email.subject}`)
+    setComposeBody(`\n\n--- Mensagem original ---\nDe: ${email.from.name} <${email.from.email}>\n\n${email.body}`)
+    setComposeSent(false)
+    setShowCompose(true)
+  }
 
   return (
     <div style={{
@@ -350,7 +442,7 @@ export function EmailPage() {
               <button
                 key={key}
                 type="button"
-                onClick={() => { setActiveFolder(key); setSelectedId(null); setShowReply(false) }}
+                onClick={() => { setActiveFolder(key); setActiveLabel(null); setSelectedId(null); setShowReply(false) }}
                 style={{
                   display: 'flex', alignItems: 'center', gap: '8px',
                   height: '32px', padding: '0 10px', borderRadius: '0',
@@ -378,22 +470,6 @@ export function EmailPage() {
               </button>
             )
           })}
-          <button
-            type="button"
-            onClick={() => { setActiveFolder('archived'); setSelectedId(null) }}
-            style={{
-              display: 'flex', alignItems: 'center', gap: '8px',
-              height: '32px', padding: '0 10px', borderRadius: '7px',
-              border: 'none', cursor: 'pointer', width: '100%', textAlign: 'left',
-              fontSize: '12px', fontWeight: 500, color: muted, backgroundColor: 'transparent',
-              transition: 'background-color 0.12s ease',
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = hoverBg)}
-            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-          >
-            <Trash2 style={{ width: '13px', height: '13px', flexShrink: 0 }} />
-            <span>Lixeira</span>
-          </button>
         </nav>
 
         {/* Labels */}
@@ -405,18 +481,28 @@ export function EmailPage() {
             </span>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
-            {(Object.entries(LABEL_CONFIG) as [LabelKey, typeof LABEL_CONFIG[LabelKey]][]).map(([key, cfg]) => (
-              <div key={key} style={{
-                display: 'flex', alignItems: 'center', gap: '8px',
-                height: '28px', padding: '0 10px', borderRadius: '6px', cursor: 'pointer',
-              }}
-                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = hoverBg)}
-                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-              >
-                <span style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: cfg.color, flexShrink: 0 }} />
-                <span style={{ fontSize: '12px', color: muted }}>{cfg.label}</span>
-              </div>
-            ))}
+            {(Object.entries(LABEL_CONFIG) as [LabelKey, typeof LABEL_CONFIG[LabelKey]][]).map(([key, cfg]) => {
+              const isActiveLbl = activeLabel === key
+              const count = emails.filter((e) => e.labels.includes(key)).length
+              return (
+                <button key={key} type="button"
+                  onClick={() => { setActiveLabel(isActiveLbl ? null : key); setSelectedId(null) }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '8px',
+                    height: '28px', padding: '0 10px', borderRadius: '6px', cursor: 'pointer',
+                    border: 'none', width: '100%', textAlign: 'left',
+                    backgroundColor: isActiveLbl ? `${cfg.color}14` : 'transparent',
+                    transition: 'background-color 0.1s',
+                  }}
+                  onMouseEnter={(e) => { if (!isActiveLbl) e.currentTarget.style.backgroundColor = hoverBg }}
+                  onMouseLeave={(e) => { if (!isActiveLbl) e.currentTarget.style.backgroundColor = 'transparent' }}
+                >
+                  <span style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: cfg.color, flexShrink: 0 }} />
+                  <span style={{ fontSize: '12px', color: isActiveLbl ? cfg.color : muted, fontWeight: isActiveLbl ? 600 : 400, flex: 1 }}>{cfg.label}</span>
+                  {count > 0 && <span style={{ fontSize: '10px', color: isActiveLbl ? cfg.color : faint }}>{count}</span>}
+                </button>
+              )
+            })}
           </div>
         </div>
       </aside>
@@ -437,7 +523,7 @@ export function EmailPage() {
           backgroundColor: isDark ? '#111110' : '#fafaf8',
         }}>
           <span style={{ fontSize: '12px', fontWeight: 700, color: text, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-            {FOLDERS.find((f) => f.key === activeFolder)?.label ?? 'Email'}
+            {activeLabel ? LABEL_CONFIG[activeLabel].label : (FOLDERS.find((f) => f.key === activeFolder)?.label ?? 'Email')}
           </span>
           <span style={{ fontSize: '10px', color: muted }}>
             {visibleEmails.length} mensagem{visibleEmails.length !== 1 ? 's' : ''}
@@ -457,7 +543,7 @@ export function EmailPage() {
                 <button
                   key={email.id}
                   type="button"
-                  onClick={() => { setSelectedId(email.id); setShowReply(false) }}
+                  onClick={() => { setSelectedId(email.id); setShowReply(false); if (!email.read) markRead(email.id) }}
                   style={{
                     display: 'flex', alignItems: 'flex-start', gap: '10px',
                     width: '100%', padding: '11px 16px', textAlign: 'left',
@@ -514,17 +600,44 @@ export function EmailPage() {
                 <h2 style={{ fontSize: '16px', fontWeight: 700, color: text, lineHeight: 1.3, flex: 1, marginRight: '16px' }}>
                   {selectedEmail.subject}
                 </h2>
-                <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
-                  <button type="button" style={{ width: '28px', height: '28px', borderRadius: '6px', border: `1px solid ${border}`, backgroundColor: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: muted }}
-                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = hoverBg)}
-                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}>
-                    <Star style={{ width: '12px', height: '12px' }} />
+                <div style={{ display: 'flex', gap: '4px', flexShrink: 0, position: 'relative' }}>
+                  {/* Label picker */}
+                  <button type="button"
+                    onClick={() => setShowLabelMenu((v) => !v)}
+                    title="Gerir etiquetas"
+                    style={{ width: '28px', height: '28px', borderRadius: '6px', border: `1px solid ${showLabelMenu ? '#e31e24' : border}`, backgroundColor: showLabelMenu ? 'rgba(227,30,36,0.08)' : 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: showLabelMenu ? '#e31e24' : muted }}
+                    onMouseEnter={(e) => { if (!showLabelMenu) e.currentTarget.style.backgroundColor = hoverBg }}
+                    onMouseLeave={(e) => { if (!showLabelMenu) e.currentTarget.style.backgroundColor = 'transparent' }}>
+                    <Tag style={{ width: '12px', height: '12px' }} />
                   </button>
-                  <button type="button" style={{ width: '28px', height: '28px', borderRadius: '6px', border: `1px solid ${border}`, backgroundColor: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: muted }}
-                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = hoverBg)}
-                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}>
-                    <MoreHorizontal style={{ width: '12px', height: '12px' }} />
+                  {/* Delete button */}
+                  <button type="button"
+                    onClick={() => deleteEmail(selectedEmail.id)}
+                    title={selectedEmail.folder === 'trash' ? 'Restaurar email' : 'Mover para lixeira'}
+                    style={{ width: '28px', height: '28px', borderRadius: '6px', border: `1px solid ${border}`, backgroundColor: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                    onMouseEnter={(e) => { const b = e.currentTarget; b.style.backgroundColor = 'rgba(227,30,36,0.08)'; b.style.borderColor = '#e31e24'; b.style.color = '#e31e24' }}
+                    onMouseLeave={(e) => { const b = e.currentTarget; b.style.backgroundColor = 'transparent'; b.style.borderColor = border; b.style.color = muted }}>
+                    <Trash2 style={{ width: '12px', height: '12px' }} />
                   </button>
+                  {/* Dropdown */}
+                  {showLabelMenu && (
+                    <div style={{ position: 'absolute', top: '32px', right: 0, zIndex: 50, backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '10px', padding: '6px', boxShadow: '0 8px 24px rgba(0,0,0,0.15)', minWidth: '160px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                      {(Object.entries(LABEL_CONFIG) as [LabelKey, typeof LABEL_CONFIG[LabelKey]][]).map(([key, cfg]) => {
+                        const has = selectedEmail.labels.includes(key)
+                        return (
+                          <button key={key} type="button"
+                            onClick={() => { toggleLabel(selectedEmail.id, key); }}
+                            style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 10px', borderRadius: '6px', border: 'none', cursor: 'pointer', backgroundColor: has ? `${cfg.color}14` : 'transparent', width: '100%', textAlign: 'left' }}
+                            onMouseEnter={(e) => { if (!has) e.currentTarget.style.backgroundColor = hoverBg }}
+                            onMouseLeave={(e) => { if (!has) e.currentTarget.style.backgroundColor = 'transparent' }}>
+                            <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: cfg.color, flexShrink: 0 }} />
+                            <span style={{ fontSize: '12px', fontWeight: has ? 600 : 400, color: has ? cfg.color : text, flex: 1 }}>{cfg.label}</span>
+                            {has && <span style={{ fontSize: '10px', color: cfg.color }}>✓</span>}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
                 </div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -585,21 +698,28 @@ export function EmailPage() {
                   }}
                 />
                 <div style={{ padding: '8px 14px', display: 'flex', gap: '8px', borderTop: `1px solid ${border}` }}>
-                  <button type="button"
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: '5px',
-                      height: '30px', padding: '0 14px', borderRadius: '4px',
-                      backgroundColor: '#e31e24', color: '#fff', border: 'none',
-                      fontSize: '11px', fontWeight: 700, cursor: 'pointer',
-                      textTransform: 'uppercase', letterSpacing: '0.06em',
-                    }}
-                    onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.85')}
-                    onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
-                  >
-                    <Send style={{ width: '11px', height: '11px' }} />
-                    Enviar
-                  </button>
-                  <button type="button" onClick={() => setShowReply(false)}
+                  {replySent ? (
+                    <span style={{ fontSize: '12px', color: '#16a34a', fontWeight: 600, padding: '6px 0' }}>✓ Resposta enviada</span>
+                  ) : (
+                    <button type="button"
+                      disabled={!replyText.trim()}
+                      onClick={() => { markRead(selectedEmail.id); logEmail(selectedEmail.from.email, `Re: ${selectedEmail.subject}`); setReplySent(true); setTimeout(() => { setShowReply(false); setReplyText(''); setReplySent(false) }, 1500) }}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: '5px',
+                        height: '30px', padding: '0 14px', borderRadius: '4px',
+                        backgroundColor: replyText.trim() ? '#e31e24' : (isDark ? '#2a2a28' : '#e4e0da'),
+                        color: replyText.trim() ? '#fff' : muted, border: 'none',
+                        fontSize: '11px', fontWeight: 700, cursor: replyText.trim() ? 'pointer' : 'not-allowed',
+                        textTransform: 'uppercase', letterSpacing: '0.06em',
+                      }}
+                      onMouseEnter={(e) => { if (replyText.trim()) e.currentTarget.style.opacity = '0.85' }}
+                      onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
+                    >
+                      <Send style={{ width: '11px', height: '11px' }} />
+                      Enviar
+                    </button>
+                  )}
+                  <button type="button" onClick={() => { setShowReply(false); setReplySent(false) }}
                     style={{
                       height: '30px', padding: '0 12px', borderRadius: '4px',
                       backgroundColor: 'transparent', border: `1px solid ${border}`,
@@ -632,12 +752,11 @@ export function EmailPage() {
                 <Reply style={{ width: '12px', height: '12px' }} />
                 Responder
               </button>
-              {[
-                { icon: Forward, label: 'Reencaminhar' },
-                { icon: Archive, label: 'Arquivar' },
-                { icon: Link2,   label: 'Associar deal' },
-              ].map(({ icon: Icon, label }) => (
-                <button key={label} type="button"
+              {([
+                { icon: Forward, label: 'Reencaminhar', action: () => forwardEmail(selectedEmail) },
+                { icon: Archive, label: 'Arquivar',     action: () => archiveEmail(selectedEmail.id) },
+              ] as { icon: React.ComponentType<{ style?: React.CSSProperties }>, label: string, action: () => void }[]).map(({ icon: Icon, label, action }) => (
+                <button key={label} type="button" onClick={action}
                   style={{
                     display: 'flex', alignItems: 'center', gap: '6px',
                     height: '32px', padding: '0 12px', borderRadius: '4px',
@@ -716,7 +835,7 @@ export function EmailPage() {
                 <div style={{ padding: '12px 16px', borderTop: `1px solid ${border}`, display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <button type="button"
                     disabled={!composeTo.trim() || !composeSubject.trim()}
-                    onClick={() => setComposeSent(true)}
+                    onClick={() => { logEmail(composeTo.trim(), composeSubject.trim()); setComposeSent(true) }}
                     style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '0 18px', height: '34px', borderRadius: '4px', backgroundColor: (!composeTo.trim() || !composeSubject.trim()) ? (isDark ? '#2a2a28' : '#e4e0da') : '#e31e24', color: (!composeTo.trim() || !composeSubject.trim()) ? muted : '#fff', border: 'none', cursor: (!composeTo.trim() || !composeSubject.trim()) ? 'not-allowed' : 'pointer', fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                     <Send style={{ width: '12px', height: '12px' }} />
                     Enviar

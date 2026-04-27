@@ -157,9 +157,11 @@ function CreateDrawer({ isDark, teams, onClose }: {
         {/* Footer */}
         <div style={{ padding: '16px 20px', borderTop: `1px solid ${border}`, display: 'flex', flexDirection: 'column', gap: '10px' }}>
           {error && (
-            <p style={{ fontSize: '12px', color: '#ef4444', backgroundColor: isDark ? '#2d1515' : '#fff5f5', border: '1px solid #fecaca', borderRadius: '6px', padding: '8px 12px' }}>
-              {error}
-            </p>
+            <div style={{ fontSize: '11px', color: '#ef4444', backgroundColor: isDark ? '#2d1515' : '#fff5f5', border: '1px solid #fecaca', borderRadius: '6px', padding: '8px 12px', maxHeight: '56px', overflowY: 'auto', lineHeight: 1.5 }}>
+              {error.includes('ainda não foi criada')
+                ? 'Tabela não encontrada. Aplica a migração SQL no Supabase Studio antes de enviar.'
+                : error}
+            </div>
           )}
           <div style={{ display: 'flex', gap: '10px' }}>
             <button type="button" onClick={onClose} style={{ flex: 1, height: '38px', borderRadius: '8px', border: `1px solid ${border}`, backgroundColor: 'transparent', color: muted, fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
@@ -186,6 +188,7 @@ export function AdminNotificationsPage() {
 
   const [showCreate, setShowCreate] = useState(false)
   const [filter, setFilter] = useState<NotifType | 'all'>('all')
+  const [teamFilter, setTeamFilter] = useState<string>('all')
   const archiveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
 
   const bg      = isDark ? '#0d0c0a' : '#f5f4f0'
@@ -205,9 +208,12 @@ export function AdminNotificationsPage() {
     clearTimeout(archiveTimers.current[id])
   }
 
-  const filtered = filter === 'all'
-    ? notifications
-    : notifications.filter((n) => n.type === filter)
+  const filtered = notifications
+    .filter((n) => filter === 'all' || n.type === filter)
+    .filter((n) => teamFilter === 'all'
+      ? true
+      : teamFilter === 'global' ? n.team_id == null : n.team_id === teamFilter
+    )
 
   const teamName = (id: string | null | undefined) => teams.find((t) => t.id === id)?.name ?? 'Toda a equipa'
 
@@ -223,14 +229,25 @@ export function AdminNotificationsPage() {
             {notifications.length} ativas
           </span>
         </div>
-        <button type="button" onClick={() => setShowCreate(true)} style={{
-          height: '32px', padding: '0 14px', borderRadius: '8px', border: 'none',
-          backgroundColor: '#e31e24', color: '#fff', fontSize: '12px', fontWeight: 700,
-          cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px',
-        }}>
-          <Plus style={{ width: '13px', height: '13px' }} />
-          Nova Notificação
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <select
+            value={teamFilter}
+            onChange={(e) => setTeamFilter(e.target.value)}
+            style={{ height: '32px', padding: '0 10px', borderRadius: '8px', border: `1px solid ${border}`, backgroundColor: isDark ? '#111110' : '#f8f7f4', color: text, fontSize: '12px', fontWeight: 500, cursor: 'pointer', outline: 'none' }}
+          >
+            <option value="all">Todos os grupos</option>
+            <option value="global">Global (sem grupo)</option>
+            {teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+          </select>
+          <button type="button" onClick={() => setShowCreate(true)} style={{
+            height: '32px', padding: '0 14px', borderRadius: '8px', border: 'none',
+            backgroundColor: '#e31e24', color: '#fff', fontSize: '12px', fontWeight: 700,
+            cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px',
+          }}>
+            <Plus style={{ width: '13px', height: '13px' }} />
+            Nova Notificação
+          </button>
+        </div>
       </div>
 
       {/* Filter tabs */}

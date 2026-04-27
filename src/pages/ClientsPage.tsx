@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Building2, TrendingUp, ArrowRight, Search, ChevronDown, ChevronRight, DollarSign, Activity } from 'lucide-react'
+import { Building2, TrendingUp, ArrowRight, Search, ChevronDown, ChevronRight, DollarSign, Activity, Mail } from 'lucide-react'
 import { useDealStore } from '@/store/useDealStore'
 import { useThemeStore } from '@/store/useThemeStore'
 import { STAGES } from '@/constants/pipeline'
@@ -43,6 +43,7 @@ export function ClientsPage() {
       sector?: string
       size?: string
       website?: string
+      contactEmail?: string
       deals: typeof deals
     }>()
 
@@ -56,10 +57,13 @@ export function ClientsPage() {
           sector: deal.company_sector ?? undefined,
           size: deal.company_size ?? undefined,
           website: deal.company_website ?? undefined,
+          contactEmail: deal.contact_email ?? undefined,
           deals: [],
         })
       }
-      map.get(key)!.deals.push(deal)
+      const entry = map.get(key)!
+      if (!entry.contactEmail && deal.contact_email) entry.contactEmail = deal.contact_email
+      entry.deals.push(deal)
     }
 
     return [...map.values()]
@@ -75,7 +79,7 @@ export function ClientsPage() {
             const bi = STAGES.findIndex((s) => s.id === b.stage_id)
             return bi - ai
           })[0]?.stage_id
-        return { ...c, active: active.length, won: won.length, pipeline, revenue, latestStage }
+        return { ...c, active: active.length, won: won.length, pipeline, revenue, latestStage, contactEmail: c.contactEmail }
       })
       .sort((a, b) => b.pipeline - a.pipeline || b.revenue - a.revenue)
   }, [deals])
@@ -178,7 +182,7 @@ export function ClientsPage() {
           <div style={{ minWidth: '640px', backgroundColor: cardBg, borderRadius: '6px', border: `1px solid ${border}`, overflow: 'hidden' }}>
             {/* Column headers */}
             <div style={{
-              display: 'grid', gridTemplateColumns: 'minmax(180px, 2fr) minmax(80px, 110px) minmax(60px, 80px) minmax(100px, 120px) minmax(100px, 120px) 32px',
+              display: 'grid', gridTemplateColumns: 'minmax(180px, 2fr) minmax(80px, 110px) minmax(60px, 80px) minmax(100px, 120px) minmax(100px, 120px) 64px',
               padding: '10px 20px', gap: '10px',
               borderBottom: `1px solid ${border}`,
               backgroundColor: isDark ? '#111110' : '#fafaf8',
@@ -206,7 +210,7 @@ export function ClientsPage() {
                     type="button"
                     onClick={() => setExpandedCompany(isExpanded ? null : company.name)}
                     style={{
-                      display: 'grid', gridTemplateColumns: 'minmax(180px, 2fr) minmax(80px, 110px) minmax(60px, 80px) minmax(100px, 120px) minmax(100px, 120px) 32px',
+                      display: 'grid', gridTemplateColumns: 'minmax(180px, 2fr) minmax(80px, 110px) minmax(60px, 80px) minmax(100px, 120px) minmax(100px, 120px) 64px',
                       width: '100%', padding: '13px 20px', gap: '10px', alignItems: 'center',
                       borderBottom: `1px solid ${isExpanded || isLast ? 'transparent' : border}`,
                       background: isExpanded ? (isDark ? '#161614' : '#f8f7f4') : 'none',
@@ -286,16 +290,30 @@ export function ClientsPage() {
                       )}
                     </div>
 
-                    {/* Expand icon */}
-                    <div style={{
-                      width: '24px', height: '24px', borderRadius: '6px', flexShrink: 0,
-                      backgroundColor: isExpanded ? (isDark ? '#2a2a28' : '#eeece8') : 'transparent',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    }}>
-                      {isExpanded
-                        ? <ChevronDown style={{ width: '13px', height: '13px', color: muted }} />
-                        : <ChevronRight style={{ width: '13px', height: '13px', color: muted }} />
-                      }
+                    {/* Actions: email + expand */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+                      {company.contactEmail && (
+                        <button
+                          type="button"
+                          title={`Enviar email a ${company.contactEmail}`}
+                          onClick={(e) => { e.stopPropagation(); navigate(`/email?to=${encodeURIComponent(company.contactEmail!)}`) }}
+                          style={{ width: '24px', height: '24px', borderRadius: '6px', backgroundColor: 'transparent', border: `1px solid ${border}`, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: muted, flexShrink: 0 }}
+                          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = hoverBg; e.currentTarget.style.color = '#e31e24'; e.currentTarget.style.borderColor = '#e31e24' }}
+                          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = muted; e.currentTarget.style.borderColor = border }}
+                        >
+                          <Mail style={{ width: '11px', height: '11px' }} />
+                        </button>
+                      )}
+                      <div style={{
+                        width: '24px', height: '24px', borderRadius: '6px', flexShrink: 0,
+                        backgroundColor: isExpanded ? (isDark ? '#2a2a28' : '#eeece8') : 'transparent',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}>
+                        {isExpanded
+                          ? <ChevronDown style={{ width: '13px', height: '13px', color: muted }} />
+                          : <ChevronRight style={{ width: '13px', height: '13px', color: muted }} />
+                        }
+                      </div>
                     </div>
                   </button>
 
@@ -358,6 +376,18 @@ export function ClientsPage() {
                             <p style={{ fontSize: '12px', fontWeight: 600, color: deal.stage_id === 'closed_won' ? '#2d9e6b' : text, fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
                               {Number(deal.value) > 0 ? fmtFull(Number(deal.value)) : '—'}
                             </p>
+                            {deal.contact_email && (
+                              <button
+                                type="button"
+                                title={`Enviar email a ${deal.contact_email}`}
+                                onClick={(e) => { e.stopPropagation(); navigate(`/email?to=${encodeURIComponent(deal.contact_email!)}`) }}
+                                style={{ width: '22px', height: '22px', borderRadius: '5px', border: `1px solid ${border}`, backgroundColor: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: muted, flexShrink: 0 }}
+                                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = hoverBg; e.currentTarget.style.color = '#e31e24' }}
+                                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = muted }}
+                              >
+                                <Mail style={{ width: '11px', height: '11px' }} />
+                              </button>
+                            )}
                             <ArrowRight data-arrow="" style={{ width: '10px', height: '10px', color: muted, flexShrink: 0 }} />
                           </button>
                         )

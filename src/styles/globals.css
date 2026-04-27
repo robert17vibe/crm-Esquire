@@ -195,6 +195,7 @@
 
 /* ─── Theme color transitions ─────────────────────────────────────────────── */
 .deal-card {
+  touch-action: none;
   transition-property: background-color, border-color, box-shadow, color;
   transition-duration: 0.2s;
   transition-timing-function: ease;

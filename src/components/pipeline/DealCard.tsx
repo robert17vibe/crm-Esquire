@@ -118,6 +118,9 @@ export function DealCard({ deal, isOverlay = false, dimmed = false, showScore = 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: deal.id, disabled: isOverlay })
 
+  const wasDraggingRef = useRef(false)
+  useEffect(() => { if (isDragging) wasDraggingRef.current = true }, [isDragging])
+
   const isWon     = deal.stage_id === 'closed_won'
   const isLost    = deal.stage_id === 'closed_lost'
   const isSpecial = isWon || isLost
@@ -135,7 +138,6 @@ export function DealCard({ deal, isOverlay = false, dimmed = false, showScore = 
                    :          'var(--surface-card)'
   const isHighlighted = highlightNew && isNew
   const cardBorder = isHighlighted            ? (isDark ? 'rgba(234,179,8,0.5)' : 'rgba(234,179,8,0.6)')
-                   : isOverdue               ? (isDark ? 'rgba(220,38,38,0.3)'  : 'rgba(252,165,165,0.6)')
                    : deal.days_in_stage > 30 ? (isDark ? 'rgba(120,113,108,0.3)' : 'rgba(214,211,209,0.8)')
                    :                           'var(--line)'
   const textPrimary = 'var(--ink-base)'
@@ -153,7 +155,7 @@ export function DealCard({ deal, isOverlay = false, dimmed = false, showScore = 
     overflow: 'hidden',
     display: 'flex',
     flexDirection: 'column',
-    height: '120px',
+    height: '100px',
     boxShadow: isHighlighted ? (isDark ? '0 0 0 1px rgba(234,179,8,0.2)' : '0 0 0 1px rgba(234,179,8,0.15)') : isOverlay ? '0 20px 48px rgba(0,0,0,0.3), 0 6px 16px rgba(0,0,0,0.15)' : 'none',
     ...(isOverlay
       ? { transform: 'rotate(1.5deg)', opacity: 1 }
@@ -169,7 +171,10 @@ export function DealCard({ deal, isOverlay = false, dimmed = false, showScore = 
       ref={setNodeRef}
       style={cardStyle}
       {...(isOverlay ? {} : { ...attributes, ...listeners })}
-      onClick={isOverlay ? undefined : () => { if (!showQuickAdd) navigate(`/deal/${deal.id}`) }}
+      onClick={isOverlay ? undefined : () => {
+        if (wasDraggingRef.current) { wasDraggingRef.current = false; return }
+        if (!showQuickAdd) navigate(`/deal/${deal.id}`)
+      }}
       className={cn(
         'deal-card group/card w-full select-none',
         !isOverlay && !isDragging && 'cursor-grab active:cursor-grabbing',
@@ -180,86 +185,90 @@ export function DealCard({ deal, isOverlay = false, dimmed = false, showScore = 
         <div style={{ height: '3px', flexShrink: 0, background: stageColor }} />
       )}
 
-      <div style={{ flex: 1, padding: '12px 14px', display: 'flex', flexDirection: 'column', overflow: 'hidden', gap: '5px' }}>
+      <div style={{ flex: 1, padding: '10px 12px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', overflow: 'hidden' }}>
 
-        {/* Row 1: badges + days */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0, minHeight: '16px' }}>
-          {isNew && (
-            <span style={{
-              fontSize: '8px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase',
-              color: '#fff', backgroundColor: 'var(--brand)', borderRadius: 'var(--radius-full)', padding: '1px 6px', flexShrink: 0,
-            }}>NOVO</span>
-          )}
-          <div style={{ flex: 1 }} />
-          {score !== null && (
-            <span style={{
-              fontSize: '9px', fontWeight: 700,
-              color: scoreColor(score), backgroundColor: scoreBg(score, isDark),
-              borderRadius: 'var(--radius-full)', padding: '1px 6px', flexShrink: 0,
-            }}>{score}</span>
-          )}
-          {isOverdue && (
-            <span title={`Vencido: ${deal.next_activity?.label}`} style={{
-              width: '6px', height: '6px', borderRadius: '50%',
-              backgroundColor: '#ef4444', flexShrink: 0,
-            }} />
-          )}
-          <span style={{
-            fontSize: '10px', fontWeight: 500,
-            color: deal.days_in_stage > 30 ? '#b45309' : textMuted,
-            fontVariantNumeric: 'tabular-nums', flexShrink: 0,
-          }}>{deal.days_in_stage}d</span>
+        {/* Row 1: dias + score */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            {isHighlighted && (
+              <span style={{
+                fontSize: '9px', fontWeight: 700, letterSpacing: '0.06em',
+                color: '#92400e', backgroundColor: '#fef3c7',
+                borderRadius: '4px', padding: '1px 6px', flexShrink: 0,
+              }}>
+                NOVO · {deal.days_in_stage}d
+              </span>
+            )}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            {score !== null && (
+              <span style={{ fontSize: '9px', fontWeight: 700, color: scoreColor(score), backgroundColor: scoreBg(score, isDark), borderRadius: 'var(--radius-full)', padding: '1px 6px' }}>{score}</span>
+            )}
+            {!isHighlighted && (
+              <span style={{ fontSize: '10px', fontWeight: 500, color: deal.days_in_stage > 30 ? '#b45309' : textMuted, fontVariantNumeric: 'tabular-nums' }}>{deal.days_in_stage}d</span>
+            )}
+          </div>
         </div>
 
-        {/* Row 2: title */}
+        {/* Row 2: título */}
         <p className="line-clamp-2" style={{
-          fontSize: '13.5px', fontWeight: 600, color: textPrimary,
-          lineHeight: 1.35, flex: 1, overflow: 'hidden',
-          letterSpacing: '-0.015em',
+          fontSize: '13px', fontWeight: 600, color: textPrimary,
+          lineHeight: 1.35, letterSpacing: '-0.015em',
           textDecoration: isLost ? 'line-through' : 'none',
           textDecorationColor: textMuted,
+          margin: '6px 0',
         }}>
           {deal.title}
         </p>
 
-        {/* Divider + valor */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0, marginTop: '1px' }}>
-          <div style={{ flex: 1, height: '1px', background: 'var(--line)' }} />
-          {deal.value > 0 && (
-            <span style={{ fontSize: '11px', fontWeight: 700, color: isLost ? textMuted : (isDark ? '#6ee7b7' : '#16a34a'), fontVariantNumeric: 'tabular-nums', flexShrink: 0, letterSpacing: '-0.01em' }}>
+        {/* Row 3: barra prob / valor ganho  +  avatars */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+          {/* lado esquerdo */}
+          {!isSpecial ? (
+            <div style={{ flex: 1, height: '4px', borderRadius: '999px', backgroundColor: trackBg, overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${probability}%`, backgroundColor: probability > 0 ? probColor(probability) : 'transparent', borderRadius: '999px', transition: 'width 0.4s ease' }} />
+            </div>
+          ) : isWon && deal.value > 0 ? (
+            <span style={{ flex: 1, fontSize: '11px', fontWeight: 700, color: isDark ? '#6ee7b7' : '#16a34a', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.01em' }}>
               {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(deal.value)}
             </span>
+          ) : isLost && deal.loss_reason ? (
+            <span className="truncate" style={{ flex: 1, fontSize: '10px', color: textMuted, fontStyle: 'italic' }}>{deal.loss_reason}</span>
+          ) : (
+            <div style={{ flex: 1 }} />
           )}
-        </div>
 
-        {/* Row 4: prob bar + avatars */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '7px', flexShrink: 0 }}>
-          {!isSpecial && probability > 0 && (
-            <div style={{ flex: 1, height: '5px', borderRadius: '999px', backgroundColor: trackBg, overflow: 'hidden', minWidth: '20px' }}>
-              <div style={{ height: '100%', width: `${probability}%`, backgroundColor: probColor(probability), borderRadius: '999px', transition: 'width 0.4s ease' }} />
-            </div>
-          )}
-          {isLost && deal.loss_reason && (
-            <span className="truncate" style={{ fontSize: '10px', color: textMuted, fontStyle: 'italic', flex: 1 }}>{deal.loss_reason}</span>
-          )}
-          <div style={{ flex: 1 }} />
+          {/* meta icons */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexShrink: 0 }}>
+            {taskCount > 0 && (
+              <span style={{ display: 'flex', alignItems: 'center', gap: '2px', fontSize: '9px', color: '#16a34a', fontWeight: 600 }}>
+                <svg width="9" height="9" viewBox="0 0 10 10" fill="none"><path d="M2 5.5L4 7.5L8 3" stroke="#16a34a" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                {taskCount}
+              </span>
+            )}
+            {deal.notes && deal.notes.trim().length > 0 && (
+              <FileText size={9} color={textMuted} />
+            )}
+          </div>
+
+          {/* avatars */}
           {stakeholders.length > 0 && (
             <div style={{ display: 'flex', alignItems: 'center' }}>
               {stakeholders.map((s, i) => (
                 <div key={s.name} title={s.name} style={{
-                  width: '20px', height: '20px', borderRadius: '50%',
+                  width: '18px', height: '18px', borderRadius: '50%',
                   backgroundColor: s.color, border: '2px solid var(--surface-card)',
-                  marginLeft: i === 0 ? 0 : '-6px',
-                  fontSize: '7px', fontWeight: 700, color: '#fff',
+                  marginLeft: i === 0 ? 0 : '-5px',
+                  fontSize: '6px', fontWeight: 700, color: '#fff',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   zIndex: 3 - i, position: 'relative', flexShrink: 0,
                 }}>{s.initials}</div>
               ))}
               {extraCount > 0 && (
                 <div style={{
-                  width: '20px', height: '20px', borderRadius: '50%',
+                  width: '18px', height: '18px', borderRadius: '50%',
                   backgroundColor: trackBg, border: '2px solid var(--surface-card)',
-                  marginLeft: '-6px', fontSize: '7px', fontWeight: 600, color: textMuted,
+                  marginLeft: '-5px', fontSize: '6px', fontWeight: 600, color: textMuted,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   position: 'relative', flexShrink: 0,
                 }}>+{extraCount}</div>
@@ -267,26 +276,6 @@ export function DealCard({ deal, isOverlay = false, dimmed = false, showScore = 
             </div>
           )}
         </div>
-
-        {/* Row 5: metadata — tasks / notes / extra tags */}
-        {(taskCount > 0 || (deal.notes && deal.notes.trim().length > 0) || (deal.tags && deal.tags.length > 1)) && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-            {taskCount > 0 && (
-              <span style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '9px', color: '#16a34a', fontWeight: 600 }}>
-                <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                  <path d="M2 5.5L4 7.5L8 3" stroke="#16a34a" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-                {taskCount}
-              </span>
-            )}
-            {deal.notes && deal.notes.trim().length > 0 && (
-              <span style={{ display: 'flex', alignItems: 'center', color: textMuted }}><FileText size={10} /></span>
-            )}
-            {deal.tags && deal.tags.length > 1 && (
-              <span style={{ fontSize: '9px', color: textMuted }}>+{deal.tags.length - 1} tags</span>
-            )}
-          </div>
-        )}
 
       </div>
 

@@ -11,6 +11,7 @@ import { useThemeStore } from '@/store/useThemeStore'
 import { useOwnerStore } from '@/store/useOwnerStore'
 import { useAuthStore } from '@/store/useAuthStore'
 import { useTaskStore } from '@/store/useTaskStore'
+import { useActivityStore } from '@/store/useActivityStore'
 import { supabase } from '@/lib/supabase'
 import type { Deal, DealMeeting, MeetingStatus } from '@/types/deal.types'
 
@@ -49,9 +50,9 @@ const BRAND = '#e31e24'
 const MONTHS_PT  = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
 const DAYS_SHORT = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb']
 const DAYS_MIN   = ['D','S','T','Q','Q','S','S']
-const HOUR_START = 7
-const HOUR_END   = 21
-const SLOT_H     = 60
+const HOUR_START = 0
+const HOUR_END   = 24
+const SLOT_H     = 56
 
 const EVENT_TYPE_CFG: Record<string, {
   label: string; color: string; bg: string; bgDark: string
@@ -96,9 +97,14 @@ function getWeekDays(dateStr: string): string[] {
 }
 function timeToMinutes(t: string) { const [h, m] = t.split(':').map(Number); return h * 60 + (m ?? 0) }
 function isoToMinutes(iso: string) { return timeToMinutes(iso.slice(11, 16)) }
-function evColor(type: string) { return (EVENT_TYPE_CFG[type] ?? EVENT_TYPE_CFG.meeting).color }
+function normalizeType(type: string): EventTypeName {
+  if (type === 'follow_up') return 'call'
+  if (type === 'note') return 'reminder'
+  return (EVENT_TYPE_CFG[type as EventTypeName] ? type : 'meeting') as EventTypeName
+}
+function evColor(type: string) { return (EVENT_TYPE_CFG[normalizeType(type)] ?? EVENT_TYPE_CFG.meeting).color }
 function evBg(type: string, dark: boolean) {
-  const cfg = EVENT_TYPE_CFG[type] ?? EVENT_TYPE_CFG.meeting
+  const cfg = EVENT_TYPE_CFG[normalizeType(type)] ?? EVENT_TYPE_CFG.meeting
   return dark ? cfg.bgDark : cfg.bg
 }
 
@@ -214,7 +220,7 @@ function UpcomingCard({ ev, isDark, onClick }: { ev: CalEvent; isDark: boolean; 
   const text   = isDark ? '#e8e4dc' : '#1a1814'
   const muted  = isDark ? '#6b6560' : '#9a9590'
   const border = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.07)'
-  const cfg    = EVENT_TYPE_CFG[ev.eventType ?? (ev.type === 'meeting' ? 'meeting' : 'task')] ?? EVENT_TYPE_CFG.meeting
+  const cfg    = EVENT_TYPE_CFG[normalizeType(ev.eventType ?? (ev.type === 'meeting' ? 'meeting' : 'task'))] ?? EVENT_TYPE_CFG.meeting
   const Icon   = cfg.icon
   const dateObj = new Date(ev.date + 'T12:00:00')
   const dd     = dateObj.getDate()
@@ -497,12 +503,20 @@ function WeekView({ weekDays, eventsByDate: _eventsByDate, meetings, calendarEve
   onCalEventOpen: (ce: CalendarEvent) => void
   onNewEvent: (date: string, time?: string) => void
 }) {
-  const border = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.06)'
-  const text   = isDark ? '#e8e4dc' : '#1a1814'
-  const muted  = isDark ? '#5a5752' : '#a09890'
-  const totalH = (HOUR_END - HOUR_START) * SLOT_H
-  const hours  = Array.from({ length: HOUR_END - HOUR_START }, (_, i) => HOUR_START + i)
-  const DS     = ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom']
+  const border   = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.06)'
+  const text     = isDark ? '#e8e4dc' : '#1a1814'
+  const muted    = isDark ? '#5a5752' : '#a09890'
+  const totalH   = (HOUR_END - HOUR_START) * SLOT_H
+  const hours    = Array.from({ length: HOUR_END - HOUR_START }, (_, i) => HOUR_START + i)
+  const DS       = ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom']
+  const scrollRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!scrollRef.current) return
+    const now = new Date()
+    const top = Math.max(0, ((now.getHours() * 60 + now.getMinutes() - HOUR_START * 60) / 60) * SLOT_H - 120)
+    scrollRef.current.scrollTop = top
+  }, [])
 
   const timedPerDay: WeekMeeting[][] = weekDays.map((d) => {
     const evs: WeekMeeting[] = []
@@ -538,7 +552,7 @@ function WeekView({ weekDays, eventsByDate: _eventsByDate, meetings, calendarEve
         })}
       </div>
       {/* Time grid */}
-      <div style={{ flex: 1, overflowY: 'auto' }}>
+      <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto' }}>
         <div style={{ display: 'grid', gridTemplateColumns: '52px repeat(7, 1fr)', position: 'relative', height: `${totalH}px` }}>
           <div style={{ position: 'relative', borderRight: `1px solid ${border}` }}>
             {hours.map((h) => (
@@ -731,8 +745,9 @@ function NewMeetingModal({ defaultDate, onClose, isDark }: { defaultDate: string
 
 // ─── Event Modal ──────────────────────────────────────────────────────────────
 
-function EventModal({ state, onClose, isDark, deals, onSaved }: {
+function EventModal({ state, onClose, isDark, deals, onSaved, onLogActivity }: {
   state: ModalState; onClose: () => void; isDark: boolean; deals: Deal[]; onSaved: () => void
+  onLogActivity: (dealId: string, type: string, subject: string) => void
 }) {
   const isEdit = !!state.event
   const bg     = isDark ? '#141412' : '#ffffff'
@@ -766,7 +781,10 @@ function EventModal({ state, onClose, isDark, deals, onSaved }: {
     try {
       const payload = { title: title.trim(), description: desc.trim() || null, event_date: eventDate, start_time: startTime || null, end_time: endTime || null, event_type: eventType, deal_id: dealId || null }
       if (isEdit && state.event) { await supabase.from('calendar_events').update(payload).eq('id', state.event.id) }
-      else { await supabase.from('calendar_events').insert(payload) }
+      else {
+        await supabase.from('calendar_events').insert(payload)
+        if (dealId) onLogActivity(dealId, eventType, title.trim())
+      }
       onSaved(); onClose()
     } finally { setSaving(false) }
   }
@@ -843,10 +861,19 @@ function EventModal({ state, onClose, isDark, deals, onSaved }: {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export function CalendarPage() {
-  const isDark   = useThemeStore((s) => s.isDark)
-  const meetings = useMeetingStore((s) => s.meetings)
-  const deals    = useDealStore((s) => s.deals)
-  const navigate = useNavigate()
+  const isDark       = useThemeStore((s) => s.isDark)
+  const meetings     = useMeetingStore((s) => s.meetings)
+  const deals        = useDealStore((s) => s.deals)
+  const navigate     = useNavigate()
+  const addActivity  = useActivityStore((s) => s.addActivity)
+  const profile      = useAuthStore((s) => s.profile)
+
+  const owner = profile ? { id: profile.id, name: profile.full_name ?? '', initials: (profile.full_name ?? '?').split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase(), avatar_color: profile.avatar_color ?? '#6b6560' } : { id: '', name: '', initials: '?', avatar_color: '#6b6560' }
+
+  async function logCalendarActivity(dealId: string, type: string, subject: string) {
+    const actType = (type === 'task' ? 'task' : type === 'call' ? 'call' : type === 'email' ? 'email' : 'meeting') as 'meeting' | 'call' | 'task' | 'email'
+    await addActivity(dealId, { type: actType, subject, owner })
+  }
 
   const today    = new Date()
   const todayStr = toDate(today.toISOString())
@@ -1022,7 +1049,7 @@ export function CalendarPage() {
       </div>
 
       {showMeeting && <NewMeetingModal defaultDate={selectedDay} onClose={() => setShowMeeting(false)} isDark={isDark} />}
-      {modalState?.open && <EventModal state={modalState} onClose={() => setModalState(null)} isDark={isDark} deals={deals} onSaved={loadEvents} />}
+      {modalState?.open && <EventModal state={modalState} onClose={() => setModalState(null)} isDark={isDark} deals={deals} onSaved={loadEvents} onLogActivity={logCalendarActivity} />}
       {detailMeeting && (
         <MeetingDetailPanel
           meeting={detailMeeting}
@@ -1038,6 +1065,7 @@ export function CalendarPage() {
           isDark={isDark}
           deals={deals}
           onSaved={() => { loadEvents(); setDetailCalEv(null) }}
+          onLogActivity={logCalendarActivity}
         />
       )}
     </div>
