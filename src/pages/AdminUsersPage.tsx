@@ -8,7 +8,6 @@ interface UserRow {
   id: string
   full_name: string | null
   email: string
-  role: 'admin' | 'user'
   is_admin: boolean
   avatar_color: string
   team_id: string | null
@@ -66,7 +65,6 @@ function InviteDrawer({ isDark, teams, onClose, onCreated }: {
           id: authData.user.id,
           email: email.trim(),
           full_name: name.trim() || email.split('@')[0],
-          role,
           is_admin: role === 'admin',
           avatar_color: color,
           team_id: teamId || null,
@@ -209,7 +207,7 @@ export function AdminUsersPage() {
     setLoading(true)
     const { data } = await supabase
       .from('profiles')
-      .select('id, full_name, email, role, is_admin, avatar_color, team_id, disabled_at, invited_at')
+      .select('id, full_name, email, is_admin, avatar_color, team_id, disabled_at, invited_at')
       .order('full_name')
     setUsers((data ?? []) as UserRow[])
     setLoading(false)
@@ -218,8 +216,8 @@ export function AdminUsersPage() {
   async function toggleAdmin(user: UserRow) {
     setSaving(user.id)
     const newAdmin = !user.is_admin
-    await supabase.from('profiles').update({ is_admin: newAdmin, role: newAdmin ? 'admin' : 'user' }).eq('id', user.id)
-    setUsers((prev) => prev.map((u) => u.id === user.id ? { ...u, is_admin: newAdmin, role: newAdmin ? 'admin' : 'user' } : u))
+    await supabase.from('profiles').update({ is_admin: newAdmin }).eq('id', user.id)
+    setUsers((prev) => prev.map((u) => u.id === user.id ? { ...u, is_admin: newAdmin } : u))
     setSaving(null)
   }
 

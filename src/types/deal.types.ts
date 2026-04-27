@@ -83,6 +83,13 @@ export interface Deal {
   // ── Lead metadata ─────────────────────────────────────
   lead_source?: LeadSource
   loss_reason?: string | null
+  lead_temperature?: 'hot' | 'warm' | 'cold' | null
+
+  // ── Stage tracking ────────────────────────────────────
+  stage_changed_at?: string | null
+
+  // ── Soft delete ───────────────────────────────────────
+  deleted_at?: string | null
 
   // ── Timestamps ───────────────────────────────────────
   created_at: string

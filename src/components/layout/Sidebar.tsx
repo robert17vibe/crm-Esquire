@@ -264,7 +264,7 @@ export function Sidebar() {
   const [showNotif, setShowNotif] = useState(false)
 
   const displayName     = profile?.full_name || 'Robert Ferreira'
-  const displayRole     = profile?.role === 'admin' ? 'ADMIN' : 'USER'
+  const displayRole     = profile?.is_admin ? 'ADMIN' : 'USER'
   const displayInitials = displayName.split(' ').map((p) => p[0]).slice(0, 2).join('').toUpperCase()
   const displayColor    = profile?.avatar_color || hashColor(displayName)
 
@@ -286,7 +286,7 @@ export function Sidebar() {
     }
   }
 
-  const isAdmin = profile?.is_admin || profile?.role === 'admin'
+  const isAdmin = profile?.is_admin ?? false
 
   return (
     <>

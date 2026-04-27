@@ -262,7 +262,7 @@ export function SettingsPage() {
                       border: `1px solid ${isDark ? '#e31e24' : 'rgba(227,30,36,0.20)'}`,
                       borderRadius: '4px', padding: '1px 6px',
                     }}>
-                      {profile?.role === 'admin' ? 'Admin' : 'Usuário'}
+                      {profile?.is_admin ? 'Admin' : 'Usuário'}
                     </span>
                   </div>
                 </div>

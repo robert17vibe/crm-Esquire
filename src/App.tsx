@@ -7,7 +7,7 @@ import { useAuthStore } from '@/store/useAuthStore'
 function AdminGuard() {
   const profile = useAuthStore((s) => s.profile)
   if (!profile) return null
-  return (profile.is_admin || profile.role === 'admin')
+  return (profile.is_admin)
     ? <Outlet />
     : <Navigate to="/dashboard" replace />
 }

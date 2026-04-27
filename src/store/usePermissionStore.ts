@@ -26,7 +26,7 @@ interface PermissionStore {
 export const usePermissionStore = create<PermissionStore>(() => ({
   canPerform: (action) => {
     const profile = useAuthStore.getState().profile
-    const isAdmin = profile?.is_admin || profile?.role === 'admin'
+    const isAdmin = profile?.is_admin ?? false
     const allowed = isAdmin ? ADMIN_ACTIONS : USER_ACTIONS
     return allowed.includes(action)
   },

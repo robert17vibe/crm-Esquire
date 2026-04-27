@@ -156,7 +156,7 @@ function UserMenu({ onClose, isDark }: { onClose: () => void; isDark: boolean })
 
   const displayName    = profile?.full_name || 'Usuário'
   const displayEmail   = profile?.email || '—'
-  const displayRole    = profile?.role === 'admin' ? 'Admin' : 'Usuário'
+  const displayRole    = profile?.is_admin ? 'Admin' : 'Usuário'
   const displayColor   = profile?.avatar_color ?? '#e31e24'
   const displayInitials = displayName.split(' ').map((p) => p[0]).slice(0, 2).join('').toUpperCase()
 

@@ -6,7 +6,6 @@ interface Profile {
   id: string
   email: string
   full_name: string
-  role: 'admin' | 'user'
   is_admin: boolean
   avatar_color: string
   team: string | null

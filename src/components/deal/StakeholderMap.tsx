@@ -263,7 +263,7 @@ export function StakeholderMap({ dealId, isDark }: { dealId: string; isDark: boo
     setLoading(true)
     try {
       const { data, error } = await supabase
-        .from('deal_stakeholders_v2')
+        .from('deal_stakeholders')
         .select('*')
         .eq('deal_id', dealId)
         .order('influence_level', { ascending: false })
@@ -282,10 +282,10 @@ export function StakeholderMap({ dealId, isDark }: { dealId: string; isDark: boo
       const initials = form.name.trim().split(' ').slice(0, 2).map((w) => w[0] ?? '').join('').toUpperCase()
       const roleColor = ROLE_CFG[form.role].color
       if (editing) {
-        const { error } = await supabase.from('deal_stakeholders_v2').update({ ...form, initials, avatar_color: roleColor }).eq('id', editing.id)
+        const { error } = await supabase.from('deal_stakeholders').update({ ...form, initials, avatar_color: roleColor }).eq('id', editing.id)
         if (error) throw error
       } else {
-        const { error } = await supabase.from('deal_stakeholders_v2').insert({ ...form, deal_id: dealId, initials, avatar_color: roleColor })
+        const { error } = await supabase.from('deal_stakeholders').insert({ ...form, deal_id: dealId, initials, avatar_color: roleColor })
         if (error) throw error
       }
       await load()
@@ -301,7 +301,7 @@ export function StakeholderMap({ dealId, isDark }: { dealId: string; isDark: boo
 
   async function handleDelete(id: string) {
     try {
-      await supabase.from('deal_stakeholders_v2').delete().eq('id', id)
+      await supabase.from('deal_stakeholders').delete().eq('id', id)
       setList((l) => l.filter((s) => s.id !== id))
       addToast('Stakeholder removido', 'info')
     } catch {
