@@ -20,11 +20,11 @@ import {
   arrayMove,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { useDealStore } from '@/store/useDealStore'
 import { useThemeStore } from '@/store/useThemeStore'
 import { useSettingsStore } from '@/store/useSettingsStore'
 import { useTaskStore } from '@/store/useTaskStore'
 import { STAGES } from '@/constants/pipeline'
+import { useVisibleDeals } from '@/hooks/useVisibleDeals'
 
 // ─── Widget Registry ──────────────────────────────────────────────────────────
 
@@ -105,6 +105,23 @@ const ACT_ICONS: Record<string, React.ComponentType<{ style?: React.CSSPropertie
   meeting: Video, call: Phone, task: CheckSquare, email: Mail,
 }
 
+// ─── DonutArc SVG Component ───────────────────────────────────────────────────
+
+function DonutArc({ pct, color, size = 44 }: { pct: number; color: string; size?: number }) {
+  const r = (size - 8) / 2
+  const circ = 2 * Math.PI * r
+  const dash = (pct / 100) * circ
+  const cx = size / 2, cy = size / 2
+  return (
+    <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke={`${color}20`} strokeWidth="5" />
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke={color} strokeWidth="5"
+        strokeDasharray={`${dash} ${circ}`} strokeLinecap="round"
+        style={{ transition: 'stroke-dasharray 0.6s ease' }} />
+    </svg>
+  )
+}
+
 // ─── KPI Card ─────────────────────────────────────────────────────────────────
 
 interface KpiCardProps {
@@ -114,22 +131,33 @@ interface KpiCardProps {
   icon: React.ComponentType<{ style?: React.CSSProperties }>
   accent: string
   sparkline?: number[]
+  donut?: boolean
   isDark: boolean
   isDragging: boolean
   onDragStart: (e: React.DragEvent) => void
   onDragOver: (e: React.DragEvent) => void
   onDrop: (e: React.DragEvent) => void
   onDragEnd: () => void
+  onClick?: () => void
 }
 
 function KpiCard({
-  label, value, sub, icon: Icon, accent, sparkline, isDark,
-  isDragging, onDragStart, onDragOver, onDrop, onDragEnd,
+  label, value, sub, icon: Icon, accent, sparkline, donut, isDark,
+  isDragging, onDragStart, onDragOver, onDrop, onDragEnd, onClick,
 }: KpiCardProps) {
   const bg     = isDark ? '#161614' : '#ffffff'
   const border = isDark ? '#242422' : '#e4e0da'
   const text   = isDark ? '#e8e4dc' : '#1a1814'
   const muted  = isDark ? '#6b6560' : '#8a857d'
+  const shadow = isDark ? '0 2px 8px rgba(0,0,0,0.35)' : '0 2px 12px rgba(0,0,0,0.07)'
+
+  const [hovered, setHovered] = useState(false)
+
+  // parse the numeric value from the string for DonutArc
+  const pctValue = useMemo(() => {
+    const n = parseFloat(value.replace('%', ''))
+    return isNaN(n) ? 0 : Math.min(n, 100)
+  }, [value])
 
   return (
     <div
@@ -138,15 +166,25 @@ function KpiCard({
       onDragOver={onDragOver}
       onDrop={onDrop}
       onDragEnd={onDragEnd}
+      onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       title="Arraste para reorganizar"
       style={{
         backgroundColor: bg,
         border: `1px solid ${isDragging ? accent : border}`,
-        borderRadius: '8px', padding: '14px 16px 0',
+        borderRadius: '14px',
+        borderTop: `3px solid ${accent}`,
+        padding: '14px 16px 0',
         display: 'flex', flexDirection: 'column', gap: '10px',
-        cursor: 'grab', opacity: isDragging ? 0.45 : 1,
-        transition: 'border-color 0.15s ease, opacity 0.15s ease',
+        cursor: onClick ? 'pointer' : 'grab',
+        opacity: isDragging ? 0.45 : 1,
+        transition: 'transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease, opacity 0.15s ease',
         userSelect: 'none', overflow: 'hidden',
+        transform: hovered && !isDragging ? 'translateY(-2px)' : 'translateY(0)',
+        boxShadow: hovered && !isDragging
+          ? (isDark ? '0 6px 18px rgba(0,0,0,0.45)' : '0 6px 20px rgba(0,0,0,0.12)')
+          : shadow,
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -155,22 +193,26 @@ function KpiCard({
         </p>
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
           <GripVertical style={{ width: '12px', height: '12px', color: muted, opacity: 0.4, cursor: 'grab' }} />
-          <div style={{ width: '26px', height: '26px', borderRadius: '6px', backgroundColor: `${accent}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <Icon style={{ width: '12px', height: '12px', color: accent }} />
+          <div style={{ width: '32px', height: '32px', borderRadius: '10px', backgroundColor: `${accent}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <Icon style={{ width: '13px', height: '13px', color: accent }} />
           </div>
         </div>
       </div>
-      <div style={{ paddingBottom: sparkline ? '0' : '14px' }}>
-        <p style={{ fontSize: '20px', fontWeight: 700, color: text, letterSpacing: '-0.02em', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
+      <div style={{ paddingBottom: (sparkline || donut) ? '0' : '14px' }}>
+        <p style={{ fontSize: '22px', fontWeight: 700, color: text, letterSpacing: '-0.02em', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
           {value}
         </p>
         {sub && <p style={{ fontSize: '10px', color: muted, marginTop: '4px', lineHeight: 1.3 }}>{sub}</p>}
       </div>
-      {sparkline && (
+      {donut ? (
+        <div style={{ display: 'flex', justifyContent: 'center', paddingBottom: '10px' }}>
+          <DonutArc pct={pctValue} color={accent} size={44} />
+        </div>
+      ) : sparkline ? (
         <div style={{ marginLeft: '-16px', marginRight: '-16px' }}>
           <Sparkline data={sparkline} color={accent} />
         </div>
-      )}
+      ) : null}
     </div>
   )
 }
@@ -206,10 +248,10 @@ function KpiSkeleton({ isDark }: { isDark: boolean }) {
   const bg     = isDark ? '#161614' : '#ffffff'
   const border = isDark ? '#242422' : '#e4e0da'
   return (
-    <div style={{ backgroundColor: bg, border: `1px solid ${border}`, borderRadius: '8px', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+    <div style={{ backgroundColor: bg, border: `1px solid ${border}`, borderRadius: '14px', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div className="skeleton" style={{ height: '10px', width: '80px', borderRadius: '4px' }} />
-        <div className="skeleton" style={{ width: '26px', height: '26px', borderRadius: '6px' }} />
+        <div className="skeleton" style={{ width: '32px', height: '32px', borderRadius: '10px' }} />
       </div>
       <div>
         <div className="skeleton" style={{ height: '22px', width: '100px', borderRadius: '4px' }} />
@@ -246,7 +288,7 @@ function WidgetWrapper({ id, onRemove, children, isDark }: WidgetWrapperProps) {
     position: 'relative',
   }
 
-  const handleColor = isDark ? '#6b6560' : '#8a857d'
+  const handleColor = hovered ? '#e31e24' : (isDark ? '#6b6560' : '#8a857d')
   const removeColor = isDark ? '#fc8181' : '#c53030'
 
   return (
@@ -267,8 +309,8 @@ function WidgetWrapper({ id, onRemove, children, isDark }: WidgetWrapperProps) {
           cursor: 'grab', color: handleColor,
           backgroundColor: hovered ? (isDark ? 'rgba(30,30,28,0.9)' : 'rgba(255,255,255,0.9)') : 'transparent',
           border: hovered ? `1px solid ${isDark ? '#333' : '#ddd'}` : '1px solid transparent',
-          opacity: hovered ? 1 : 0.35,
-          transition: 'opacity 0.15s, background-color 0.15s',
+          opacity: hovered ? 0.7 : 0.5,
+          transition: 'opacity 0.15s, background-color 0.15s, color 0.15s',
         }}
       >
         <GripVertical style={{ width: '12px', height: '12px' }} />
@@ -299,7 +341,7 @@ function WidgetWrapper({ id, onRemove, children, isDark }: WidgetWrapperProps) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export function DashboardPage() {
-  const deals    = useDealStore((s) => s.deals)
+  const deals    = useVisibleDeals()
   const isDark   = useThemeStore((s) => s.isDark)
   const navigate = useNavigate()
   const { quarterlyGoal } = useSettingsStore()
@@ -403,11 +445,11 @@ export function DashboardPage() {
 
   const coverageAccent = coverage >= 100 ? '#2d9e6b' : coverage >= 70 ? '#b45309' : (isDark ? '#fc8181' : '#c53030')
 
-  const kpiDefs: Record<string, { label: string; value: string; sub?: string; icon: typeof TrendingUp; accent: string; sparkline: number[] }> = useMemo(() => ({
+  const kpiDefs: Record<string, { label: string; value: string; sub?: string; icon: typeof TrendingUp; accent: string; sparkline: number[]; donut?: boolean }> = useMemo(() => ({
     pipeline: { label: 'Pipeline Total',    value: fmt(pipelineTotal), sub: `${valueDeals.length} deals ativos`, icon: TrendingUp, accent: '#e31e24', sparkline: sparkPipeline },
     commit:   { label: 'Commit Trimestral', value: fmt(commitTotal),   sub: `${commitDeals.length} em fechamento`, icon: Briefcase, accent: '#4a7c8a', sparkline: sparkPipeline },
     coverage: { label: 'Cobertura de Meta', value: `${coverage.toFixed(0)}%`, sub: `Meta Q: ${fmt(quarterlyGoal)}`, icon: Target, accent: coverageAccent, sparkline: sparkPipeline },
-    winrate:  { label: 'Win Rate',          value: `${winRate}%`, sub: `${closedWon.length} ganhos · ${closedLost.length} perdidos`, icon: Award, accent: '#e31e24', sparkline: sparkWon },
+    winrate:  { label: 'Win Rate',          value: `${winRate}%`, sub: `${closedWon.length} ganhos · ${closedLost.length} perdidos`, icon: Award, accent: '#e31e24', sparkline: sparkWon, donut: true },
     ticket:   { label: 'Ticket Médio',      value: fmt(avgTicket), sub: 'média dos ativos com valor', icon: DollarSign, accent: '#8b6914', sparkline: sparkPipeline },
     cycle:    { label: 'Ciclo Médio',       value: `${avgCycle}d`, sub: 'dias no estágio atual', icon: Clock, accent: '#78909c', sparkline: sparkCount },
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -562,6 +604,7 @@ export function DashboardPage() {
   const muted   = isDark ? '#6b6560' : '#8a857d'
   const trackBg = isDark ? '#1e1e1c' : '#eeece8'
   const pageBg  = isDark ? '#0d0c0a' : '#f5f4f0'
+  const cardShadow = isDark ? '0 2px 8px rgba(0,0,0,0.35)' : '0 2px 12px rgba(0,0,0,0.07)'
 
   // ─── Tab pill ────────────────────────────────────────────────────────────
 
@@ -572,11 +615,11 @@ export function DashboardPage() {
         type="button"
         onClick={() => setActiveTab(id)}
         style={{
-          padding: '5px 14px', borderRadius: 0,
+          padding: '5px 16px', borderRadius: '20px',
           fontSize: '11px', fontWeight: 700,
-          color: active ? '#e31e24' : muted,
-          backgroundColor: 'transparent',
-          border: 'none', borderBottom: active ? '2px solid #e31e24' : '2px solid transparent',
+          color: active ? '#fff' : muted,
+          backgroundColor: active ? '#e31e24' : 'transparent',
+          border: 'none',
           cursor: 'pointer', letterSpacing: '0.06em', textTransform: 'uppercase',
           transition: 'all 0.15s ease',
         }}
@@ -594,11 +637,7 @@ export function DashboardPage() {
       case 'kpis':
         return (
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
-              <GripVertical style={{ width: '11px', height: '11px', color: muted }} />
-              <span style={{ fontSize: '10px', color: muted, fontWeight: 500 }}>Arraste os cards para reorganizar</span>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, minmax(0, 1fr))', gap: '10px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '10px' }}>
               {!loaded
                 ? DEFAULT_KPI_ORDER.map((kid) => <KpiSkeleton key={kid} isDark={isDark} />)
                 : kpiOrder.map((kid, idx) => {
@@ -612,6 +651,7 @@ export function DashboardPage() {
                         onDragOver={(e) => e.preventDefault()}
                         onDrop={() => handleKpiDrop(idx)}
                         onDragEnd={() => { dragIdx.current = null; setDraggingId(null) }}
+                        onClick={() => navigate('/pipeline')}
                       />
                     )
                   })
@@ -623,8 +663,8 @@ export function DashboardPage() {
       case 'funil':
         return (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: '12px' }}>
-            <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '8px', padding: '18px 20px' }}>
-              <p style={{ fontSize: '11px', fontWeight: 700, color: text, marginBottom: '14px' }}>Funil por Estágio</p>
+            <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '14px', padding: '18px 20px', boxShadow: cardShadow }}>
+              <p style={{ fontSize: '12px', fontWeight: 700, color: text, marginBottom: '14px', borderLeft: '3px solid #e31e24', paddingLeft: '8px' }}>Funil por Estágio</p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {funnelData.map(({ stage, count, value, convRate }) => (
                   <div key={stage.id}>
@@ -663,15 +703,15 @@ export function DashboardPage() {
                 ))}
               </div>
             </div>
-            <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '8px', padding: '18px 20px', display: 'flex', flexDirection: 'column' }}>
-              <p style={{ fontSize: '11px', fontWeight: 700, color: text, marginBottom: '16px' }}>Forecast Q2 · 2026</p>
+            <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '14px', padding: '18px 20px', display: 'flex', flexDirection: 'column', boxShadow: cardShadow }}>
+              <p style={{ fontSize: '12px', fontWeight: 700, color: text, marginBottom: '16px', borderLeft: '3px solid #e31e24', paddingLeft: '8px' }}>Forecast Q2 · 2026</p>
               <div style={{ marginBottom: '18px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '7px' }}>
                   <span style={{ fontSize: '11px', color: muted }}>Pipeline ponderado</span>
                   <span style={{ fontSize: '11px', fontWeight: 700, color: text, fontVariantNumeric: 'tabular-nums' }}>{fmt(weightedPipeline)}</span>
                 </div>
-                <div style={{ height: '8px', borderRadius: '99px', backgroundColor: trackBg, overflow: 'hidden' }}>
-                  <div style={{ height: '100%', borderRadius: '99px', width: `${forecastPct}%`, background: 'linear-gradient(90deg, #e31e24, #e31e24)', transition: 'width 0.6s ease' }} />
+                <div style={{ height: '12px', borderRadius: '99px', backgroundColor: trackBg, overflow: 'hidden' }}>
+                  <div style={{ height: '100%', borderRadius: '99px', width: `${forecastPct}%`, background: 'linear-gradient(90deg, #e31e24cc, #e31e24)', transition: 'width 0.6s ease' }} />
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '5px' }}>
                   <span style={{ fontSize: '10px', color: muted }}>{forecastPct.toFixed(0)}% da meta</span>
@@ -708,15 +748,15 @@ export function DashboardPage() {
       case 'aging':
         return (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '8px', padding: '18px 20px' }}>
-              <p style={{ fontSize: '11px', fontWeight: 700, color: text, marginBottom: '12px' }}>Aging — Top 5 Paralisados</p>
+            <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '14px', padding: '18px 20px', boxShadow: cardShadow }}>
+              <p style={{ fontSize: '12px', fontWeight: 700, color: text, marginBottom: '12px', borderLeft: '3px solid #e31e24', paddingLeft: '8px' }}>Aging — Top 5 Paralisados</p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                 {aging.map((deal) => {
                   const stage = STAGES.find((s) => s.id === deal.stage_id)
                   const agingColor = deal.days_in_stage > 60 ? (isDark ? '#fc8181' : '#c53030') : deal.days_in_stage > 30 ? '#b45309' : muted
                   return (
                     <button key={deal.id} type="button" onClick={() => navigate(`/deal/${deal.id}`)}
-                      style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '8px', borderRadius: '6px', border: 'none', backgroundColor: 'transparent', cursor: 'pointer', textAlign: 'left', transition: 'background-color 0.1s ease' }}
+                      style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '8px', borderRadius: '10px', border: 'none', backgroundColor: 'transparent', cursor: 'pointer', textAlign: 'left', transition: 'background-color 0.1s ease' }}
                       onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = trackBg)}
                       onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
                     >
@@ -737,16 +777,17 @@ export function DashboardPage() {
                 })}
               </div>
             </div>
-            <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '8px', padding: '18px 20px' }}>
-              <p style={{ fontSize: '11px', fontWeight: 700, color: text, marginBottom: '12px' }}>Evolução Mensal — Pipeline Criado</p>
-              <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px', height: '108px' }}>
+            <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '14px', padding: '18px 20px', boxShadow: cardShadow }}>
+              <p style={{ fontSize: '12px', fontWeight: 700, color: text, marginBottom: '12px', borderLeft: '3px solid #e31e24', paddingLeft: '8px' }}>Evolução Mensal — Pipeline Criado</p>
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px', height: '130px' }}>
                 {monthlyPipeline.map(({ label, value, key }) => {
                   const maxV = Math.max(...monthlyPipeline.map((m) => m.value), 1)
-                  const barH = Math.max(Math.round((value / maxV) * 80), 3)
+                  const barH = Math.max(Math.round((value / maxV) * 100), 3)
                   const isCurrent = key === new Date().toISOString().slice(0, 7)
                   return (
                     <div key={key} title={`${label}: ${fmt(value)}`} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px' }}>
-                      <div style={{ width: '100%', height: `${barH}px`, backgroundColor: isCurrent ? '#e31e24' : 'rgba(227,30,36,0.25)', borderRadius: '3px 3px 0 0', opacity: 1, transition: 'height 0.4s ease' }} />
+                      <span style={{ fontSize: '8px', color: isCurrent ? text : muted, fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>{value > 0 ? fmt(value) : ''}</span>
+                      <div style={{ width: '100%', height: `${barH}px`, backgroundColor: isCurrent ? '#e31e24' : 'rgba(227,30,36,0.25)', borderRadius: '4px 4px 0 0', opacity: 1, transition: 'height 0.4s ease' }} />
                       <span style={{ fontSize: '9px', color: isCurrent ? text : muted, fontWeight: isCurrent ? 600 : 400, textTransform: 'capitalize' }}>{label}</span>
                     </div>
                   )
@@ -763,10 +804,10 @@ export function DashboardPage() {
       case 'riscos':
         return (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '8px', overflow: 'hidden' }}>
+            <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '14px', overflow: 'hidden', boxShadow: cardShadow }}>
               <div style={{ padding: '12px 18px', borderBottom: `1px solid ${border}`, display: 'flex', alignItems: 'center', gap: '7px' }}>
                 <AlertTriangle style={{ width: '12px', height: '12px', color: isDark ? '#fc8181' : '#c53030' }} />
-                <p style={{ fontSize: '11px', fontWeight: 700, color: text }}>Riscos da Semana</p>
+                <p style={{ fontSize: '12px', fontWeight: 700, color: text, borderLeft: '3px solid #e31e24', paddingLeft: '8px' }}>Riscos da Semana</p>
                 {risks.length > 0 && <span style={{ fontSize: '9px', fontWeight: 700, color: '#fff', backgroundColor: '#c53030', borderRadius: '99px', padding: '1px 6px', marginLeft: 'auto' }}>{risks.length}</span>}
               </div>
               {risks.length === 0 ? (
@@ -780,8 +821,8 @@ export function DashboardPage() {
                 return (
                   <button key={deal.id} type="button" onClick={() => navigate(`/deal/${deal.id}`)}
                     style={{ display: 'flex', alignItems: 'center', gap: '12px', width: '100%', padding: '10px 18px', borderBottom: i < risks.length - 1 ? `1px solid ${border}` : 'none', backgroundColor: 'transparent', cursor: 'pointer', textAlign: 'left', border: 'none', transition: 'background-color 0.1s ease' }}
-                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = trackBg)}
-                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = trackBg; e.currentTarget.style.borderRadius = '10px' }}
+                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.borderRadius = '0' }}
                   >
                     <span style={{ width: '3px', height: '28px', borderRadius: '99px', backgroundColor: isDark ? '#fc8181' : '#c53030', flexShrink: 0 }} />
                     <div style={{ flex: 1, minWidth: 0 }}>
@@ -793,9 +834,9 @@ export function DashboardPage() {
                 )
               })}
             </div>
-            <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '8px', overflow: 'hidden' }}>
+            <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '14px', overflow: 'hidden', boxShadow: cardShadow }}>
               <div style={{ padding: '12px 18px', borderBottom: `1px solid ${border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <p style={{ fontSize: '11px', fontWeight: 700, color: text }}>Próximas Ações</p>
+                <p style={{ fontSize: '12px', fontWeight: 700, color: text, borderLeft: '3px solid #e31e24', paddingLeft: '8px' }}>Próximas Ações</p>
                 <button type="button" onClick={() => navigate('/pipeline')}
                   style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '10px', fontWeight: 600, color: muted, background: 'none', border: 'none', cursor: 'pointer', transition: 'color 0.15s ease' }}
                   onMouseEnter={(e) => (e.currentTarget.style.color = '#e31e24')}
@@ -812,8 +853,8 @@ export function DashboardPage() {
                 return (
                   <button key={deal.id} type="button" onClick={() => navigate(`/deal/${deal.id}`)}
                     style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '10px 18px', borderBottom: i < upcoming.length - 1 ? `1px solid ${border}` : 'none', backgroundColor: 'transparent', cursor: 'pointer', textAlign: 'left', border: 'none', transition: 'background-color 0.1s ease' }}
-                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = trackBg)}
-                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = trackBg; e.currentTarget.style.borderRadius = '10px' }}
+                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.borderRadius = '0' }}
                   >
                     <div style={{ width: '26px', height: '26px', borderRadius: '6px', backgroundColor: `${deal.owner?.avatar_color ?? '#888'}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                       <Icon style={{ width: '11px', height: '11px', color: deal.owner?.avatar_color ?? '#888' }} />
@@ -838,11 +879,11 @@ export function DashboardPage() {
       case 'inativos':
         if (inactiveDeals.length === 0) return null
         return (
-          <div style={{ backgroundColor: cardBg, border: `1px solid ${isDark ? '#4a2a1a' : '#fed7aa'}`, borderRadius: '8px', overflow: 'hidden' }}>
+          <div style={{ backgroundColor: cardBg, border: `1px solid ${isDark ? '#4a2a1a' : '#fed7aa'}`, borderRadius: '14px', overflow: 'hidden', boxShadow: cardShadow }}>
             <div style={{ padding: '12px 18px', borderBottom: `1px solid ${border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <AlertTriangle style={{ width: '12px', height: '12px', color: '#b45309' }} />
-                <p style={{ fontSize: '11px', fontWeight: 700, color: text }}>Leads Sem Atividade</p>
+                <p style={{ fontSize: '12px', fontWeight: 700, color: text, borderLeft: '3px solid #b45309', paddingLeft: '8px' }}>Leads Sem Atividade</p>
                 <span style={{ fontSize: '9px', fontWeight: 700, color: '#b45309', backgroundColor: isDark ? '#2a1a0a' : '#fef3c7', borderRadius: '4px', padding: '1px 5px' }}>
                   +21 dias
                 </span>
@@ -859,8 +900,8 @@ export function DashboardPage() {
                 return (
                   <button key={deal.id} type="button" onClick={() => navigate(`/deal/${deal.id}`)}
                     style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 18px', backgroundColor: 'transparent', cursor: 'pointer', textAlign: 'left', border: 'none', borderBottom: isLast ? 'none' : `1px solid ${border}`, borderRight: i % 2 === 0 ? `1px solid ${border}` : 'none', transition: 'background-color 0.1s ease' }}
-                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = trackBg)}
-                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = trackBg; e.currentTarget.style.borderRadius = '10px' }}
+                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.borderRadius = '0' }}
                   >
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <p style={{ fontSize: '12px', fontWeight: 600, color: text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{deal.company_name}</p>
@@ -896,15 +937,15 @@ export function DashboardPage() {
               { label: 'Ticket Médio Fechado', value: fmtFull(avgTicketWon),    sub: closedWon.length > 0 ? `${closedWon.length} deals base` : 'Sem dados', icon: DollarSign, accent: '#8b6914' },
               { label: 'Conv. Pipeline → Won', value: `${roiPipeline.toFixed(1)}%`, sub: `${fmt(wonTotal)} ganhos de ${fmt(pipelineTotal + wonTotal)}`, icon: Percent, accent: '#4a7c8a' },
             ].map(({ label, value, sub, icon: Icon, accent }) => (
-              <div key={label} style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '8px', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div key={label} style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '14px', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: '10px', boxShadow: cardShadow }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <p style={{ fontSize: '10px', fontWeight: 600, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', lineHeight: 1.2 }}>{label}</p>
-                  <div style={{ width: '26px', height: '26px', borderRadius: '6px', backgroundColor: `${accent}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    <Icon style={{ width: '12px', height: '12px', color: accent }} />
+                  <div style={{ width: '32px', height: '32px', borderRadius: '10px', backgroundColor: `${accent}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <Icon style={{ width: '13px', height: '13px', color: accent }} />
                   </div>
                 </div>
                 <div>
-                  <p style={{ fontSize: '20px', fontWeight: 700, color: text, letterSpacing: '-0.02em', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{value}</p>
+                  <p style={{ fontSize: '22px', fontWeight: 700, color: text, letterSpacing: '-0.02em', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{value}</p>
                   {sub && <p style={{ fontSize: '10px', color: muted, marginTop: '4px', lineHeight: 1.3 }}>{sub}</p>}
                 </div>
               </div>
@@ -915,10 +956,10 @@ export function DashboardPage() {
       case 'ranking':
         return (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '8px', padding: '18px 20px' }}>
+            <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '14px', padding: '18px 20px', boxShadow: cardShadow }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
                 <Trophy style={{ width: '13px', height: '13px', color: '#b45309' }} />
-                <p style={{ fontSize: '11px', fontWeight: 700, color: text }}>Performance por Operador</p>
+                <p style={{ fontSize: '12px', fontWeight: 700, color: text, borderLeft: '3px solid #e31e24', paddingLeft: '8px' }}>Performance por Operador</p>
               </div>
               {ownerStats.length === 0 ? (
                 <p style={{ fontSize: '12px', color: muted, textAlign: 'center', padding: '20px 0' }}>Sem dados ainda</p>
@@ -953,23 +994,24 @@ export function DashboardPage() {
                 </div>
               )}
             </div>
-            <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '8px', padding: '18px 20px' }}>
+            <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '14px', padding: '18px 20px', boxShadow: cardShadow }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
                 <BarChart2 style={{ width: '13px', height: '13px', color: '#2d9e6b' }} />
-                <p style={{ fontSize: '11px', fontWeight: 700, color: text }}>Histórico de Vendas por Mês</p>
+                <p style={{ fontSize: '12px', fontWeight: 700, color: text, borderLeft: '3px solid #e31e24', paddingLeft: '8px' }}>Histórico de Vendas por Mês</p>
               </div>
               {monthlyWon.length === 0 ? (
                 <p style={{ fontSize: '12px', color: muted, textAlign: 'center', padding: '20px 0' }}>Sem histórico de vendas</p>
               ) : (
                 <>
-                  <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px', height: '100px' }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px', height: '130px' }}>
                     {monthlyWon.map(({ label, value, key }) => {
                       const maxV = Math.max(...monthlyWon.map((m) => m.value), 1)
-                      const barH = Math.max(Math.round((value / maxV) * 80), 3)
+                      const barH = Math.max(Math.round((value / maxV) * 100), 3)
                       const isCurrent = key === new Date().toISOString().slice(0, 7)
                       return (
                         <div key={key} title={`${label}: ${fmt(value)}`} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px' }}>
-                          <div style={{ width: '100%', height: `${barH}px`, backgroundColor: isCurrent ? '#2d9e6b' : '#e31e24', borderRadius: '3px 3px 0 0', opacity: isCurrent ? 1 : 0.75, transition: 'height 0.4s ease' }} />
+                          <span style={{ fontSize: '8px', color: isCurrent ? text : muted, fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>{value > 0 ? fmt(value) : ''}</span>
+                          <div style={{ width: '100%', height: `${barH}px`, backgroundColor: isCurrent ? '#2d9e6b' : '#e31e24', borderRadius: '4px 4px 0 0', opacity: isCurrent ? 1 : 0.75, transition: 'height 0.4s ease' }} />
                           <span style={{ fontSize: '9px', color: isCurrent ? text : muted, fontWeight: isCurrent ? 600 : 400, textTransform: 'capitalize' }}>{label}</span>
                         </div>
                       )
@@ -988,8 +1030,8 @@ export function DashboardPage() {
       case 'conv':
         return (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '8px', padding: '18px 20px' }}>
-              <p style={{ fontSize: '11px', fontWeight: 700, color: text, marginBottom: '14px' }}>Distribuição do Pipeline Ativo</p>
+            <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '14px', padding: '18px 20px', boxShadow: cardShadow }}>
+              <p style={{ fontSize: '12px', fontWeight: 700, color: text, marginBottom: '14px', borderLeft: '3px solid #e31e24', paddingLeft: '8px' }}>Distribuição do Pipeline Ativo</p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 {stageConversion.map(({ stage, pct }) => {
                   const count = activeDeals.filter((d) => d.stage_id === stage.id).length
@@ -1013,8 +1055,8 @@ export function DashboardPage() {
                 })}
               </div>
             </div>
-            <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '8px', padding: '18px 20px' }}>
-              <p style={{ fontSize: '11px', fontWeight: 700, color: text, marginBottom: '4px' }}>Tempo Médio por Etapa</p>
+            <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '14px', padding: '18px 20px', boxShadow: cardShadow }}>
+              <p style={{ fontSize: '12px', fontWeight: 700, color: text, marginBottom: '4px', borderLeft: '3px solid #e31e24', paddingLeft: '8px' }}>Tempo Médio por Etapa</p>
               <p style={{ fontSize: '10px', color: muted, marginBottom: '14px' }}>Gargalos do pipeline — dias médios na etapa</p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 {avgDaysPerStage.map(({ stage, avg, count }) => {
@@ -1068,11 +1110,11 @@ export function DashboardPage() {
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div style={{
-        height: '56px', minHeight: '56px',
+        height: '60px', minHeight: '60px',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '0 24px',
         borderBottom: `1px solid ${border}`,
-        backgroundColor: cardBg, flexShrink: 0,
+        backgroundColor: cardBg, flexShrink: 0, borderRadius: '0',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <div>
@@ -1082,11 +1124,8 @@ export function DashboardPage() {
             </p>
           </div>
 
-          {/* Tab underlines */}
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: '0',
-            borderBottom: `1px solid ${border}`,
-          }}>
+          {/* Tab pills */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
             <TabPill id="operacao"   label="Operação" />
             <TabPill id="resultados" label="Resultados" />
           </div>
@@ -1148,7 +1187,7 @@ export function DashboardPage() {
         <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)' }} />
         <div
           style={{
-            position: 'relative', width: '380px', borderRadius: '12px',
+            position: 'relative', width: '380px', borderRadius: '16px',
             backgroundColor: cardBg, border: `1px solid ${border}`,
             padding: '20px', boxShadow: '0 16px 40px rgba(0,0,0,0.24)',
             maxHeight: '80vh', overflowY: 'auto',
@@ -1167,7 +1206,7 @@ export function DashboardPage() {
                 <div key={w.id}
                   style={{
                     display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 12px',
-                    borderRadius: '7px', border: `1px solid ${enabled ? '#e31e24' : border}`,
+                    borderRadius: '10px', border: `1px solid ${enabled ? '#e31e24' : border}`,
                     backgroundColor: enabled ? (isDark ? '#0e1f17' : '#f0faf4') : 'transparent',
                   }}
                 >
@@ -1261,7 +1300,7 @@ function TasksWidget({ isDark, border, text, muted, cardBg, navigate }: {
         </button>
       </div>
 
-      <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '8px', overflow: 'hidden' }}>
+      <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '14px', overflow: 'hidden' }}>
         {upcoming.map((task, i) => {
           const isOverdue = !!task.due_date && task.due_date < today
           const isToday   = task.due_date === today

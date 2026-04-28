@@ -15,6 +15,7 @@ export interface WebhookConfig {
 interface WebhookStore {
   configs: WebhookConfig[]
   loading: boolean
+  initialized: boolean
   initialize: () => Promise<void>
   addWebhook: (url: string, events: WebhookEvent[], secret?: string) => Promise<void>
   removeWebhook: (id: string) => Promise<void>
@@ -25,11 +26,13 @@ interface WebhookStore {
 export const useWebhookStore = create<WebhookStore>((set, get) => ({
   configs: [],
   loading: false,
+  initialized: false,
 
   initialize: async () => {
+    if (get().loading || get().initialized) return
     set({ loading: true })
     const { data } = await supabase.from('webhook_configs').select('*').order('created_at')
-    set({ configs: (data ?? []) as WebhookConfig[], loading: false })
+    set({ configs: (data ?? []) as WebhookConfig[], loading: false, initialized: true })
   },
 
   addWebhook: async (url, events, secret) => {

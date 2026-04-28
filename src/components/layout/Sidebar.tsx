@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, Kanban, Users, Mic, CalendarDays, CheckSquare, Settings, LogOut, Users2, Shield, Mail, Megaphone } from 'lucide-react'
+import { LayoutDashboard, Kanban, Users, Mic, CalendarDays, CheckSquare, Settings, LogOut, Users2, Shield, Mail, Megaphone, GitFork } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
 import esquireLogo from '@/assets/esquire_logo.png'
 import { useAuthStore } from '@/store/useAuthStore'
 import { useTaskStore } from '@/store/useTaskStore'
@@ -23,7 +24,7 @@ const NAV_ITEMS = [
   { to: '/email',     label: 'Email',      icon: Mail            },
 ] as const
 
-type NavTo = (typeof NAV_ITEMS)[number]['to'] | '/teams' | '/admin/users' | '/admin/notifications'
+type NavTo = (typeof NAV_ITEMS)[number]['to'] | '/teams' | '/admin/users' | '/admin/notifications' | '/admin/distribuir-leads'
 
 // ─── Logo mark SVG ────────────────────────────────────────────────────────────
 function EsquireLogo({ size = 28 }: { size?: number }) {
@@ -96,8 +97,17 @@ function NavItem({
       >
         {({ isActive }) => (
           <>
-            <div style={{ position: 'relative', flexShrink: 0 }}>
-              <Icon style={{ width: '14px', height: '14px', color: isActive ? '#e31e24' : 'rgba(255,255,255,0.35)', transition: 'color 0.12s ease' }} />
+            <div style={{ position: 'relative', flexShrink: 0, transition: 'transform 0.18s cubic-bezier(0.34,1.56,0.64,1)' }}
+              onMouseEnter={(e) => {
+                const el = e.currentTarget as HTMLDivElement
+                el.style.transform = 'scale(1.22) translateY(-1px)'
+              }}
+              onMouseLeave={(e) => {
+                const el = e.currentTarget as HTMLDivElement
+                el.style.transform = 'scale(1) translateY(0)'
+              }}
+            >
+              <Icon style={{ width: '14px', height: '14px', color: isActive ? '#e31e24' : 'rgba(255,255,255,0.35)', transition: 'color 0.12s ease, filter 0.15s ease' }} />
               {hasBadge && collapsed && (
                 <span style={{
                   position: 'absolute', top: '-3px', right: '-3px',
@@ -138,6 +148,7 @@ const NOTIF_LABELS: Record<string, { label: string; color: string }> = {
   new_deal:         { label: 'Novo Lead',    color: '#e31e24' },
   overdue_activity: { label: 'Parado',       color: '#b45309' },
   sla_breach:       { label: 'SLA',          color: '#dc2626' },
+  meeting_invite:   { label: 'Reunião',      color: '#7c3aed' },
 }
 
 function timeAgo(iso: string): string {
@@ -148,6 +159,7 @@ function timeAgo(iso: string): string {
   return `${Math.floor(diff / 1440)}d`
 }
 
+// @ts-expect-error reserved for future use
 function NotificationPanel({ onClose, bottom }: { onClose: () => void; bottom: number }) {
   const notifications = useNotificationStore((s) => s.notifications)
   const markRead      = useNotificationStore((s) => s.markRead)
@@ -263,6 +275,13 @@ export function Sidebar() {
   const notifications = useNotificationStore((s) => s.notifications)
   const unreadCount   = useMemo(() => notifications.filter((n) => !n.read).length, [notifications])
 
+  const [unassignedCount, setUnassignedCount] = useState(0)
+  useEffect(() => {
+    if (!profile?.is_admin) return
+    supabase.from('deals').select('id', { count: 'exact', head: true }).is('owner_id', null).is('deleted_at', null)
+      .then(({ count }) => setUnassignedCount(count ?? 0))
+  }, [profile?.is_admin])
+
   const displayName     = profile?.full_name || 'Robert Ferreira'
   const displayRole     = profile?.is_admin ? 'ADMIN' : 'USER'
   const displayInitials = displayName.split(' ').map((p) => p[0]).slice(0, 2).join('').toUpperCase()
@@ -350,9 +369,10 @@ export function Sidebar() {
               {[
                 { to: '/admin/notifications' as NavTo, label: 'Comunicados', icon: Megaphone },
                 { to: '/admin/users' as NavTo, label: 'Utilizadores', icon: Shield },
+                { to: '/admin/distribuir-leads' as NavTo, label: 'Distribuir', icon: GitFork, badge: unassignedCount },
                 { to: '/teams' as NavTo, label: 'Grupos', icon: Users2 },
-              ].map(({ to, label, icon }) => (
-                <NavItem key={to} to={to} label={label} icon={icon} collapsed={collapsed} />
+              ].map(({ to, label, icon, badge }) => (
+                <NavItem key={to} to={to} label={label} icon={icon} collapsed={collapsed} badge={badge} />
               ))}
             </>
           )}

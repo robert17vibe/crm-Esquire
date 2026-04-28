@@ -6,6 +6,7 @@ export interface Owner {
   initials: string
   avatar_color: string
   team_id?: string
+  email?: string
 }
 
 export interface Stakeholder {
@@ -34,7 +35,7 @@ export interface DealEvent {
   id: string
   deal_id: string
   actor_id?: string
-  event_type: 'field_update' | 'stage_change'
+  event_type: 'field_update' | 'stage_change' | 'task_added' | 'task_removed'
   field_name?: string
   old_value?: unknown
   new_value?: unknown
@@ -84,6 +85,7 @@ export interface Deal {
   lead_source?: LeadSource
   loss_reason?: string | null
   lead_temperature?: 'hot' | 'warm' | 'cold' | null
+  segment?: 'B2B' | 'B2C' | 'B2G' | null
 
   // ── Stage tracking ────────────────────────────────────
   stage_changed_at?: string | null

@@ -113,7 +113,11 @@ export function DealCard({ deal, isOverlay = false, dimmed = false, showScore = 
   const taskCount     = useTaskStore((s) => s.tasks.filter((t) => t.deal_id === deal.id && !t.completed_at).length)
   const [showQuickAdd, setShowQuickAdd] = useState(false)
 
-  const isNew = notifications.some((n) => n.dealId === deal.id && !n.read)
+  const hasUnread = notifications.some((n) => n.dealId === deal.id && !n.read)
+  const daysSinceCreated = deal.created_at
+    ? Math.floor((Date.now() - new Date(deal.created_at).getTime()) / 86_400_000)
+    : 999
+  const isNew = daysSinceCreated <= 5 || hasUnread
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: deal.id, disabled: isOverlay })
@@ -129,7 +133,8 @@ export function DealCard({ deal, isOverlay = false, dimmed = false, showScore = 
   const probability = Math.min(100, Math.max(0, deal.probability ?? 0))
   const score       = showScore && !isSpecial ? evaluateDealScore(deal) : null
   const today       = new Date().toISOString().slice(0, 10)
-  const isOverdue   = !isSpecial && !!deal.next_activity?.due_date && deal.next_activity.due_date < today
+  // isOverdue kept for future use — suppress with void cast
+  void (!isSpecial && !!deal.next_activity?.due_date && deal.next_activity.due_date < today)
 
 
   // ── theme tokens ──
@@ -137,9 +142,8 @@ export function DealCard({ deal, isOverlay = false, dimmed = false, showScore = 
                    : isLost ? (isDark ? '#1a0c0c' : '#fdf4f4')
                    :          'var(--surface-card)'
   const isHighlighted = highlightNew && isNew
-  const cardBorder = isHighlighted            ? (isDark ? 'rgba(234,179,8,0.5)' : 'rgba(234,179,8,0.6)')
-                   : deal.days_in_stage > 30 ? (isDark ? 'rgba(120,113,108,0.3)' : 'rgba(214,211,209,0.8)')
-                   :                           'var(--line)'
+  const cardBorder = deal.days_in_stage > 30 ? (isDark ? 'rgba(120,113,108,0.3)' : 'rgba(214,211,209,0.8)')
+                   :                          'var(--line)'
   const textPrimary = 'var(--ink-base)'
   const textMuted   = 'var(--ink-muted)'
   const trackBg     = 'var(--surface-raised)'
@@ -148,15 +152,14 @@ export function DealCard({ deal, isOverlay = false, dimmed = false, showScore = 
 
   const cardStyle: React.CSSProperties = {
     borderRadius: 'var(--radius-lg)',
-    backgroundColor: isHighlighted ? (isDark ? '#1a1500' : '#fffbeb') : cardBg,
+    backgroundColor: cardBg,
     border: `1px solid ${cardBorder}`,
-    ...(isSpecial && { borderLeft: `3px solid ${stageColor}` }),
-    ...(isHighlighted && !isSpecial && { borderLeft: '3px solid #eab308' }),
+    ...(isSpecial ? { borderLeft: `3px solid ${stageColor}` } : isHighlighted ? { borderLeft: '3px solid #f59e0b' } : {}),
     overflow: 'hidden',
     display: 'flex',
     flexDirection: 'column',
-    height: '100px',
-    boxShadow: isHighlighted ? (isDark ? '0 0 0 1px rgba(234,179,8,0.2)' : '0 0 0 1px rgba(234,179,8,0.15)') : isOverlay ? '0 20px 48px rgba(0,0,0,0.3), 0 6px 16px rgba(0,0,0,0.15)' : 'none',
+    height: '114px',
+    boxShadow: isOverlay ? '0 20px 48px rgba(0,0,0,0.3), 0 6px 16px rgba(0,0,0,0.15)' : 'none',
     ...(isOverlay
       ? { transform: 'rotate(1.5deg)', opacity: 1 }
       : { transform: CSS.Transform.toString(transform), transition, opacity: cardOpacity }),
@@ -192,34 +195,37 @@ export function DealCard({ deal, isOverlay = false, dimmed = false, showScore = 
           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
             {isHighlighted && (
               <span style={{
-                fontSize: '9px', fontWeight: 700, letterSpacing: '0.06em',
-                color: '#92400e', backgroundColor: '#fef3c7',
-                borderRadius: '4px', padding: '1px 6px', flexShrink: 0,
-              }}>
-                NOVO · {deal.days_in_stage}d
-              </span>
+                width: '7px', height: '7px', borderRadius: '50%',
+                backgroundColor: '#f59e0b', flexShrink: 0,
+                boxShadow: '0 0 0 2px rgba(245,158,11,0.25)',
+              }} />
             )}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
             {score !== null && (
               <span style={{ fontSize: '9px', fontWeight: 700, color: scoreColor(score), backgroundColor: scoreBg(score, isDark), borderRadius: 'var(--radius-full)', padding: '1px 6px' }}>{score}</span>
             )}
-            {!isHighlighted && (
-              <span style={{ fontSize: '10px', fontWeight: 500, color: deal.days_in_stage > 30 ? '#b45309' : textMuted, fontVariantNumeric: 'tabular-nums' }}>{deal.days_in_stage}d</span>
-            )}
+            <span style={{ fontSize: '10px', fontWeight: 500, color: deal.days_in_stage > 30 ? '#b45309' : textMuted, fontVariantNumeric: 'tabular-nums' }}>{deal.days_in_stage}d</span>
           </div>
         </div>
 
-        {/* Row 2: título */}
-        <p className="line-clamp-2" style={{
-          fontSize: '13px', fontWeight: 600, color: textPrimary,
-          lineHeight: 1.35, letterSpacing: '-0.015em',
-          textDecoration: isLost ? 'line-through' : 'none',
-          textDecorationColor: textMuted,
-          margin: '6px 0',
-        }}>
-          {deal.title}
-        </p>
+        {/* Row 2: empresa + contato · responsável */}
+        <div style={{ margin: '3px 0' }}>
+          <p className="line-clamp-1" style={{
+            fontSize: '13px', fontWeight: 700, color: textPrimary,
+            lineHeight: 1.25, letterSpacing: '-0.02em',
+            textDecoration: isLost ? 'line-through' : 'none',
+            textDecorationColor: textMuted,
+          }}>
+            {deal.company_name || deal.title}
+          </p>
+          <p className="line-clamp-1" style={{
+            fontSize: '11px', fontWeight: 400, color: textMuted,
+            lineHeight: 1.3, marginTop: '3px',
+          }}>
+            {[deal.contact_name, deal.owner?.name].filter(Boolean).join(' · ')}
+          </p>
+        </div>
 
         {/* Row 3: barra prob / valor ganho  +  avatars */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>

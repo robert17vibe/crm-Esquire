@@ -21,6 +21,7 @@ interface TeamNotifStore {
   isLoading: boolean
   fetch: () => Promise<void>
   create: (payload: { title: string; body?: string; type: NotifType; team_id?: string | null; expires_at?: string | null }) => Promise<void>
+  update: (id: string, payload: { title?: string; body?: string | null; team_id?: string | null; expires_at?: string | null }) => Promise<void>
   archive: (id: string) => Promise<void>
   markRead: (id: string) => Promise<void>
   markAllRead: () => Promise<void>
@@ -62,6 +63,11 @@ export const useTeamNotificationStore = create<TeamNotifStore>((set, get) => ({
       if (s.notifications.some((n) => n.id === (data as TeamNotification).id)) return s
       return { notifications: [data as TeamNotification, ...s.notifications] }
     })
+  },
+
+  update: async (id, payload) => {
+    set((s) => ({ notifications: s.notifications.map((n) => n.id === id ? { ...n, ...payload } : n) }))
+    await supabase.from('team_notifications').update(payload).eq('id', id)
   },
 
   archive: async (id) => {

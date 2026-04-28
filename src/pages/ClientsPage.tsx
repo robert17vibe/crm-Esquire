@@ -1,9 +1,19 @@
-import { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Building2, TrendingUp, ArrowRight, Search, ChevronDown, ChevronRight, DollarSign, Activity, Mail } from 'lucide-react'
-import { useDealStore } from '@/store/useDealStore'
 import { useThemeStore } from '@/store/useThemeStore'
 import { STAGES } from '@/constants/pipeline'
+import { supabase } from '@/lib/supabase'
+import { useVisibleDeals } from '@/hooks/useVisibleDeals'
+
+type StageHistoryEntry = {
+  id: string
+  deal_id: string
+  from_stage: string | null
+  to_stage: string
+  changed_at: string
+  days_in_previous_stage: number
+}
 
 function fmt(v: number) {
   return new Intl.NumberFormat('pt-BR', {
@@ -22,12 +32,14 @@ const SIZE_LABELS: Record<string, string> = {
 }
 
 export function ClientsPage() {
-  const deals    = useDealStore((s) => s.deals)
+  const deals    = useVisibleDeals()
   const isDark   = useThemeStore((s) => s.isDark)
   const navigate = useNavigate()
 
   const [searchQuery, setSearchQuery] = useState('')
   const [expandedCompany, setExpandedCompany] = useState<string | null>(null)
+  const [stageHistoryMap, setStageHistoryMap] = useState<Record<string, StageHistoryEntry[]>>({})
+  const [loadingHistory, setLoadingHistory] = useState(false)
 
   const border  = isDark ? '#242422' : '#e4e0da'
   const text    = isDark ? '#e8e4dc' : '#1a1814'
@@ -96,6 +108,30 @@ export function ClientsPage() {
 
   const totalPipeline = useMemo(() => filtered.reduce((s, c) => s + c.pipeline, 0), [filtered])
   const totalWon      = useMemo(() => filtered.reduce((s, c) => s + c.revenue, 0), [filtered])
+
+  // Fetch stage history for all deals of the expanded company
+  useEffect(() => {
+    if (!expandedCompany) return
+    const company = filtered.find((c) => c.name === expandedCompany)
+    if (!company) return
+    const dealIds = company.deals.map((d) => d.id)
+    if (dealIds.length === 0) return
+    setLoadingHistory(true)
+    supabase
+      .from('deal_stage_history')
+      .select('id, deal_id, from_stage, to_stage, changed_at, days_in_previous_stage')
+      .in('deal_id', dealIds)
+      .order('changed_at', { ascending: true })
+      .then(({ data }) => {
+        const map: Record<string, StageHistoryEntry[]> = {}
+        for (const entry of (data ?? []) as StageHistoryEntry[]) {
+          if (!map[entry.deal_id]) map[entry.deal_id] = []
+          map[entry.deal_id].push(entry)
+        }
+        setStageHistoryMap(map)
+        setLoadingHistory(false)
+      })
+  }, [expandedCompany, filtered])
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: isDark ? '#0d0c0a' : '#f5f4f0' }}>
@@ -317,79 +353,113 @@ export function ClientsPage() {
                     </div>
                   </button>
 
-                  {/* Expanded deals list */}
+                  {/* Expanded deals list + pipeline journey */}
                   {isExpanded && (
                     <div style={{
                       borderBottom: isLast ? 'none' : `1px solid ${border}`,
-                      padding: '6px 20px 12px 66px',
                       backgroundColor: isDark ? '#111110' : '#fafaf8',
                     }}>
-                      {company.deals.map((deal) => {
+                      {company.deals.map((deal, di) => {
                         const dealStage = STAGES.find((s) => s.id === deal.stage_id)
+                        const history   = stageHistoryMap[deal.id] ?? []
+                        const isLastDeal = di === company.deals.length - 1
+
                         return (
-                          <button
-                            key={deal.id}
-                            type="button"
-                            onClick={(e) => { e.stopPropagation(); navigate(`/deal/${deal.id}`) }}
-                            style={{
-                              display: 'flex', alignItems: 'center', gap: '10px',
-                              width: '100%', padding: '8px 10px', borderRadius: '7px',
-                              backgroundColor: 'transparent', border: 'none', cursor: 'pointer',
-                              textAlign: 'left', marginBottom: '2px',
-                            }}
-                            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = hoverBg; const arrow = e.currentTarget.querySelector<HTMLElement>('[data-arrow]'); if (arrow) arrow.style.color = '#e31e24' }}
-                            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; const arrow = e.currentTarget.querySelector<HTMLElement>('[data-arrow]'); if (arrow) arrow.style.color = muted }}
-                          >
-                            {/* Stage pill */}
-                            {dealStage && (
-                              <span style={{
-                                fontSize: '9px', fontWeight: 700, color: dealStage.color,
-                                backgroundColor: `${dealStage.color}18`, borderRadius: '3px',
-                                padding: '2px 8px', flexShrink: 0, whiteSpace: 'nowrap',
-                                border: `1px solid ${dealStage.color}25`,
-                              }}>
-                                {dealStage.label}
-                              </span>
-                            )}
-
-                            {/* Title */}
-                            <p style={{ fontSize: '12px', fontWeight: 500, color: text, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                              {deal.title}
-                            </p>
-
-                            {/* Owner avatar */}
-                            {deal.owner && (
-                              <div
-                                title={deal.owner.name}
-                                style={{
+                          <div key={deal.id} style={{ borderBottom: isLastDeal ? 'none' : `1px solid ${isDark ? '#1a1a18' : '#eeece8'}` }}>
+                            {/* Deal row */}
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); navigate(`/deal/${deal.id}`) }}
+                              style={{
+                                display: 'flex', alignItems: 'center', gap: '10px',
+                                width: '100%', padding: '8px 20px 8px 66px', borderRadius: '0',
+                                backgroundColor: 'transparent', border: 'none', cursor: 'pointer',
+                                textAlign: 'left',
+                              }}
+                              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = hoverBg; const arrow = e.currentTarget.querySelector<HTMLElement>('[data-arrow]'); if (arrow) arrow.style.color = '#e31e24' }}
+                              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; const arrow = e.currentTarget.querySelector<HTMLElement>('[data-arrow]'); if (arrow) arrow.style.color = muted }}
+                            >
+                              {dealStage && (
+                                <span style={{
+                                  fontSize: '9px', fontWeight: 700, color: dealStage.color,
+                                  backgroundColor: `${dealStage.color}18`, borderRadius: '3px',
+                                  padding: '2px 8px', flexShrink: 0, whiteSpace: 'nowrap',
+                                  border: `1px solid ${dealStage.color}25`,
+                                }}>
+                                  {dealStage.label}
+                                </span>
+                              )}
+                              <p style={{ fontSize: '12px', fontWeight: 500, color: text, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {deal.contact_name || deal.title}
+                              </p>
+                              {deal.owner && (
+                                <div title={deal.owner.name} style={{
                                   width: '20px', height: '20px', borderRadius: '50%', flexShrink: 0,
                                   backgroundColor: deal.owner.avatar_color,
                                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                                   fontSize: '8px', fontWeight: 700, color: '#fff',
-                                }}
-                              >
-                                {deal.owner.initials}
+                                }}>
+                                  {deal.owner.initials}
+                                </div>
+                              )}
+                              <p style={{ fontSize: '12px', fontWeight: 600, color: deal.stage_id === 'closed_won' ? '#2d9e6b' : text, fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
+                                {Number(deal.value) > 0 ? fmtFull(Number(deal.value)) : '—'}
+                              </p>
+                              {deal.contact_email && (
+                                <button type="button" title={`Enviar email a ${deal.contact_email}`}
+                                  onClick={(e) => { e.stopPropagation(); navigate(`/email?to=${encodeURIComponent(deal.contact_email!)}`) }}
+                                  style={{ width: '22px', height: '22px', borderRadius: '5px', border: `1px solid ${border}`, backgroundColor: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: muted, flexShrink: 0 }}
+                                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = hoverBg; e.currentTarget.style.color = '#e31e24' }}
+                                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = muted }}
+                                >
+                                  <Mail style={{ width: '11px', height: '11px' }} />
+                                </button>
+                              )}
+                              <ArrowRight data-arrow="" style={{ width: '10px', height: '10px', color: muted, flexShrink: 0 }} />
+                            </button>
+
+                            {/* Pipeline journey for this deal */}
+                            {!loadingHistory && (
+                              <div style={{ padding: '6px 20px 10px 66px' }}>
+                                <p style={{ fontSize: '9px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '6px' }}>
+                                  Jornada no Pipeline
+                                </p>
+                                {history.length === 0 ? (
+                                  <p style={{ fontSize: '11px', color: muted, fontStyle: 'italic' }}>Sem movimentações registadas ainda</p>
+                                ) : (
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
+                                    {/* First stage pill */}
+                                    {history[0].from_stage && (() => {
+                                      const s = STAGES.find((st) => st.id === history[0].from_stage)
+                                      return s ? (
+                                        <span style={{ fontSize: '9px', fontWeight: 600, color: s.color, backgroundColor: `${s.color}14`, border: `1px solid ${s.color}30`, borderRadius: '3px', padding: '1px 6px', whiteSpace: 'nowrap' }}>
+                                          {s.label}
+                                        </span>
+                                      ) : null
+                                    })()}
+                                    {history.map((entry, hi) => {
+                                      const toStage = STAGES.find((st) => st.id === entry.to_stage)
+                                      return (
+                                        <React.Fragment key={entry.id}>
+                                          <span style={{ color: muted, fontSize: '10px' }}>→</span>
+                                          <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1px' }}>
+                                            {toStage && (
+                                              <span style={{ fontSize: '9px', fontWeight: 600, color: toStage.color, backgroundColor: `${toStage.color}14`, border: `1px solid ${toStage.color}30`, borderRadius: '3px', padding: '1px 6px', whiteSpace: 'nowrap' }}>
+                                                {toStage.label}
+                                              </span>
+                                            )}
+                                            {entry.days_in_previous_stage > 0 && hi < history.length && (
+                                              <span style={{ fontSize: '8px', color: muted }}>{entry.days_in_previous_stage}d</span>
+                                            )}
+                                          </span>
+                                        </React.Fragment>
+                                      )
+                                    })}
+                                  </div>
+                                )}
                               </div>
                             )}
-
-                            {/* Value */}
-                            <p style={{ fontSize: '12px', fontWeight: 600, color: deal.stage_id === 'closed_won' ? '#2d9e6b' : text, fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
-                              {Number(deal.value) > 0 ? fmtFull(Number(deal.value)) : '—'}
-                            </p>
-                            {deal.contact_email && (
-                              <button
-                                type="button"
-                                title={`Enviar email a ${deal.contact_email}`}
-                                onClick={(e) => { e.stopPropagation(); navigate(`/email?to=${encodeURIComponent(deal.contact_email!)}`) }}
-                                style={{ width: '22px', height: '22px', borderRadius: '5px', border: `1px solid ${border}`, backgroundColor: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: muted, flexShrink: 0 }}
-                                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = hoverBg; e.currentTarget.style.color = '#e31e24' }}
-                                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = muted }}
-                              >
-                                <Mail style={{ width: '11px', height: '11px' }} />
-                              </button>
-                            )}
-                            <ArrowRight data-arrow="" style={{ width: '10px', height: '10px', color: muted, flexShrink: 0 }} />
-                          </button>
+                          </div>
                         )
                       })}
                     </div>

@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react'
-import { Bell, Plus, X, Megaphone, AlertTriangle, Info, Zap, Archive, Clock, Users } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Bell, Plus, X, Megaphone, AlertTriangle, Info, Zap, Pencil, Clock, Users } from 'lucide-react'
 import { useThemeStore } from '@/store/useThemeStore'
 import { useTeamStore } from '@/store/useTeamStore'
 import { useTeamNotificationStore, type NotifType } from '@/store/useTeamNotificationStore'
@@ -177,19 +177,120 @@ function CreateDrawer({ isDark, teams, onClose }: {
   )
 }
 
+function EditDrawer({ isDark, teams, notif, onClose }: {
+  isDark: boolean
+  teams: { id: string; name: string }[]
+  notif: import('@/store/useTeamNotificationStore').TeamNotification
+  onClose: () => void
+}) {
+  const update = useTeamNotificationStore((s) => s.update)
+
+  const bg     = isDark ? '#161614' : '#ffffff'
+  const border = isDark ? '#242422' : '#e4e0da'
+  const text   = isDark ? '#e8e4dc' : '#1a1814'
+  const muted  = isDark ? '#6b6560' : '#8a857d'
+  const inBg   = isDark ? '#111110' : '#f8f7f4'
+
+  const [title,   setTitle]   = useState(notif.title)
+  const [body,    setBody]    = useState(notif.body ?? '')
+  const [teamId,  setTeamId]  = useState(notif.team_id ?? '')
+  const [expires, setExpires] = useState(notif.expires_at ? notif.expires_at.slice(0, 10) : '')
+  const [saving,  setSaving]  = useState(false)
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  async function handleSave() {
+    if (!title.trim()) return
+    setSaving(true)
+    await update(notif.id, {
+      title: title.trim(),
+      body: body.trim() || null,
+      team_id: teamId || null,
+      expires_at: expires ? new Date(expires).toISOString() : null,
+    })
+    setSaving(false)
+    onClose()
+  }
+
+  const inp: React.CSSProperties = {
+    height: '38px', padding: '0 12px', fontSize: '13px', fontWeight: 500,
+    backgroundColor: inBg, border: `1px solid ${border}`, borderRadius: '8px',
+    color: text, outline: 'none', width: '100%', fontFamily: 'inherit', boxSizing: 'border-box',
+  }
+
+  const cfg = TYPE_CFG[notif.type]
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 60, display: 'flex', alignItems: 'stretch', justifyContent: 'flex-end' }}>
+      <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(2px)' }} onClick={onClose} />
+      <div style={{ position: 'relative', zIndex: 1, width: '420px', maxWidth: '95vw', backgroundColor: bg, borderLeft: `1px solid ${border}`, display: 'flex', flexDirection: 'column', height: '100%', boxShadow: '-12px 0 48px rgba(0,0,0,0.3)' }}>
+        <div style={{ padding: '20px 20px 16px', borderBottom: `1px solid ${border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ width: '36px', height: '36px', borderRadius: '10px', backgroundColor: isDark ? cfg.bgDark : cfg.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Pencil style={{ width: '15px', height: '15px', color: cfg.color }} />
+            </div>
+            <div>
+              <p style={{ fontSize: '14px', fontWeight: 700, color: text }}>Editar Comunicado</p>
+              <p style={{ fontSize: '11px', color: muted }}>Alterar mensagem, prazo e destinatário</p>
+            </div>
+          </div>
+          <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: muted, padding: '4px', borderRadius: '6px' }}>
+            <X style={{ width: '16px', height: '16px' }} />
+          </button>
+        </div>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '20px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+          <div>
+            <label style={{ fontSize: '10px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: '7px' }}>Título *</label>
+            <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} style={inp} />
+          </div>
+          <div>
+            <label style={{ fontSize: '10px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: '7px' }}>Mensagem</label>
+            <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={4}
+              style={{ ...inp, height: 'auto', padding: '10px 12px', resize: 'vertical', lineHeight: 1.5 }} />
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div>
+              <label style={{ fontSize: '10px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: '7px' }}>Grupo destinatário</label>
+              <select value={teamId} onChange={(e) => setTeamId(e.target.value)} style={{ ...inp, cursor: 'pointer' }}>
+                <option value="">Toda a equipa</option>
+                {teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={{ fontSize: '10px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: '7px' }}>Expira em</label>
+              <input type="date" value={expires} onChange={(e) => setExpires(e.target.value)} style={{ ...inp, colorScheme: isDark ? 'dark' : 'light' }} />
+            </div>
+          </div>
+        </div>
+        <div style={{ padding: '16px 20px', borderTop: `1px solid ${border}`, display: 'flex', gap: '10px' }}>
+          <button type="button" onClick={onClose} style={{ flex: 1, height: '38px', borderRadius: '8px', border: `1px solid ${border}`, backgroundColor: 'transparent', color: muted, fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
+            Cancelar
+          </button>
+          <button type="button" onClick={handleSave} disabled={saving || !title.trim()} style={{ flex: 2, height: '38px', borderRadius: '8px', border: 'none', backgroundColor: cfg.color, color: '#fff', fontSize: '13px', fontWeight: 700, cursor: 'pointer', opacity: (saving || !title.trim()) ? 0.6 : 1 }}>
+            {saving ? 'A guardar...' : 'Guardar alterações'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export function AdminNotificationsPage() {
   const isDark       = useThemeStore((s) => s.isDark)
   const teams        = useTeamStore((s) => s.teams)
   const notifications = useTeamNotificationStore((s) => s.notifications)
   const fetch        = useTeamNotificationStore((s) => s.fetch)
-  const archive      = useTeamNotificationStore((s) => s.archive)
   const isLoading    = useTeamNotificationStore((s) => s.isLoading)
   const subscribeRealtime = useTeamNotificationStore((s) => s.subscribeRealtime)
 
   const [showCreate, setShowCreate] = useState(false)
+  const [editNotif, setEditNotif] = useState<import('@/store/useTeamNotificationStore').TeamNotification | null>(null)
   const [filter, setFilter] = useState<NotifType | 'all'>('all')
   const [teamFilter, setTeamFilter] = useState<string>('all')
-  const archiveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
 
   const bg      = isDark ? '#0d0c0a' : '#f5f4f0'
   const cardBg  = isDark ? '#161614' : '#ffffff'
@@ -202,11 +303,6 @@ export function AdminNotificationsPage() {
     const unsub = subscribeRealtime()
     return unsub
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
-
-  function handleArchive(id: string) {
-    archive(id)
-    clearTimeout(archiveTimers.current[id])
-  }
 
   const filtered = notifications
     .filter((n) => filter === 'all' || n.type === filter)
@@ -324,12 +420,12 @@ export function AdminNotificationsPage() {
                     <p style={{ fontSize: '14px', fontWeight: 700, color: text, marginBottom: n.body ? '5px' : 0 }}>{n.title}</p>
                     {n.body && <p style={{ fontSize: '12px', color: muted, lineHeight: 1.6 }}>{n.body}</p>}
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', padding: '0 14px', borderLeft: `1px solid ${border}` }}>
-                    <button type="button" onClick={() => handleArchive(n.id)} title="Arquivar"
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '4px', padding: '0 12px', borderLeft: `1px solid ${border}` }}>
+                    <button type="button" onClick={() => setEditNotif(n)} title="Editar"
                       style={{ background: 'none', border: 'none', cursor: 'pointer', color: muted, padding: '6px', borderRadius: '7px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = isDark ? '#252522' : '#f0ede8'; e.currentTarget.style.color = '#ef4444' }}
+                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = isDark ? '#252522' : '#f0ede8'; e.currentTarget.style.color = cfg.color }}
                       onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = muted }}>
-                      <Archive style={{ width: '14px', height: '14px' }} />
+                      <Pencil style={{ width: '14px', height: '14px' }} />
                     </button>
                   </div>
                 </div>
@@ -341,6 +437,9 @@ export function AdminNotificationsPage() {
 
       {showCreate && (
         <CreateDrawer isDark={isDark} teams={teams} onClose={() => setShowCreate(false)} />
+      )}
+      {editNotif && (
+        <EditDrawer isDark={isDark} teams={teams} notif={editNotif} onClose={() => setEditNotif(null)} />
       )}
     </div>
   )

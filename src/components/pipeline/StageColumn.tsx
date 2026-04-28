@@ -58,8 +58,8 @@ export function StageColumn({ stage, deals, dimmedIds, onMoveDeal: _onMoveDeal, 
 
           {/* Label */}
           <span style={{
-            fontSize: '10px', fontWeight: 700, letterSpacing: '0.08em',
-            color: 'var(--ink-muted)', textTransform: 'uppercase', flex: 1,
+            fontSize: '11px', fontWeight: 700, letterSpacing: '0.06em',
+            color: 'var(--ink-base)', textTransform: 'uppercase', flex: 1,
           }}>
             {stage.label}
           </span>
@@ -67,7 +67,7 @@ export function StageColumn({ stage, deals, dimmedIds, onMoveDeal: _onMoveDeal, 
           {/* Count pill */}
           <span style={{
             fontSize: '11px', fontWeight: 600,
-            color: 'var(--ink-muted)',
+            color: 'var(--ink-base)',
             backgroundColor: 'var(--surface-raised)',
             border: '1px solid var(--line)',
             borderRadius: 'var(--radius-full)',
@@ -84,7 +84,7 @@ export function StageColumn({ stage, deals, dimmedIds, onMoveDeal: _onMoveDeal, 
         {totalValue > 0 && (
           <p style={{
             fontSize: '11px', fontWeight: 700,
-            color: 'var(--ink-faint)',
+            color: 'var(--ink-muted)',
             marginTop: '5px',
             fontVariantNumeric: 'tabular-nums',
             letterSpacing: '-0.01em',

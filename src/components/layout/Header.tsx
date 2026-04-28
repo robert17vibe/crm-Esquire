@@ -102,6 +102,7 @@ function NotificationPanel({ onClose, isDark }: { onClose: () => void; isDark: b
                   new_deal:         { icon: User,          color: '#2c5545', bg: isDark ? '#1e2e24' : '#e6f2ee', label: 'Novo lead criado' },
                   overdue_activity: { icon: AlertTriangle, color: '#c53030', bg: isDark ? '#2d1515' : '#fee2e2', label: 'Atividade vencida' },
                   sla_breach:       { icon: Clock,         color: '#b45309', bg: isDark ? '#2a1a0a' : '#fef3c7', label: 'SLA em risco' },
+                  meeting_invite:   { icon: Bell,          color: '#2563eb', bg: isDark ? '#172554' : '#dbeafe', label: 'Convite de reuniao' },
                 }
                 const { icon: Icon, color, bg: ibg, label } = cfg[n.type] ?? cfg.new_deal
                 return (

@@ -2,11 +2,13 @@ import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   CheckSquare, Plus, X, Clock, AlertTriangle, Calendar,
-  ArrowRight, Check, Trash2, Phone, Mail, Video, Users, MoreHorizontal,
+  ArrowRight, Check, Trash2, Phone, Mail, Video, Users, MoreHorizontal, Pencil,
 } from 'lucide-react'
 import { useTaskStore } from '@/store/useTaskStore'
-import { useDealStore } from '@/store/useDealStore'
 import { useThemeStore } from '@/store/useThemeStore'
+import { useVisibleDeals } from '@/hooks/useVisibleDeals'
+import { useImpersonationStore } from '@/store/useImpersonationStore'
+import { useOwnerStore } from '@/store/useOwnerStore'
 import type { Task, TaskPriority, TaskType } from '@/types/task.types'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -42,7 +44,7 @@ type TypeFilter = 'all' | TaskType
 
 function TaskRow({
   task, isDark, border, text, muted, cardBg, hoverBg,
-  onComplete, onUncomplete, onRemove, onNavigate,
+  onComplete, onUncomplete, onRemove, onNavigate, onEdit,
 }: {
   task: Task
   isDark: boolean; border: string; text: string; muted: string; cardBg: string; hoverBg: string
@@ -50,6 +52,7 @@ function TaskRow({
   onUncomplete: () => void
   onRemove: () => void
   onNavigate?: () => void
+  onEdit: () => void
 }) {
   const [hovered, setHovered] = useState(false)
   const isDone   = !!task.completed_at
@@ -136,20 +139,29 @@ function TaskRow({
         </span>
       )}
 
-      {/* Delete */}
+      {/* Edit / Delete */}
       {hovered && (
-        <button
-          type="button"
-          onClick={onRemove}
-          style={{
-            background: 'none', border: 'none', cursor: 'pointer', padding: '2px',
-            color: muted, flexShrink: 0,
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.color = '#dc2626')}
-          onMouseLeave={(e) => (e.currentTarget.style.color = muted)}
-        >
-          <Trash2 style={{ width: '12px', height: '12px' }} />
-        </button>
+        <>
+          <button
+            type="button"
+            onClick={onEdit}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', color: muted, flexShrink: 0 }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = '#e31e24')}
+            onMouseLeave={(e) => (e.currentTarget.style.color = muted)}
+            title="Editar tarefa"
+          >
+            <Pencil style={{ width: '12px', height: '12px' }} />
+          </button>
+          <button
+            type="button"
+            onClick={onRemove}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', color: muted, flexShrink: 0 }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = '#dc2626')}
+            onMouseLeave={(e) => (e.currentTarget.style.color = muted)}
+          >
+            <Trash2 style={{ width: '12px', height: '12px' }} />
+          </button>
+        </>
       )}
     </div>
   )
@@ -310,21 +322,160 @@ function AddTaskForm({
   )
 }
 
+// ─── Edit task drawer ─────────────────────────────────────────────────────────
+
+function EditTaskDrawer({ task, deals, owners, isDark, border, text, muted, inputBg, onSave, onClose }: {
+  task: Task
+  deals: { id: string; title: string }[]
+  owners: { id: string; name: string }[]
+  isDark: boolean; border: string; text: string; muted: string; inputBg: string
+  onSave: (patch: Partial<Pick<Task, 'title' | 'due_date' | 'priority' | 'task_type' | 'assigned_to' | 'deal_id'>>) => Promise<void>
+  onClose: () => void
+}) {
+  const [title, setTitle]       = useState(task.title)
+  const [dueDate, setDueDate]   = useState(task.due_date ?? '')
+  const [priority, setPriority] = useState<TaskPriority>(task.priority)
+  const [taskType, setTaskType] = useState<TaskType>(task.task_type)
+  const [assignedTo, setAssignedTo] = useState(task.assigned_to ?? '')
+  const [dealId, setDealId]     = useState(task.deal_id ?? '')
+  const [saving, setSaving]     = useState(false)
+
+  const selectStyle: React.CSSProperties = {
+    height: '32px', padding: '0 8px', fontSize: '12px',
+    backgroundColor: inputBg, border: `1px solid ${border}`,
+    borderRadius: '6px', color: text, outline: 'none', cursor: 'pointer', width: '100%',
+  }
+
+  async function handleSave() {
+    if (!title.trim()) return
+    setSaving(true)
+    await onSave({ title: title.trim(), due_date: dueDate || null, priority, task_type: taskType, assigned_to: assignedTo || null, deal_id: dealId || null })
+    setSaving(false)
+    onClose()
+  }
+
+  return (
+    <>
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 100, backgroundColor: 'rgba(0,0,0,0.4)' }} />
+      <div style={{
+        position: 'fixed', top: 0, right: 0, bottom: 0, width: '360px', zIndex: 101,
+        backgroundColor: isDark ? '#111110' : '#ffffff',
+        borderLeft: `1px solid ${border}`,
+        display: 'flex', flexDirection: 'column', boxShadow: '-8px 0 32px rgba(0,0,0,0.3)',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: `1px solid ${border}`, flexShrink: 0 }}>
+          <span style={{ fontSize: '13px', fontWeight: 700, color: text }}>Editar Tarefa</span>
+          <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: muted }}>
+            <X style={{ width: '16px', height: '16px' }} />
+          </button>
+        </div>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div>
+            <label style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: muted, display: 'block', marginBottom: '6px' }}>Título</label>
+            <input
+              autoFocus
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              style={{ ...selectStyle, height: '36px', padding: '0 10px' }}
+            />
+          </div>
+          <div>
+            <label style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: muted, display: 'block', marginBottom: '6px' }}>Prazo</label>
+            <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} style={selectStyle} />
+          </div>
+          <div>
+            <label style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: muted, display: 'block', marginBottom: '6px' }}>Prioridade</label>
+            <select value={priority} onChange={(e) => setPriority(e.target.value as TaskPriority)} style={selectStyle}>
+              <option value="high">🔴 Alta</option>
+              <option value="medium">🟡 Média</option>
+              <option value="low">🔵 Baixa</option>
+            </select>
+          </div>
+          <div>
+            <label style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: muted, display: 'block', marginBottom: '6px' }}>Tipo</label>
+            <select value={taskType} onChange={(e) => setTaskType(e.target.value as TaskType)} style={selectStyle}>
+              <option value="call">📞 Ligação</option>
+              <option value="email">✉️ Email</option>
+              <option value="meeting">📹 Reunião</option>
+              <option value="follow_up">👥 Follow-up</option>
+              <option value="other">📋 Outro</option>
+            </select>
+          </div>
+          {owners.length > 0 && (
+            <div>
+              <label style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: muted, display: 'block', marginBottom: '6px' }}>Atribuído a</label>
+              <select value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)} style={selectStyle}>
+                <option value="">— Sem atribuição</option>
+                {owners.map((o) => (
+                  <option key={o.id} value={o.id}>{o.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+          <div>
+            <label style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: muted, display: 'block', marginBottom: '6px' }}>Lead associado</label>
+            <select value={dealId} onChange={(e) => setDealId(e.target.value)} style={selectStyle}>
+              <option value="">— Sem lead</option>
+              {deals.map((d) => (
+                <option key={d.id} value={d.id}>{d.title}</option>
+              ))}
+            </select>
+            {dealId && dealId !== (task.deal_id ?? '') && (
+              <p style={{ fontSize: '9px', color: '#d97706', marginTop: '4px' }}>
+                ⚠ Guardar irá registar a mudança no histórico do cliente
+              </p>
+            )}
+          </div>
+        </div>
+        <div style={{ padding: '16px 20px', borderTop: `1px solid ${border}`, display: 'flex', gap: '8px', flexShrink: 0 }}>
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={!title.trim() || saving}
+            style={{
+              flex: 1, height: '36px', borderRadius: '6px', border: 'none',
+              backgroundColor: '#e31e24', color: '#fff', fontSize: '12px', fontWeight: 700,
+              cursor: title.trim() && !saving ? 'pointer' : 'not-allowed',
+              opacity: title.trim() && !saving ? 1 : 0.5,
+            }}
+          >
+            {saving ? 'A guardar...' : 'Guardar'}
+          </button>
+          <button type="button" onClick={onClose}
+            style={{ height: '36px', padding: '0 16px', borderRadius: '6px', border: `1px solid ${border}`, backgroundColor: 'transparent', color: muted, fontSize: '12px', cursor: 'pointer' }}>
+            Cancelar
+          </button>
+        </div>
+      </div>
+    </>
+  )
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export function TasksPage() {
   const isDark   = useThemeStore((s) => s.isDark)
-  const tasks    = useTaskStore((s) => s.tasks)
-  const loading  = useTaskStore((s) => s.loading)
-  const fetch    = useTaskStore((s) => s.fetch)
-  const create   = useTaskStore((s) => s.create)
-  const complete = useTaskStore((s) => s.complete)
+  const allTasks     = useTaskStore((s) => s.tasks)
+  const loading      = useTaskStore((s) => s.loading)
+  const impersonatedId = useImpersonationStore((s) => s.impersonatedId)
+  const visibleDeals = useVisibleDeals()
+  const visibleDealIds = useMemo(() => new Set(visibleDeals.map((d) => d.id)), [visibleDeals])
+  const tasks = impersonatedId
+    ? allTasks.filter((t) => t.deal_id ? visibleDealIds.has(t.deal_id) : false)
+    : allTasks
+  const fetch      = useTaskStore((s) => s.fetch)
+  const create     = useTaskStore((s) => s.create)
+  const update     = useTaskStore((s) => s.update)
+  const complete   = useTaskStore((s) => s.complete)
   const uncomplete = useTaskStore((s) => s.uncomplete)
-  const remove   = useTaskStore((s) => s.remove)
-  const deals    = useDealStore((s) => s.deals)
-  const navigate = useNavigate()
+  const remove     = useTaskStore((s) => s.remove)
+  const owners     = useOwnerStore((s) => s.owners)
+  const deals      = visibleDeals
+  const navigate   = useNavigate()
 
   const [showForm, setShowForm]         = useState(false)
+  const [editTask, setEditTask]         = useState<Task | null>(null)
   const [filter, setFilter]             = useState<TaskFilter>('pending')
   const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>('all')
   const [typeFilter, setTypeFilter]     = useState<TypeFilter>('all')
@@ -393,6 +544,16 @@ export function TasksPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: pageBg }}>
+      {editTask && (
+        <EditTaskDrawer
+          task={editTask}
+          deals={dealOptions}
+          owners={owners.map((o) => ({ id: o.id, name: o.name }))}
+          isDark={isDark} border={border} text={text} muted={muted} inputBg={inputBg}
+          onSave={(patch) => update(editTask.id, patch)}
+          onClose={() => setEditTask(null)}
+        />
+      )}
 
       {/* Header */}
       <div style={{
@@ -541,6 +702,7 @@ export function TasksPage() {
                         onUncomplete={() => uncomplete(task.id)}
                         onRemove={() => remove(task.id)}
                         onNavigate={task.deal_id ? () => navigate(`/deal/${task.deal_id}`) : undefined}
+                        onEdit={() => setEditTask(task)}
                       />
                     ))}
                   </div>

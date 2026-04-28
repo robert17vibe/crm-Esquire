@@ -6,6 +6,7 @@ import type { Team } from '@/types/deal.types'
 interface TeamStore {
   teams: Team[]
   isLoading: boolean
+  initialized: boolean
   initialize: () => Promise<void>
   createTeam: (name: string) => Promise<Team>
   renameTeam: (id: string, name: string) => Promise<void>
@@ -15,14 +16,16 @@ interface TeamStore {
 export const useTeamStore = create<TeamStore>((set, get) => ({
   teams: [],
   isLoading: false,
+  initialized: false,
 
   initialize: async () => {
+    if (get().isLoading || get().initialized) return
     set({ isLoading: true })
     try {
       const teams = await fetchTeams()
-      set({ teams, isLoading: false })
+      set({ teams, isLoading: false, initialized: true })
     } catch {
-      set({ isLoading: false })
+      set({ isLoading: false, initialized: true })
     }
   },
 

@@ -1,17 +1,12 @@
 import { useState } from 'react'
 import {
-  Moon, Sun, Target, Bell, BellOff, Eye, RefreshCw,
-  DollarSign, Check, User, Palette, Mail,
-  Zap, GitBranch, Clock, AlertCircle, Plus, Trash2,
+  Moon, Sun, Bell, BellOff, Eye, Check, User, Palette, Mail,
+  Zap, AlertCircle, Clock, Lock, LogOut, Key, Copy, RefreshCw,
 } from 'lucide-react'
 import { useThemeStore } from '@/store/useThemeStore'
 import { useSettingsStore } from '@/store/useSettingsStore'
 import { useAuthStore } from '@/store/useAuthStore'
-import { useWebhookStore, type WebhookEvent } from '@/store/useWebhookStore'
-
-function fmt(v: number) {
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', notation: 'compact', maximumFractionDigits: 1 }).format(v)
-}
+import { supabase } from '@/lib/supabase'
 
 function Toggle({ checked, onChange, isDark }: { checked: boolean; onChange: (v: boolean) => void; isDark: boolean }) {
   return (
@@ -101,46 +96,110 @@ const AVATAR_COLORS = [
   '#0f766e', '#dc2626', '#0369a1', '#4d7c0f', '#92400e',
 ]
 
-type SettingsTab = 'perfil' | 'aparencia' | 'pipeline' | 'notificacoes' | 'integracoes'
+type SettingsTab = 'perfil' | 'seguranca' | 'notificacoes' | 'preferencias' | 'api'
 
 const TABS: { id: SettingsTab; label: string }[] = [
-  { id: 'perfil',        label: 'Perfil' },
-  { id: 'aparencia',     label: 'Aparência' },
-  { id: 'pipeline',      label: 'Pipeline' },
-  { id: 'notificacoes',  label: 'Notificações' },
-  { id: 'integracoes',   label: 'Integrações' },
+  { id: 'perfil',       label: 'Perfil' },
+  { id: 'seguranca',    label: 'Segurança' },
+  { id: 'notificacoes', label: 'Notificações' },
+  { id: 'preferencias', label: 'Preferências' },
+  { id: 'api',          label: 'API' },
 ]
+
+function generateApiKey(): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+  const arr = new Uint8Array(32)
+  crypto.getRandomValues(arr)
+  return 'esq_' + Array.from(arr).map((b) => chars[b % chars.length]).join('')
+}
+
+const API_KEY_STORAGE = 'esq_api_key_v1'
 
 export function SettingsPage() {
   const isDark        = useThemeStore((s) => s.isDark)
   const toggleTheme   = useThemeStore((s) => s.toggle)
   const settings      = useSettingsStore()
   const setSetting    = useSettingsStore((s) => s.setSetting)
-  const resetSettings = useSettingsStore((s) => s.reset)
   const profile       = useAuthStore((s) => s.profile)
   const updateProfile = useAuthStore((s) => s.updateProfile)
+  const signOut       = useAuthStore((s) => s.signOut)
 
   const [activeTab, setActiveTab]   = useState<SettingsTab>('perfil')
-  const [goalInput, setGoalInput]   = useState(String(settings.quarterlyGoal))
-  const [goalSaved, setGoalSaved]   = useState(false)
-  const [showReset, setShowReset]   = useState(false)
+
+  // Perfil
   const [nameInput, setNameInput]   = useState(profile?.full_name ?? '')
   const [nameSaved, setNameSaved]   = useState(false)
   const [nameError, setNameError]   = useState('')
   const [savingName, setSavingName] = useState(false)
 
+  // Segurança
+  const [newPwd, setNewPwd]         = useState('')
+  const [confirmPwd, setConfirmPwd] = useState('')
+  const [pwdMsg, setPwdMsg]         = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
+  const [savingPwd, setSavingPwd]   = useState(false)
+  const [loggingOut, setLoggingOut] = useState(false)
+
+  // API
+  const [apiKey, setApiKey]         = useState<string>(() => localStorage.getItem(API_KEY_STORAGE) ?? '')
+  const [apiCopied, setApiCopied]   = useState(false)
+  const [showKey, setShowKey]       = useState(false)
+
+  // Supabase credentials gate
+  const [credPassword, setCredPassword] = useState('')
+  const [credUnlocked, setCredUnlocked] = useState(false)
+  const [credError, setCredError]       = useState(false)
+  const [copiedCred, setCopiedCred]     = useState<string | null>(null)
+  const [showCred, setShowCred]         = useState<Record<string, boolean>>({})
+
+  const SUPABASE_CREDS = [
+    { id: 'url',     label: 'Project URL',      value: 'https://leedfvtdjztseoykcnxs.supabase.co' },
+    { id: 'anon',    label: 'Anon Key (public)', value: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxlZWRmdnRkanp0c2VveWtjbnhzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYzOTYxNTQsImV4cCI6MjA5MTk3MjE1NH0.B-jMQwoCKDiRZIZi9a064eBGJMBnI1fvHufGCnJA97o' },
+    { id: 'service', label: 'Service Role Key',  value: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxlZWRmdnRkanp0c2VveWtjbnhzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjM5NjE1NCwiZXhwIjoyMDkxOTcyMTU0fQ.Ztr5qgOsWmCrvKBJBH3uh8tVcGnqWBA1iq414OHwXrE' },
+  ]
+
+  function unlockCreds() {
+    if (credPassword === '1234') { setCredUnlocked(true); setCredError(false) }
+    else { setCredError(true); setTimeout(() => setCredError(false), 2000) }
+  }
+
+  function copyCred(id: string, value: string) {
+    navigator.clipboard.writeText(value)
+    setCopiedCred(id)
+    setTimeout(() => setCopiedCred(null), 2000)
+  }
+
   const border = isDark ? '#242422' : '#e4e0da'
   const text   = isDark ? '#e8e4dc' : '#1a1814'
   const muted  = isDark ? '#6b6560' : '#8a857d'
 
-  function saveGoal() {
-    const n = Number(goalInput.replace(/\D/g, ''))
-    if (!isNaN(n) && n > 0) {
-      setSetting('quarterlyGoal', n)
-      setGoalInput(String(n))
-      setGoalSaved(true)
-      setTimeout(() => setGoalSaved(false), 2000)
-    }
+  const inputStyle: React.CSSProperties = {
+    height: '32px', borderRadius: '4px',
+    border: `1px solid ${isDark ? '#2a2a28' : '#d4d0ca'}`,
+    backgroundColor: isDark ? '#111110' : '#f5f4f0',
+    color: text, fontSize: '12px', fontWeight: 500,
+    padding: '0 10px', outline: 'none',
+  }
+
+  function saveBtn(saved: boolean, onClick: () => void, loading?: boolean): React.ReactNode {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={loading}
+        style={{
+          height: '32px', padding: '0 12px', borderRadius: '4px',
+          backgroundColor: saved ? '#2d9e6b' : '#e31e24',
+          color: '#ffffff', border: 'none', cursor: loading ? 'not-allowed' : 'pointer',
+          fontSize: '11px', fontWeight: 700, flexShrink: 0,
+          textTransform: 'uppercase' as const, letterSpacing: '0.06em',
+          display: 'flex', alignItems: 'center', gap: '4px',
+          transition: 'background-color 0.2s ease',
+          opacity: loading ? 0.7 : 1,
+        }}
+      >
+        {saved ? <Check style={{ width: '12px', height: '12px' }} /> : (loading ? '...' : 'Salvar')}
+      </button>
+    )
   }
 
   async function saveName() {
@@ -159,36 +218,48 @@ export function SettingsPage() {
     await updateProfile({ avatar_color: color })
   }
 
-  const displayInitials = (profile?.full_name || 'U').split(' ').map((p) => p[0]).slice(0, 2).join('').toUpperCase()
-  const displayColor    = profile?.avatar_color ?? '#e31e24'
-
-  const inputStyle: React.CSSProperties = {
-    height: '32px', borderRadius: '4px',
-    border: `1px solid ${isDark ? '#2a2a28' : '#d4d0ca'}`,
-    backgroundColor: isDark ? '#111110' : '#f5f4f0',
-    color: text, fontSize: '12px', fontWeight: 500,
-    padding: '0 10px', outline: 'none',
+  async function changePassword() {
+    if (!newPwd || newPwd !== confirmPwd) {
+      setPwdMsg({ type: 'err', text: 'As senhas não coincidem.' })
+      return
+    }
+    if (newPwd.length < 6) {
+      setPwdMsg({ type: 'err', text: 'A senha deve ter pelo menos 6 caracteres.' })
+      return
+    }
+    setSavingPwd(true)
+    setPwdMsg(null)
+    const { error } = await supabase.auth.updateUser({ password: newPwd })
+    setSavingPwd(false)
+    if (error) {
+      setPwdMsg({ type: 'err', text: error.message })
+    } else {
+      setPwdMsg({ type: 'ok', text: 'Senha alterada com sucesso.' })
+      setNewPwd(''); setConfirmPwd('')
+      setTimeout(() => setPwdMsg(null), 3000)
+    }
   }
 
-  const saveBtn = (saved: boolean, onClick: () => void, loading?: boolean): React.ReactNode => (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={loading}
-      style={{
-        height: '32px', padding: '0 12px', borderRadius: '4px',
-        backgroundColor: saved ? '#2d9e6b' : '#e31e24',
-        color: '#ffffff', border: 'none', cursor: loading ? 'not-allowed' : 'pointer',
-        fontSize: '11px', fontWeight: 700, flexShrink: 0,
-        textTransform: 'uppercase' as const, letterSpacing: '0.06em',
-        display: 'flex', alignItems: 'center', gap: '4px',
-        transition: 'background-color 0.2s ease',
-        opacity: loading ? 0.7 : 1,
-      }}
-    >
-      {saved ? <Check style={{ width: '12px', height: '12px' }} /> : (loading ? '...' : 'Salvar')}
-    </button>
-  )
+  async function handleLogout() {
+    setLoggingOut(true)
+    await signOut()
+  }
+
+  function generateKey() {
+    const key = generateApiKey()
+    setApiKey(key)
+    localStorage.setItem(API_KEY_STORAGE, key)
+  }
+
+  function copyKey() {
+    if (!apiKey) return
+    navigator.clipboard.writeText(apiKey)
+    setApiCopied(true)
+    setTimeout(() => setApiCopied(false), 2000)
+  }
+
+  const displayInitials = (profile?.full_name || 'U').split(' ').map((p) => p[0]).slice(0, 2).join('').toUpperCase()
+  const displayColor    = profile?.avatar_color ?? '#e31e24'
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -217,8 +288,7 @@ export function SettingsPage() {
             onClick={() => setActiveTab(tab.id)}
             style={{
               height: '32px', padding: '0 14px',
-              borderRadius: '0',
-              border: 'none',
+              borderRadius: '0', border: 'none',
               borderBottom: activeTab === tab.id ? '2px solid #e31e24' : '2px solid transparent',
               marginBottom: activeTab === tab.id ? '-1px' : '0',
               backgroundColor: 'transparent',
@@ -268,17 +338,19 @@ export function SettingsPage() {
                 </div>
               </div>
               <Row icon={User} label="Nome" description="Exibido no sidebar e nos cards" isDark={isDark}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <input
-                    value={nameInput}
-                    onChange={(e) => setNameInput(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && saveName()}
-                    placeholder="Seu nome"
-                    style={{ ...inputStyle, width: '160px' }}
-                  />
-                  {saveBtn(nameSaved, saveName, savingName)}
+                <div style={{ display: 'flex', gap: '6px', flexDirection: 'column', alignItems: 'flex-end' as const }}>
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    <input
+                      value={nameInput}
+                      onChange={(e) => setNameInput(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && saveName()}
+                      placeholder="Seu nome"
+                      style={{ ...inputStyle, width: '160px' }}
+                    />
+                    {saveBtn(nameSaved, saveName, savingName)}
+                  </div>
+                  {nameError && <p style={{ fontSize: '10px', color: '#dc2626' }}>{nameError}</p>}
                 </div>
-                {nameError && <p style={{ fontSize: '10px', color: '#dc2626', marginTop: '4px' }}>{nameError}</p>}
               </Row>
               <Row icon={Mail} label="E-mail" description="Vinculado à conta Supabase Auth" isDark={isDark}>
                 <span style={{ fontSize: '12px', color: muted, fontFamily: 'monospace' }}>
@@ -304,72 +376,91 @@ export function SettingsPage() {
           </>
         )}
 
-        {/* ── Aparência ── */}
-        {activeTab === 'aparencia' && (
-          <Section title="Aparência" isDark={isDark}>
-            <Row icon={isDark ? Moon : Sun} label="Tema" description={isDark ? 'Modo escuro ativo' : 'Modo claro ativo'} isDark={isDark} last>
-              <Toggle checked={isDark} onChange={toggleTheme} isDark={isDark} />
-            </Row>
-          </Section>
-        )}
-
-        {/* ── Pipeline ── */}
-        {activeTab === 'pipeline' && (
-          <Section title="Pipeline e Metas" isDark={isDark}>
-            <Row icon={Target} label="Meta trimestral" description={`Atual: ${fmt(settings.quarterlyGoal)}`} isDark={isDark}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <input
-                  type="text"
-                  value={goalInput}
-                  onChange={(e) => setGoalInput(e.target.value.replace(/\D/g, ''))}
-                  onKeyDown={(e) => e.key === 'Enter' && saveGoal()}
-                  placeholder="15000000"
-                  style={{ ...inputStyle, width: '120px', fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' }}
-                />
-                {saveBtn(goalSaved, saveGoal)}
-              </div>
-            </Row>
-            <Row icon={Eye} label="Exibir deals fechados" description="Mostra colunas Ganho e Perdido no pipeline" isDark={isDark}>
-              <Toggle checked={settings.showClosedDeals} onChange={(v) => setSetting('showClosedDeals', v)} isDark={isDark} />
-            </Row>
-            <Row icon={DollarSign} label="Moeda padrão" description="Utilizada em novos deals" isDark={isDark}>
-              <select
-                value={settings.defaultCurrency}
-                onChange={(e) => setSetting('defaultCurrency', e.target.value as 'BRL' | 'USD' | 'EUR')}
-                style={{ ...inputStyle, cursor: 'pointer' }}
-              >
-                <option value="BRL">BRL — Real</option>
-                <option value="USD">USD — Dólar</option>
-                <option value="EUR">EUR — Euro</option>
-              </select>
-            </Row>
-            <Row icon={RefreshCw} label="Restaurar configurações" description="Volta tudo para os valores padrão" isDark={isDark} last>
-              {showReset ? (
-                <div style={{ display: 'flex', gap: '6px' }}>
-                  <button type="button"
-                    onClick={() => { resetSettings(); setGoalInput(String(15_000_000)); setShowReset(false) }}
-                    style={{ height: '28px', padding: '0 12px', borderRadius: '4px', backgroundColor: '#e31e24', color: '#fff', border: 'none', cursor: 'pointer', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                    Confirmar
-                  </button>
-                  <button type="button" onClick={() => setShowReset(false)}
-                    style={{ height: '28px', padding: '0 10px', borderRadius: '4px', backgroundColor: 'transparent', border: `1px solid ${isDark ? '#2a2a28' : '#d4d0ca'}`, color: muted, cursor: 'pointer', fontSize: '11px', fontWeight: 500 }}>
-                    Cancelar
-                  </button>
+        {/* ── Segurança ── */}
+        {activeTab === 'seguranca' && (
+          <>
+            <Section title="Alterar Senha" isDark={isDark}>
+              <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div>
+                  <label style={{ fontSize: '11px', fontWeight: 600, color: muted, display: 'block', marginBottom: '5px' }}>Nova senha</label>
+                  <input
+                    type="password"
+                    value={newPwd}
+                    onChange={(e) => setNewPwd(e.target.value)}
+                    placeholder="Mínimo 6 caracteres"
+                    style={{ ...inputStyle, width: '100%', boxSizing: 'border-box' as const, height: '36px' }}
+                  />
                 </div>
-              ) : (
-                <button type="button" onClick={() => setShowReset(true)}
-                  style={{ height: '28px', padding: '0 12px', borderRadius: '4px', backgroundColor: 'transparent', border: `1px solid ${isDark ? '#2a2a28' : '#d4d0ca'}`, color: muted, cursor: 'pointer', fontSize: '11px', fontWeight: 500, transition: 'all 0.15s ease' }}>
-                  Restaurar
+                <div>
+                  <label style={{ fontSize: '11px', fontWeight: 600, color: muted, display: 'block', marginBottom: '5px' }}>Confirmar senha</label>
+                  <input
+                    type="password"
+                    value={confirmPwd}
+                    onChange={(e) => setConfirmPwd(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && changePassword()}
+                    placeholder="Repetir nova senha"
+                    style={{ ...inputStyle, width: '100%', boxSizing: 'border-box' as const, height: '36px' }}
+                  />
+                </div>
+                {pwdMsg && (
+                  <p style={{ fontSize: '11px', color: pwdMsg.type === 'ok' ? '#2d9e6b' : '#dc2626', fontWeight: 600 }}>
+                    {pwdMsg.type === 'ok' ? '✓ ' : '✕ '}{pwdMsg.text}
+                  </p>
+                )}
+                <button
+                  type="button"
+                  onClick={changePassword}
+                  disabled={savingPwd}
+                  style={{
+                    alignSelf: 'flex-start',
+                    height: '34px', padding: '0 16px', borderRadius: '4px',
+                    backgroundColor: '#e31e24', color: '#fff',
+                    border: 'none', cursor: savingPwd ? 'not-allowed' : 'pointer',
+                    fontSize: '11px', fontWeight: 700,
+                    textTransform: 'uppercase' as const, letterSpacing: '0.06em',
+                    display: 'flex', alignItems: 'center', gap: '6px',
+                    opacity: savingPwd ? 0.7 : 1,
+                    transition: 'opacity 0.2s',
+                  }}
+                >
+                  <Lock style={{ width: '12px', height: '12px' }} />
+                  {savingPwd ? 'A guardar...' : 'Alterar senha'}
                 </button>
-              )}
-            </Row>
-          </Section>
+              </div>
+            </Section>
+
+            <Section title="Sessão" isDark={isDark}>
+              <Row icon={LogOut} label="Terminar sessão" description="Sair da conta neste dispositivo" isDark={isDark} last>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  disabled={loggingOut}
+                  style={{
+                    height: '32px', padding: '0 14px', borderRadius: '4px',
+                    backgroundColor: 'transparent',
+                    border: `1px solid ${isDark ? '#3a2a2a' : '#fca5a5'}`,
+                    color: '#dc2626', cursor: loggingOut ? 'not-allowed' : 'pointer',
+                    fontSize: '11px', fontWeight: 700,
+                    textTransform: 'uppercase' as const, letterSpacing: '0.06em',
+                    display: 'flex', alignItems: 'center', gap: '6px',
+                    opacity: loggingOut ? 0.6 : 1,
+                    transition: 'all 0.15s ease',
+                  }}
+                  onMouseEnter={(e) => { if (!loggingOut) { e.currentTarget.style.backgroundColor = isDark ? '#1a0a0a' : '#fef2f2' } }}
+                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent' }}
+                >
+                  <LogOut style={{ width: '12px', height: '12px' }} />
+                  {loggingOut ? 'A sair...' : 'Sair'}
+                </button>
+              </Row>
+            </Section>
+          </>
         )}
 
         {/* ── Notificações ── */}
         {activeTab === 'notificacoes' && (
           <Section title="Notificações" isDark={isDark}>
-            <Row icon={settings.notifications ? Bell : BellOff} label="Notificações" description="Alertas ao criar novos leads" isDark={isDark}>
+            <Row icon={settings.notifications ? Bell : BellOff} label="Novo lead atribuído" description="Alertas ao criar novos leads no pipeline" isDark={isDark}>
               <Toggle checked={settings.notifications} onChange={(v) => setSetting('notifications', v)} isDark={isDark} />
             </Row>
             <Row icon={AlertCircle} label="Alertas de vencimento" description="Avisa quando atividade estiver atrasada" isDark={isDark}>
@@ -381,245 +472,232 @@ export function SettingsPage() {
           </Section>
         )}
 
-        {/* ── Integrações ── */}
-        {activeTab === 'integracoes' && (
-          <IntegracaoSection isDark={isDark} />
+        {/* ── Preferências ── */}
+        {activeTab === 'preferencias' && (
+          <Section title="Aparência" isDark={isDark}>
+            <Row icon={isDark ? Moon : Sun} label="Tema" description={isDark ? 'Modo escuro ativo' : 'Modo claro ativo'} isDark={isDark}>
+              <Toggle checked={isDark} onChange={toggleTheme} isDark={isDark} />
+            </Row>
+            <Row icon={Eye} label="Exibir deals fechados" description="Mostra colunas Ganho e Perdido no pipeline" isDark={isDark} last>
+              <Toggle checked={settings.showClosedDeals} onChange={(v) => setSetting('showClosedDeals', v)} isDark={isDark} />
+            </Row>
+          </Section>
+        )}
+
+        {/* ── API ── */}
+        {activeTab === 'api' && (
+          <>
+            <Section title="Chave de API" isDark={isDark}>
+              <div style={{ padding: '16px' }}>
+                <p style={{ fontSize: '12px', color: muted, marginBottom: '14px', lineHeight: 1.6 }}>
+                  Use esta chave para autenticar pedidos à API do CRM Esquire. Guarde-a num local seguro — não será mostrada novamente após fechar esta janela.
+                </p>
+
+                {apiKey ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <div style={{
+                      display: 'flex', alignItems: 'center', gap: '8px',
+                      backgroundColor: isDark ? '#0d0d0b' : '#f5f4f0',
+                      border: `1px solid ${border}`,
+                      borderRadius: '6px', padding: '10px 12px',
+                    }}>
+                      <Key style={{ width: '13px', height: '13px', color: muted, flexShrink: 0 }} />
+                      <code style={{
+                        flex: 1, fontSize: '11px', color: text,
+                        fontFamily: 'monospace', wordBreak: 'break-all',
+                        letterSpacing: '0.03em',
+                      }}>
+                        {showKey ? apiKey : apiKey.slice(0, 12) + '•'.repeat(20)}
+                      </code>
+                      <button
+                        type="button"
+                        onClick={() => setShowKey((v) => !v)}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: muted, fontSize: '10px', fontWeight: 600, flexShrink: 0 }}
+                      >
+                        {showKey ? 'Ocultar' : 'Mostrar'}
+                      </button>
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button
+                        type="button"
+                        onClick={copyKey}
+                        style={{
+                          height: '32px', padding: '0 14px', borderRadius: '4px',
+                          backgroundColor: apiCopied ? '#2d9e6b' : '#e31e24',
+                          color: '#fff', border: 'none', cursor: 'pointer',
+                          fontSize: '11px', fontWeight: 700,
+                          textTransform: 'uppercase' as const, letterSpacing: '0.06em',
+                          display: 'flex', alignItems: 'center', gap: '5px',
+                          transition: 'background-color 0.2s ease',
+                        }}
+                      >
+                        {apiCopied
+                          ? <><Check style={{ width: '12px', height: '12px' }} /> Copiado</>
+                          : <><Copy style={{ width: '12px', height: '12px' }} /> Copiar</>
+                        }
+                      </button>
+                      <button
+                        type="button"
+                        onClick={generateKey}
+                        style={{
+                          height: '32px', padding: '0 14px', borderRadius: '4px',
+                          backgroundColor: 'transparent',
+                          border: `1px solid ${border}`,
+                          color: muted, cursor: 'pointer',
+                          fontSize: '11px', fontWeight: 600,
+                          display: 'flex', alignItems: 'center', gap: '5px',
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.color = text }}
+                        onMouseLeave={(e) => { e.currentTarget.style.color = muted }}
+                      >
+                        <RefreshCw style={{ width: '12px', height: '12px' }} />
+                        Regenerar
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={generateKey}
+                    style={{
+                      height: '36px', padding: '0 18px', borderRadius: '4px',
+                      backgroundColor: '#e31e24', color: '#fff',
+                      border: 'none', cursor: 'pointer',
+                      fontSize: '11px', fontWeight: 700,
+                      textTransform: 'uppercase' as const, letterSpacing: '0.06em',
+                      display: 'flex', alignItems: 'center', gap: '6px',
+                    }}
+                  >
+                    <Zap style={{ width: '12px', height: '12px' }} />
+                    Gerar chave de API
+                  </button>
+                )}
+              </div>
+            </Section>
+
+            <Section title="Conexão" isDark={isDark}>
+              <div style={{ display: 'flex', alignItems: 'center', padding: '13px 16px', gap: '12px' }}>
+                <div style={{ width: '32px', height: '32px', borderRadius: '8px', backgroundColor: isDark ? '#1e1e1c' : '#f0eeea', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Zap style={{ width: '14px', height: '14px', color: '#2d9e6b' }} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <p style={{ fontSize: '13px', fontWeight: 600, color: text }}>Supabase</p>
+                  <p style={{ fontSize: '11px', color: muted }}>Base de dados e autenticação</p>
+                </div>
+                <span style={{ fontSize: '11px', fontWeight: 600, color: '#2d9e6b', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#2d9e6b', display: 'inline-block' }} />
+                  Conectado
+                </span>
+              </div>
+            </Section>
+
+            <Section title="Credenciais Supabase" isDark={isDark}>
+              <div style={{ padding: '16px' }}>
+                {!credUnlocked ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <p style={{ fontSize: '12px', color: muted, lineHeight: 1.6 }}>
+                      Esta secção contém chaves sensíveis. Introduza a senha para continuar.
+                    </p>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <input
+                        type="password"
+                        value={credPassword}
+                        onChange={(e) => setCredPassword(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && unlockCreds()}
+                        placeholder="Senha de acesso"
+                        style={{
+                          ...inputStyle, width: '180px', height: '36px',
+                          borderColor: credError ? '#dc2626' : undefined,
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={unlockCreds}
+                        style={{
+                          height: '36px', padding: '0 16px', borderRadius: '4px',
+                          backgroundColor: '#e31e24', color: '#fff',
+                          border: 'none', cursor: 'pointer',
+                          fontSize: '11px', fontWeight: 700,
+                          textTransform: 'uppercase' as const, letterSpacing: '0.06em',
+                          display: 'flex', alignItems: 'center', gap: '6px',
+                        }}
+                      >
+                        <Lock style={{ width: '12px', height: '12px' }} />
+                        Desbloquear
+                      </button>
+                    </div>
+                    {credError && (
+                      <p style={{ fontSize: '11px', color: '#dc2626', fontWeight: 600 }}>✕ Senha incorreta</p>
+                    )}
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                    {SUPABASE_CREDS.map((cred) => (
+                      <div key={cred.id}>
+                        <p style={{ fontSize: '10px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '6px' }}>
+                          {cred.label}
+                        </p>
+                        <div style={{
+                          display: 'flex', alignItems: 'center', gap: '8px',
+                          backgroundColor: isDark ? '#0d0d0b' : '#f5f4f0',
+                          border: `1px solid ${border}`,
+                          borderRadius: '6px', padding: '9px 12px',
+                        }}>
+                          <code style={{
+                            flex: 1, fontSize: '10.5px', color: text,
+                            fontFamily: 'monospace', wordBreak: 'break-all',
+                            letterSpacing: '0.02em', minWidth: 0,
+                          }}>
+                            {showCred[cred.id]
+                              ? cred.value
+                              : cred.value.slice(0, 18) + '•'.repeat(16)}
+                          </code>
+                          <button
+                            type="button"
+                            onClick={() => setShowCred((p) => ({ ...p, [cred.id]: !p[cred.id] }))}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: muted, fontSize: '10px', fontWeight: 600, flexShrink: 0 }}
+                          >
+                            {showCred[cred.id] ? 'Ocultar' : 'Mostrar'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => copyCred(cred.id, cred.value)}
+                            style={{
+                              height: '26px', padding: '0 10px', borderRadius: '4px', flexShrink: 0,
+                              backgroundColor: copiedCred === cred.id ? '#2d9e6b' : 'transparent',
+                              border: `1px solid ${copiedCred === cred.id ? '#2d9e6b' : border}`,
+                              color: copiedCred === cred.id ? '#fff' : muted,
+                              cursor: 'pointer', fontSize: '10px', fontWeight: 600,
+                              display: 'flex', alignItems: 'center', gap: '4px',
+                              transition: 'all 0.2s ease',
+                            }}
+                          >
+                            {copiedCred === cred.id
+                              ? <><Check style={{ width: '10px', height: '10px' }} /> Copiado</>
+                              : <><Copy style={{ width: '10px', height: '10px' }} /> Copiar</>
+                            }
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => { setCredUnlocked(false); setCredPassword('') }}
+                      style={{ alignSelf: 'flex-start', background: 'none', border: 'none', cursor: 'pointer', color: muted, fontSize: '11px', fontWeight: 600, padding: '4px 0', display: 'flex', alignItems: 'center', gap: '5px' }}
+                    >
+                      <Lock style={{ width: '11px', height: '11px' }} />
+                      Bloquear novamente
+                    </button>
+                  </div>
+                )}
+              </div>
+            </Section>
+          </>
         )}
 
         <p style={{ fontSize: '10px', color: isDark ? '#2a2a28' : '#c4bfb8', textAlign: 'center', marginTop: '8px' }}>
           Esquire CRM · v1.0 · {new Date().getFullYear()}
         </p>
-      </div>
-    </div>
-  )
-}
-
-// ─── Integrações inline ───────────────────────────────────────────────────────
-
-const EVENT_LABELS: Record<WebhookEvent, string> = {
-  'deal.created': 'Lead criado',
-  'deal.stage_changed': 'Etapa alterada',
-  'deal.deleted': 'Lead removido',
-}
-const ALL_EVENTS: WebhookEvent[] = ['deal.created', 'deal.stage_changed', 'deal.deleted']
-
-function IntegracaoSection({ isDark }: { isDark: boolean }) {
-  const { configs, addWebhook, removeWebhook, toggleWebhook } = useWebhookStore()
-  const border   = isDark ? '#242422' : '#e4e0da'
-  const text     = isDark ? '#e8e4dc' : '#1a1814'
-  const muted    = isDark ? '#6b6560' : '#8a857d'
-  const inputBg  = isDark ? '#0d0d0b' : '#ffffff'
-  const codeBg   = isDark ? '#111110' : '#f5f4f0'
-
-  const [showForm, setShowForm]           = useState(false)
-  const [url, setUrl]                     = useState('')
-  const [secret, setSecret]               = useState('')
-  const [selectedEvents, setSelectedEvents] = useState<WebhookEvent[]>(['deal.created'])
-  const [saving, setSaving]               = useState(false)
-  const [copiedKey, setCopiedKey]         = useState<string | null>(null)
-  const [showApi, setShowApi]             = useState(false)
-
-  function toggleEvent(ev: WebhookEvent) {
-    setSelectedEvents((prev) => prev.includes(ev) ? prev.filter((e) => e !== ev) : [...prev, ev])
-  }
-
-  async function handleAdd() {
-    if (!url.trim() || !selectedEvents.length) return
-    setSaving(true)
-    await addWebhook(url.trim(), selectedEvents, secret.trim() || undefined)
-    setUrl(''); setSecret(''); setSelectedEvents(['deal.created']); setShowForm(false)
-    setSaving(false)
-  }
-
-  function copyText(text: string, key: string) {
-    navigator.clipboard.writeText(text)
-    setCopiedKey(key)
-    setTimeout(() => setCopiedKey(null), 2000)
-  }
-
-  const sectionBorder = isDark ? '#242422' : '#e4e0da'
-
-  return (
-    <div style={{ marginBottom: '24px' }}>
-      <p style={{ fontSize: '10px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '8px' }}>
-        Integrações
-      </p>
-      <div style={{ border: `1px solid ${sectionBorder}`, borderRadius: '10px', overflow: 'hidden', backgroundColor: isDark ? '#161614' : '#ffffff' }}>
-
-        {/* Supabase status row */}
-        <div style={{ display: 'flex', alignItems: 'center', padding: '13px 16px', borderBottom: `1px solid ${sectionBorder}`, gap: '12px' }}>
-          <div style={{ width: '30px', height: '30px', borderRadius: '8px', backgroundColor: isDark ? '#1a1a18' : '#f0ede8', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <Zap style={{ width: '14px', height: '14px', color: '#2d9e6b' }} />
-          </div>
-          <div style={{ flex: 1 }}>
-            <p style={{ fontSize: '13px', fontWeight: 600, color: text }}>Supabase</p>
-            <p style={{ fontSize: '11px', color: muted }}>Base de dados e autenticação</p>
-          </div>
-          <span style={{ fontSize: '11px', fontWeight: 600, color: '#2d9e6b', display: 'flex', alignItems: 'center', gap: '5px' }}>
-            <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#2d9e6b', display: 'inline-block' }} />
-            Conectado
-          </span>
-        </div>
-
-        {/* Webhooks header */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 16px', borderBottom: configs.length > 0 || showForm ? `1px solid ${sectionBorder}` : 'none', gap: '12px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1 }}>
-            <div style={{ width: '30px', height: '30px', borderRadius: '8px', backgroundColor: isDark ? '#1a1a18' : '#f0ede8', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <GitBranch style={{ width: '14px', height: '14px', color: muted }} />
-            </div>
-            <div>
-              <p style={{ fontSize: '13px', fontWeight: 600, color: text }}>
-                Webhooks de saída
-                {configs.length > 0 && (
-                  <span style={{ marginLeft: '8px', fontSize: '10px', fontWeight: 700, padding: '1px 7px', borderRadius: '20px', backgroundColor: isDark ? '#1e2e28' : 'rgba(227,30,36,0.10)', color: '#065f46' }}>
-                    {configs.length} activo{configs.length !== 1 ? 's' : ''}
-                  </span>
-                )}
-              </p>
-              <p style={{ fontSize: '11px', color: muted }}>Notifica sistemas externos quando deals mudam</p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => setShowForm((v) => !v)}
-            style={{
-              display: 'flex', alignItems: 'center', gap: '5px',
-              height: '30px', padding: '0 12px',
-              fontSize: '11px', fontWeight: 700,
-              textTransform: 'uppercase' as const, letterSpacing: '0.06em',
-              background: showForm ? 'transparent' : '#e31e24',
-              color: showForm ? muted : '#ffffff',
-              border: showForm ? `1px solid ${border}` : 'none',
-              borderRadius: '4px', cursor: 'pointer',
-              boxShadow: showForm ? 'none' : '0 1px 6px rgba(44,85,69,0.3)',
-              transition: 'all 0.15s ease', flexShrink: 0,
-            }}
-          >
-            <Plus style={{ width: '12px', height: '12px' }} />
-            {showForm ? 'Cancelar' : 'Adicionar'}
-          </button>
-        </div>
-
-        {/* Add form */}
-        {showForm && (
-          <div style={{ padding: '16px', backgroundColor: isDark ? '#0f0f0d' : '#fafaf8', borderBottom: `1px solid ${sectionBorder}` }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <div>
-                <label style={{ fontSize: '11px', fontWeight: 600, color: muted, display: 'block', marginBottom: '5px' }}>URL de destino</label>
-                <input
-                  type="url" value={url} onChange={(e) => setUrl(e.target.value)}
-                  placeholder="https://hooks.zapier.com/..."
-                  style={{ width: '100%', height: '34px', padding: '0 10px', fontSize: '12px', border: `1px solid ${border}`, borderRadius: '4px', background: inputBg, color: text, outline: 'none', boxSizing: 'border-box' }}
-                />
-              </div>
-              <div>
-                <label style={{ fontSize: '11px', fontWeight: 600, color: muted, display: 'block', marginBottom: '6px' }}>Eventos</label>
-                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                  {ALL_EVENTS.map((ev) => (
-                    <label key={ev} style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '12px', color: text }}>
-                      <input type="checkbox" checked={selectedEvents.includes(ev)} onChange={() => toggleEvent(ev)} style={{ accentColor: '#e31e24' }} />
-                      {EVENT_LABELS[ev]}
-                    </label>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <label style={{ fontSize: '11px', fontWeight: 600, color: muted, display: 'block', marginBottom: '5px' }}>Secret (opcional)</label>
-                <input
-                  type="text" value={secret} onChange={(e) => setSecret(e.target.value)}
-                  placeholder="Token secreto para verificação"
-                  style={{ width: '100%', height: '34px', padding: '0 10px', fontSize: '12px', border: `1px solid ${border}`, borderRadius: '4px', background: inputBg, color: text, outline: 'none', boxSizing: 'border-box' }}
-                />
-              </div>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <button
-                  type="button" onClick={handleAdd}
-                  disabled={saving || !url.trim() || !selectedEvents.length}
-                  style={{
-                    height: '32px', padding: '0 16px', borderRadius: '4px', border: 'none',
-                    textTransform: 'uppercase', letterSpacing: '0.06em',
-                    background: url.trim() && selectedEvents.length ? '#e31e24' : (isDark ? '#1a1a18' : '#e8e4dc'),
-                    color: url.trim() && selectedEvents.length ? '#fff' : muted,
-                    fontSize: '12px', fontWeight: 600, cursor: 'pointer',
-                  }}
-                >
-                  {saving ? 'A guardar...' : 'Guardar webhook'}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Webhook list */}
-        {configs.map((cfg, i) => (
-          <div
-            key={cfg.id}
-            style={{
-              display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px',
-              borderBottom: i < configs.length - 1 || showApi ? `1px solid ${sectionBorder}` : 'none',
-            }}
-          >
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{ fontSize: '12px', fontWeight: 600, color: text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cfg.url}</p>
-              <p style={{ fontSize: '11px', color: muted, marginTop: '1px' }}>
-                {cfg.events.map((e) => EVENT_LABELS[e]).join(' · ')}
-                {cfg.secret && ' · secret'}
-              </p>
-            </div>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer', fontSize: '11px', color: muted, flexShrink: 0 }}>
-              <input type="checkbox" checked={cfg.active} onChange={(e) => toggleWebhook(cfg.id, e.target.checked)} style={{ accentColor: '#e31e24' }} />
-              Ativo
-            </label>
-            <button
-              type="button" onClick={() => removeWebhook(cfg.id)}
-              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '28px', height: '28px', borderRadius: '6px', border: `1px solid ${border}`, background: 'transparent', cursor: 'pointer', color: muted, flexShrink: 0 }}
-              onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#fca5a5'; e.currentTarget.style.color = '#dc2626' }}
-              onMouseLeave={(e) => { e.currentTarget.style.borderColor = border; e.currentTarget.style.color = muted }}
-            >
-              <Trash2 style={{ width: '13px', height: '13px' }} />
-            </button>
-          </div>
-        ))}
-
-        {/* API reference toggle */}
-        <div style={{ padding: '12px 16px', borderTop: configs.length > 0 || showForm ? `1px solid ${sectionBorder}` : 'none' }}>
-          <button
-            type="button" onClick={() => setShowApi((v) => !v)}
-            style={{ fontSize: '12px', fontWeight: 600, color: showApi ? muted : '#3d7a62', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
-          >
-            {showApi ? '▲ Ocultar referência API' : '▼ Ver referência API & exemplos curl'}
-          </button>
-        </div>
-
-        {showApi && (
-          <div style={{ padding: '0 16px 16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {[
-              {
-                key: 'list',
-                label: 'Listar leads activos',
-                code: `curl "${import.meta.env.VITE_SUPABASE_URL}/rest/v1/deals?deleted_at=is.null" \\\n  -H "apikey: ${import.meta.env.VITE_SUPABASE_ANON_KEY}"`,
-              },
-              {
-                key: 'payload',
-                label: 'Payload webhook (deal.created)',
-                code: `{\n  "event": "deal.created",\n  "timestamp": "2026-04-23T10:00:00Z",\n  "data": { "id": "uuid", "company_name": "Acme", "stage_id": "leads", "value": 5000 }\n}`,
-              },
-            ].map((ex) => (
-              <div key={ex.key} style={{ borderRadius: '8px', overflow: 'hidden', border: `1px solid ${border}` }}>
-                <div style={{ padding: '8px 12px', backgroundColor: isDark ? '#1a1a18' : '#f0ede8', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <p style={{ fontSize: '11px', fontWeight: 600, color: text }}>{ex.label}</p>
-                  <button type="button" onClick={() => copyText(ex.code, ex.key)}
-                    style={{ fontSize: '10px', fontWeight: 600, color: copiedKey === ex.key ? '#2d9e6b' : muted, background: 'none', border: 'none', cursor: 'pointer' }}>
-                    {copiedKey === ex.key ? '✓ Copiado' : 'Copiar'}
-                  </button>
-                </div>
-                <pre style={{ margin: 0, padding: '10px 12px', fontSize: '11px', lineHeight: 1.6, color: muted, backgroundColor: codeBg, overflowX: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
-                  {ex.code}
-                </pre>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
     </div>
   )

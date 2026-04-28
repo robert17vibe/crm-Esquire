@@ -13,8 +13,10 @@ const STAGE_IDS = [
 const COMPANY_SIZES = ['1-50', '51-200', '201-1000', '1000+'] as const
 const LEAD_SOURCES  = ['Indicação', 'Inbound', 'Outbound', 'Evento'] as const
 
+const SEGMENTS = ['B2B', 'B2C', 'B2G'] as const
+
 export const newLeadSchema = z.object({
-  contact_name:     z.string().min(1, 'Nome obrigatório'),
+  contact_name:     z.string().min(1, 'Nome completo obrigatório'),
   company_name:     z.string().optional().or(z.literal('')),
   contact_email:    z.string().email('Email inválido').optional().or(z.literal('')),
   contact_phone:    z.string().optional(),
@@ -24,7 +26,8 @@ export const newLeadSchema = z.object({
   company_size:     z.enum(COMPANY_SIZES).optional().or(z.literal('')).transform((v) => v === '' ? undefined : v),
   value:            z.coerce.number().min(0, 'Valor inválido').optional(),
   probability:      z.coerce.number().min(0).max(100).optional(),
-  owner_id:         z.string().min(1, 'Responsável obrigatório'),
+  owner_id:         z.string().optional().or(z.literal('')),
+  segment:          z.enum(SEGMENTS).optional().or(z.literal('')).transform((v) => v === '' ? undefined : v),
   lead_source:      z.enum(LEAD_SOURCES).optional().or(z.literal('')).transform((v) => v === '' ? undefined : v),
   stage_id:         z.enum(STAGE_IDS),
   notes:            z.string().optional(),

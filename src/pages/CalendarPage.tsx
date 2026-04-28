@@ -13,6 +13,7 @@ import { useAuthStore } from '@/store/useAuthStore'
 import { useTaskStore } from '@/store/useTaskStore'
 import { useActivityStore } from '@/store/useActivityStore'
 import { supabase } from '@/lib/supabase'
+import { useImpersonationStore } from '@/store/useImpersonationStore'
 import type { Deal, DealMeeting, MeetingStatus } from '@/types/deal.types'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -495,10 +496,10 @@ interface WeekMeeting {
   date: string; eventType: string; rawMeeting?: DealMeeting; rawCalEv?: CalendarEvent
 }
 
-function WeekView({ weekDays, eventsByDate: _eventsByDate, meetings, calendarEvents, isDark, todayStr, onMeetingOpen, onCalEventOpen, onNewEvent }: {
+function WeekView({ weekDays, eventsByDate: _eventsByDate, meetings, calendarEvents, isDark, todayStr, selectedDay, onMeetingOpen, onCalEventOpen, onNewEvent }: {
   weekDays: string[]; eventsByDate: Map<string, CalEvent[]>
   meetings: DealMeeting[]; calendarEvents: CalendarEvent[]
-  isDark: boolean; todayStr: string
+  isDark: boolean; todayStr: string; selectedDay: string
   onMeetingOpen: (m: DealMeeting) => void
   onCalEventOpen: (ce: CalendarEvent) => void
   onNewEvent: (date: string, time?: string) => void
@@ -538,11 +539,12 @@ function WeekView({ weekDays, eventsByDate: _eventsByDate, meetings, calendarEve
         {weekDays.map((d, i) => {
           const [, , dd] = d.split('-').map(Number)
           const isToday = d === todayStr
+          const isSelected = d === selectedDay && d !== todayStr
           return (
-            <div key={d} style={{ borderLeft: `1px solid ${border}`, padding: '12px 8px 10px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', backgroundColor: isToday ? (isDark ? 'rgba(227,30,36,0.10)' : `${BRAND}08`) : 'transparent' }}>
-              <span style={{ fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: isToday ? BRAND : muted }}>{DS[i]}</span>
-              <div style={{ width: '34px', height: '34px', borderRadius: '50%', backgroundColor: isToday ? BRAND : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <span style={{ fontSize: '16px', fontWeight: 700, color: isToday ? '#fff' : text, lineHeight: 1 }}>{dd}</span>
+            <div key={d} style={{ borderLeft: `1px solid ${border}`, padding: '12px 8px 10px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', backgroundColor: isToday ? (isDark ? 'rgba(227,30,36,0.10)' : `${BRAND}08`) : isSelected ? (isDark ? 'rgba(180,83,9,0.08)' : '#fffbeb') : 'transparent' }}>
+              <span style={{ fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: isToday ? BRAND : isSelected ? '#d97706' : muted }}>{DS[i]}</span>
+              <div style={{ width: '34px', height: '34px', borderRadius: '50%', backgroundColor: isToday ? BRAND : isSelected ? '#d97706' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: isSelected ? '0 0 0 3px rgba(217,119,6,0.2)' : 'none' }}>
+                <span style={{ fontSize: '16px', fontWeight: 700, color: (isToday || isSelected) ? '#fff' : text, lineHeight: 1 }}>{dd}</span>
               </div>
               <button type="button" onClick={() => onNewEvent(d)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '18px', height: '18px', borderRadius: '50%', backgroundColor: isDark ? '#1e1e1c' : '#f0eeea', border: `1px solid ${border}`, cursor: 'pointer' }}>
                 <Plus style={{ width: '9px', height: '9px', color: muted }} />
@@ -616,12 +618,12 @@ function WeekView({ weekDays, eventsByDate: _eventsByDate, meetings, calendarEve
 // ─── New Activity Modal ───────────────────────────────────────────────────────
 
 function NewMeetingModal({ defaultDate, onClose, isDark }: { defaultDate: string; onClose: () => void; isDark: boolean }) {
-  const deals      = useDealStore((s) => s.deals)
-  const addMeeting = useMeetingStore((s) => s.addMeeting)
-  const createTask = useTaskStore((s) => s.create)
-  const owners     = useOwnerStore((s) => s.owners)
-  const authUser   = useAuthStore((s) => s.user)
-  const owner      = owners.find((o) => o.id === authUser?.id) ?? owners[0] ?? { id: '', name: 'Desconhecido', initials: '?', avatar_color: '#6b6560' }
+  const deals           = useDealStore((s) => s.deals)
+  const addMeeting      = useMeetingStore((s) => s.addMeeting)
+  const createTask      = useTaskStore((s) => s.create)
+  const owners          = useOwnerStore((s) => s.owners)
+  const authUser        = useAuthStore((s) => s.user)
+  const owner           = owners.find((o) => o.id === authUser?.id) ?? owners[0] ?? { id: '', name: 'Desconhecido', initials: '?', avatar_color: '#6b6560' }
 
   const bg     = isDark ? '#141412' : '#ffffff'
   const border = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'
@@ -861,9 +863,16 @@ function EventModal({ state, onClose, isDark, deals, onSaved, onLogActivity }: {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export function CalendarPage() {
-  const isDark       = useThemeStore((s) => s.isDark)
-  const meetings     = useMeetingStore((s) => s.meetings)
-  const deals        = useDealStore((s) => s.deals)
+  const isDark         = useThemeStore((s) => s.isDark)
+  const allMeetings    = useMeetingStore((s) => s.meetings)
+  const allDeals       = useDealStore((s) => s.deals)
+  const impersonatedId = useImpersonationStore((s) => s.impersonatedId)
+  const meetings = impersonatedId
+    ? allMeetings.filter((m) => allDeals.find((d) => d.id === m.deal_id)?.owner_id === impersonatedId)
+    : allMeetings
+  const deals = impersonatedId
+    ? allDeals.filter((d) => d.owner_id === impersonatedId)
+    : allDeals
   const navigate     = useNavigate()
   const addActivity  = useActivityStore((s) => s.addActivity)
   const profile      = useAuthStore((s) => s.profile)
@@ -976,13 +985,6 @@ export function CalendarPage() {
             )}
           </div>
         </div>
-        <button type="button" onClick={() => setShowMeeting(true)}
-          style={{ display: 'flex', alignItems: 'center', gap: '6px', height: '32px', padding: '0 16px', borderRadius: '4px', border: 'none', cursor: 'pointer', backgroundColor: '#e31e24', color: '#fff', fontSize: '12px', fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', transition: 'opacity 0.15s' }}
-          onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.85')}
-          onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}>
-          <Plus style={{ width: '13px', height: '13px' }} />
-          Nova Atividade
-        </button>
       </div>
 
       {/* Body */}
@@ -1022,12 +1024,12 @@ export function CalendarPage() {
             )}
           </div>
           <div style={{ padding: '12px', borderTop: `1px solid ${border}`, flexShrink: 0 }}>
-            <button type="button" onClick={() => openNewEvent(selectedDay, roundTime())}
-              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', width: '100%', height: '34px', borderRadius: '8px', border: `1px solid ${border}`, backgroundColor: 'transparent', cursor: 'pointer', fontSize: '11px', fontWeight: 600, color: muted, transition: 'all 0.12s' }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = isDark ? '#1a1a18' : '#f0eeea'; (e.currentTarget as HTMLElement).style.color = text }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = 'transparent'; (e.currentTarget as HTMLElement).style.color = muted }}>
+            <button type="button" onClick={() => setShowMeeting(true)}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', width: '100%', height: '34px', borderRadius: '8px', border: 'none', backgroundColor: '#e31e24', cursor: 'pointer', fontSize: '11px', fontWeight: 700, color: '#fff', transition: 'opacity 0.15s' }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.opacity = '0.85' }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.opacity = '1' }}>
               <Plus style={{ width: '12px', height: '12px' }} />
-              Novo evento
+              Nova Atividade
             </button>
           </div>
         </div>
@@ -1041,6 +1043,7 @@ export function CalendarPage() {
             calendarEvents={calendarEvents}
             isDark={isDark}
             todayStr={todayStr}
+            selectedDay={selectedDay}
             onMeetingOpen={(m) => { setDetailMeeting(m); setDetailCalEv(null) }}
             onCalEventOpen={(ce) => { setDetailCalEv(ce); setDetailMeeting(null) }}
             onNewEvent={(date, time) => openNewEvent(date, time ?? roundTime())}

@@ -15,8 +15,10 @@ import {
   Search,
   Forward,
   X,
+  Loader2,
 } from 'lucide-react'
 import { useThemeStore } from '@/store/useThemeStore'
+import { supabase } from '@/lib/supabase'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -273,6 +275,8 @@ export function EmailPage() {
   })
   const [replySent, setReplySent] = useState(false)
   const [showLabelMenu, setShowLabelMenu] = useState(false)
+  const [sendingEmail, setSendingEmail] = useState(false)
+  const [sendError, setSendError] = useState<string | null>(null)
 
   const owner = profile ? { id: profile.id, name: profile.full_name ?? '', initials: (profile.full_name ?? '?').split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase(), avatar_color: profile.avatar_color ?? '#6b6560' } : { id: '', name: '', initials: '?', avatar_color: '#6b6560' }
 
@@ -301,6 +305,97 @@ export function EmailPage() {
     const deal = findDealByEmail(toEmail)
     if (deal && owner.id) {
       addActivity(deal.id, { type: 'email', subject: subject || `Email para ${toEmail}`, owner })
+    }
+  }
+
+  // Load sent emails from Supabase and merge into state
+  useEffect(() => {
+    if (!profile?.id) return
+    supabase
+      .from('emails')
+      .select('*')
+      .eq('user_id', profile.id)
+      .order('created_at', { ascending: false })
+      .then(({ data }) => {
+        if (!data?.length) return
+        const dbEmails: EmailThread[] = data.map((row) => ({
+          id: row.id,
+          from: {
+            name: row.from_name,
+            email: row.from_email,
+            initials: row.from_name.split(' ').map((w: string) => w[0]).slice(0, 2).join('').toUpperCase(),
+            color: profile.avatar_color ?? '#3b5bdb',
+          },
+          subject: row.subject,
+          preview: row.body.slice(0, 100).replace(/\n/g, ' '),
+          body: row.body,
+          date: new Intl.DateTimeFormat('pt-PT', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(row.created_at)),
+          labels: (row.labels ?? []) as LabelKey[],
+          read: row.read,
+          folder: row.folder as FolderKey,
+          previousFolder: row.previous_folder as FolderKey | undefined,
+        }))
+        setEmails((prev) => {
+          // Remove existing DB emails (by uuid format) and prepend fresh ones
+          const mockOnly = prev.filter((e) => !e.id.match(/^[0-9a-f-]{36}$/))
+          return [...dbEmails, ...mockOnly]
+        })
+      })
+  }, [profile?.id])
+
+  async function sendEmail(to: string, subject: string, body: string, replyToId?: string): Promise<boolean> {
+    setSendingEmail(true)
+    setSendError(null)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) { setSendError('Sessão expirada. Faz login novamente.'); return false }
+
+      const res = await supabase.functions.invoke('send-email', {
+        body: { to, subject, body, reply_to_id: replyToId },
+      })
+
+      // Extract real error — supabase wraps non-2xx in res.error but body is in res.data
+      if (res.error || res.data?.error) {
+        let msg = res.data?.error as string | undefined
+        if (!msg && res.error) {
+          // Try to read context body from FunctionsHttpError
+          try {
+            const ctx = (res.error as unknown as { context?: Response }).context
+            if (ctx) {
+              const json = await ctx.json().catch(() => null)
+              msg = json?.error ?? json?.message
+            }
+          } catch { /* ignore */ }
+        }
+        setSendError(msg ?? res.error?.message ?? 'Erro ao enviar')
+        return false
+      }
+
+      // Optimistically add to sent folder
+      const newEmail: EmailThread = {
+        id: res.data.email_id ?? `tmp-${Date.now()}`,
+        from: {
+          name: profile?.full_name ?? 'Eu',
+          email: profile?.email ?? '',
+          initials: (profile?.full_name ?? 'EU').split(' ').map((w: string) => w[0]).slice(0, 2).join('').toUpperCase(),
+          color: profile?.avatar_color ?? '#3b5bdb',
+        },
+        subject,
+        preview: body.slice(0, 100).replace(/\n/g, ' '),
+        body,
+        date: new Intl.DateTimeFormat('pt-PT', { hour: '2-digit', minute: '2-digit' }).format(new Date()),
+        labels: [],
+        read: true,
+        folder: 'sent',
+      }
+      setEmails((prev) => [newEmail, ...prev])
+      logEmail(to, subject)
+      return true
+    } catch {
+      setSendError('Erro de rede. Tenta novamente.')
+      return false
+    } finally {
+      setSendingEmail(false)
     }
   }
 
@@ -702,8 +797,11 @@ export function EmailPage() {
                     <span style={{ fontSize: '12px', color: '#16a34a', fontWeight: 600, padding: '6px 0' }}>✓ Resposta enviada</span>
                   ) : (
                     <button type="button"
-                      disabled={!replyText.trim()}
-                      onClick={() => { markRead(selectedEmail.id); logEmail(selectedEmail.from.email, `Re: ${selectedEmail.subject}`); setReplySent(true); setTimeout(() => { setShowReply(false); setReplyText(''); setReplySent(false) }, 1500) }}
+                      disabled={!replyText.trim() || sendingEmail}
+                      onClick={async () => {
+                        const ok = await sendEmail(selectedEmail.from.email, `Re: ${selectedEmail.subject}`, replyText.trim())
+                        if (ok) { markRead(selectedEmail.id); setReplySent(true); setTimeout(() => { setShowReply(false); setReplyText(''); setReplySent(false) }, 1500) }
+                      }}
                       style={{
                         display: 'flex', alignItems: 'center', gap: '5px',
                         height: '30px', padding: '0 14px', borderRadius: '4px',
@@ -799,8 +897,8 @@ export function EmailPage() {
 
       {/* ── Compose Modal ── */}
       {showCompose && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 60, display: 'flex', alignItems: 'flex-end', justifyContent: 'flex-end', padding: '20px', pointerEvents: 'none' }}>
-          <div style={{ width: '480px', backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '14px', boxShadow: '0 24px 80px rgba(0,0,0,0.35)', display: 'flex', flexDirection: 'column', pointerEvents: 'all', overflow: 'hidden' }}>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.45)', pointerEvents: 'all' }}>
+          <div style={{ width: 'min(720px, 92vw)', height: 'min(600px, 88vh)', backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '14px', boxShadow: '0 24px 80px rgba(0,0,0,0.45)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             {/* Header */}
             <div style={{ padding: '14px 16px', backgroundColor: isDark ? '#1a1a18' : '#1a1814', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span style={{ fontSize: '13px', fontWeight: 700, color: '#fff' }}>Nova mensagem</span>
@@ -822,25 +920,32 @@ export function EmailPage() {
                     { label: 'Para', value: composeTo, onChange: setComposeTo, placeholder: 'destinatario@email.com' },
                     { label: 'Assunto', value: composeSubject, onChange: setComposeSubject, placeholder: 'Assunto da mensagem' },
                   ].map(({ label, value, onChange, placeholder }) => (
-                    <div key={label} style={{ display: 'flex', alignItems: 'center', borderBottom: `1px solid ${border}` }}>
-                      <span style={{ width: '60px', padding: '10px 16px', fontSize: '12px', color: muted, flexShrink: 0 }}>{label}</span>
+                    <div key={label} style={{ display: 'flex', alignItems: 'center', borderBottom: `1px solid ${border}`, overflow: 'hidden' }}>
+                      <span style={{ width: '70px', minWidth: '70px', padding: '11px 12px 11px 16px', fontSize: '12px', color: muted, flexShrink: 0 }}>{label}</span>
                       <input type="text" value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
-                        style={{ flex: 1, border: 'none', outline: 'none', backgroundColor: 'transparent', fontSize: '13px', color: text, padding: '10px 12px 10px 0', fontFamily: 'inherit' }} />
+                        style={{ flex: 1, minWidth: 0, border: 'none', outline: 'none', backgroundColor: 'transparent', fontSize: '13px', color: text, padding: '11px 16px 11px 0', fontFamily: 'inherit' }} />
                     </div>
                   ))}
                 </div>
                 <textarea value={composeBody} onChange={(e) => setComposeBody(e.target.value)}
                   placeholder="Escreva a sua mensagem..."
-                  style={{ flex: 1, minHeight: '160px', border: 'none', outline: 'none', backgroundColor: 'transparent', fontSize: '13px', color: text, padding: '14px 16px', resize: 'none', fontFamily: 'inherit', lineHeight: 1.6 }} />
+                  style={{ flex: 1, border: 'none', outline: 'none', backgroundColor: 'transparent', fontSize: '13px', color: text, padding: '14px 16px', resize: 'none', fontFamily: 'inherit', lineHeight: 1.6 }} />
                 <div style={{ padding: '12px 16px', borderTop: `1px solid ${border}`, display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <button type="button"
-                    disabled={!composeTo.trim() || !composeSubject.trim()}
-                    onClick={() => { logEmail(composeTo.trim(), composeSubject.trim()); setComposeSent(true) }}
-                    style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '0 18px', height: '34px', borderRadius: '4px', backgroundColor: (!composeTo.trim() || !composeSubject.trim()) ? (isDark ? '#2a2a28' : '#e4e0da') : '#e31e24', color: (!composeTo.trim() || !composeSubject.trim()) ? muted : '#fff', border: 'none', cursor: (!composeTo.trim() || !composeSubject.trim()) ? 'not-allowed' : 'pointer', fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                    <Send style={{ width: '12px', height: '12px' }} />
-                    Enviar
+                    disabled={!composeTo.trim() || !composeSubject.trim() || sendingEmail}
+                    onClick={async () => {
+                      const ok = await sendEmail(composeTo.trim(), composeSubject.trim(), composeBody.trim())
+                      if (ok) setComposeSent(true)
+                    }}
+                    style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '0 18px', height: '34px', borderRadius: '4px', backgroundColor: (!composeTo.trim() || !composeSubject.trim() || sendingEmail) ? (isDark ? '#2a2a28' : '#e4e0da') : '#e31e24', color: (!composeTo.trim() || !composeSubject.trim() || sendingEmail) ? muted : '#fff', border: 'none', cursor: (!composeTo.trim() || !composeSubject.trim() || sendingEmail) ? 'not-allowed' : 'pointer', fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                    {sendingEmail
+                      ? <Loader2 style={{ width: '12px', height: '12px', animation: 'spin 1s linear infinite' }} />
+                      : <Send style={{ width: '12px', height: '12px' }} />
+                    }
+                    {sendingEmail ? 'A enviar...' : 'Enviar'}
                   </button>
-                  <button type="button" onClick={() => setShowCompose(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: muted, fontSize: '12px', padding: '6px 10px' }}>Cancelar</button>
+                  <button type="button" onClick={() => { setShowCompose(false); setSendError(null) }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: muted, fontSize: '12px', padding: '6px 10px' }}>Cancelar</button>
+                  {sendError && <span style={{ fontSize: '11px', color: '#dc2626', flex: 1 }}>{sendError}</span>}
                 </div>
               </>
             )}

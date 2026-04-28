@@ -8,6 +8,7 @@ import { STAGES } from '@/constants/pipeline'
 import { newLeadSchema, type NewLeadFormValues } from '@/lib/schemas/deal.schema'
 import { useDealStore } from '@/store/useDealStore'
 import { useOwnerStore } from '@/store/useOwnerStore'
+import { useAuthStore } from '@/store/useAuthStore'
 import { useToastStore } from '@/store/useToastStore'
 import type { Deal } from '@/types/deal.types'
 
@@ -202,9 +203,8 @@ export function NewLeadModal({ open, onClose, onCreated }: Props) {
   const createDeal          = useDealStore((s) => s.createDeal)
   const deals               = useDealStore((s) => s.deals)
   const owners              = useOwnerStore((s) => s.owners)
-  const getRoundRobinOwner  = useOwnerStore((s) => s.getRoundRobinOwner)
   const addToast            = useToastStore((s) => s.addToast)
-  const [autoAssign, setAutoAssign] = useState(true)
+  const profile             = useAuthStore((s) => s.profile)
 
   const activeDealsByOwner = useMemo(() => {
     const m: Record<string, number> = {}
@@ -223,19 +223,19 @@ export function NewLeadModal({ open, onClose, onCreated }: Props) {
     formState: { errors, isSubmitting },
   } = useForm<NewLeadFormValues>({
     resolver: zodResolver(newLeadSchema),
-    defaultValues: { stage_id: 'leads', owner_id: owners[0]?.id ?? '', value: 0 },
+    mode: 'onBlur',
+    defaultValues: { stage_id: 'leads', owner_id: '', value: 0 },
   })
 
   useEffect(() => {
     if (!owners.length) return
-    if (autoAssign) {
-      const next = getRoundRobinOwner(activeDealsByOwner)
-      setValue('owner_id', next?.id ?? owners[0].id, { shouldValidate: true })
-    } else {
-      setValue('owner_id', owners[0].id, { shouldValidate: true })
-    }
+    const leastBusyOwner = owners.reduce((least, current) =>
+      (activeDealsByOwner[current.id] ?? 0) < (activeDealsByOwner[least.id] ?? 0) ? current : least,
+    owners[0])
+    const selfOwner = profile?.id ? owners.find((o) => o.id === profile.id) : undefined
+    setValue('owner_id', selfOwner?.id ?? leastBusyOwner.id, { shouldValidate: true })
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [owners, autoAssign])
+  }, [owners, activeDealsByOwner, profile?.id])
 
   function handleClose() { reset(); onClose() }
 
@@ -410,23 +410,13 @@ export function NewLeadModal({ open, onClose, onCreated }: Props) {
 
             <Row>
               <div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
-                  <FLabel htmlFor="owner_id" required>Responsável</FLabel>
-                  <button type="button" onClick={() => setAutoAssign((v) => !v)}
-                    style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', fontWeight: 600, color: autoAssign ? '#e31e24' : '#8a857d', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-                    <span style={{ width: '24px', height: '13px', borderRadius: '99px', backgroundColor: autoAssign ? '#e31e24' : '#c4bfb8', position: 'relative', transition: 'background-color 0.2s', display: 'inline-block', flexShrink: 0 }}>
-                      <span style={{ position: 'absolute', top: '2px', left: autoAssign ? '13px' : '2px', width: '9px', height: '9px', borderRadius: '50%', backgroundColor: '#fff', transition: 'left 0.2s' }} />
-                    </span>
-                    Auto
-                  </button>
-                </div>
-                <Select id="owner_id" hasError={!!errors.owner_id} {...register('owner_id')} disabled={autoAssign}>
+                <FLabel htmlFor="segment">Segmento</FLabel>
+                <Select id="segment" {...register('segment')}>
                   <option value="">Selecione</option>
-                  {owners.map((o) => (
-                    <option key={o.id} value={o.id}>{o.name} {autoAssign ? '' : `(${activeDealsByOwner[o.id] ?? 0} ativos)`}</option>
-                  ))}
+                  <option value="B2B">B2B</option>
+                  <option value="B2C">B2C</option>
+                  <option value="B2G">B2G</option>
                 </Select>
-                <FError msg={errors.owner_id?.message} />
               </div>
               <div>
                 <FLabel htmlFor="lead_source">Origem do lead</FLabel>

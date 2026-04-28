@@ -17,10 +17,11 @@ import { supabase } from '@/lib/supabase'
 import { fetchDealEvents } from '@/services/deal-events.service'
 import { useTeamStore } from '@/store/useTeamStore'
 import { useNotificationStore } from '@/store/useNotificationStore'
-import type { Deal, DealActivity, DealMeeting, NextActivity, Stakeholder, CompanySize, ArrRange, DealEvent } from '@/types/deal.types'
-import { UserAvatarRow, getInitials, getAvatarColor } from '@/components/ui/UserAvatar'
+import type { Deal, DealActivity, DealMeeting, NextActivity, CompanySize, ArrRange, DealEvent } from '@/types/deal.types'
 import { RelatedDeals } from '@/components/deal/RelatedDeals'
 import { StakeholderMap } from '@/components/deal/StakeholderMap'
+import { PageLoadingState } from '@/components/ui/PageState'
+import { evaluateDealScore } from '@/lib/dealScore'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -54,6 +55,12 @@ const SIZE_LABELS: Record<string, string> = {
 const ARR_LABELS: Record<string, string> = {
   '<100k': '< R$ 100k', '100k-500k': 'R$ 100k–500k',
   '500k-1M': 'R$ 500k–1M', '>1M': '> R$ 1M',
+}
+
+const CHECKLIST_LABELS: Record<string, string> = {
+  apresentacao: 'Apresentação', dor: 'Identificou dor', decisor: 'Falou c/ decisor',
+  orcamento: 'Validou orçamento', timeline: 'Timeline definida',
+  concorrentes: 'Concorrentes', proximo_passo: 'Próximo passo',
 }
 
 const ACT_COLORS: Record<string, string> = {
@@ -339,24 +346,11 @@ function ActivityEntry({ activity, meeting, isDark }: {
   )
 }
 
-// ─── Health score ─────────────────────────────────────────────────────────────
-
-function healthScore(deal: Deal): number {
-  let score = 0
-  score += Math.min(deal.probability, 40)
-  if (deal.last_activity_at) {
-    const days = Math.round((Date.now() - new Date(deal.last_activity_at).getTime()) / 86_400_000)
-    if (days <= 7) score += 25; else if (days <= 14) score += 15; else if (days <= 30) score += 5
-  }
-  const sCount = deal.stakeholders?.length ?? 0
-  if (sCount >= 3) score += 20; else if (sCount >= 2) score += 12; else if (sCount >= 1) score += 5
-  if (deal.days_in_stage > 90) score -= 15; else if (deal.days_in_stage > 60) score -= 8
-  return Math.min(Math.max(score, 0), 100)
-}
+// ─── Health bar (uses evaluateDealScore thresholds: ≥70 saudável, ≥45 atenção, <45 crítico) ──
 
 function HealthBar({ score, isDark }: { score: number; isDark: boolean }) {
-  const color = score >= 70 ? '#2d9e6b' : score >= 40 ? '#b45309' : '#c53030'
-  const label = score >= 70 ? 'Saudável' : score >= 40 ? 'Atenção' : 'Risco'
+  const color = score >= 70 ? '#16a34a' : score >= 45 ? '#d97706' : '#dc2626'
+  const label = score >= 70 ? 'Saudável' : score >= 45 ? 'Atenção' : 'Crítico'
   const trackBg = isDark ? '#1e1e1c' : '#eeece8'
   return (
     <div>
@@ -497,9 +491,20 @@ function NotesSection({ dealId, owner, isDark, border, text, muted }: {
 interface ProposalLine {
   id: string
   description: string
-  unit: string
   qty: number
   unit_price: number
+}
+
+interface SavedProposal {
+  id: string
+  createdAt: string
+  intro: string
+  validity: string
+  payment: string
+  terms: string
+  lines: ProposalLine[]
+  discountPct: number
+  installments: number
 }
 
 function fmtBRL(v: number) {
@@ -509,73 +514,81 @@ function fmtBRL(v: number) {
 function ProposalTab({ deal, isDark, border, text, muted, inputBg }: {
   deal: Deal; isDark: boolean; border: string; text: string; muted: string; inputBg: string
 }) {
-  const storageKey = `esq_proposal_v2_${deal.id}`
+  const historyKey = `esq_proposals_v3_${deal.id}`
+  const draftKey   = `esq_proposal_draft_v3_${deal.id}`
 
-  function load<T>(key: string, fallback: T): T {
-    try { const d = JSON.parse(localStorage.getItem(storageKey) ?? '{}'); return d[key] ?? fallback } catch { return fallback }
+  function loadHistory(): SavedProposal[] {
+    try { return JSON.parse(localStorage.getItem(historyKey) ?? '[]') } catch { return [] }
+  }
+  function loadDraft<T>(key: string, fallback: T): T {
+    try { const d = JSON.parse(localStorage.getItem(draftKey) ?? '{}'); return d[key] ?? fallback } catch { return fallback }
   }
 
-  const [intro,      setIntro]      = useState(() => load('intro', ''))
-  const [validity,   setValidity]   = useState(() => load('validity', ''))
-  const [payment,    setPayment]    = useState(() => load('payment', ''))
-  const [terms,      setTerms]      = useState(() => load('terms', ''))
-  const [lines,      setLines]      = useState<ProposalLine[]>(() => load('lines', []))
-  const [freeValue,  setFreeValue]  = useState<string>(() => load('freeValue', ''))
-  const [saved,      setSaved]      = useState(false)
-  const [preview,    setPreview]    = useState(false)
+  const [intro,        setIntro]        = useState(() => loadDraft('intro', ''))
+  const [validity,     setValidity]     = useState(() => loadDraft('validity', ''))
+  const [payment,      setPayment]      = useState(() => loadDraft('payment', ''))
+  const [terms,        setTerms]        = useState(() => loadDraft('terms', ''))
+  const [lines,        setLines]        = useState<ProposalLine[]>(() => loadDraft('lines', []))
+  const [discountPct,  setDiscountPct]  = useState<number>(() => loadDraft('discountPct', 0))
+  const [installments, setInstallments] = useState<number>(() => loadDraft('installments', 1))
+  const [saved,        setSaved]        = useState(false)
+  const [preview,      setPreview]      = useState<SavedProposal | null>(null)
+  const [history,      setHistory]      = useState<SavedProposal[]>(loadHistory)
 
-  const total = lines.reduce((s, l) => s + l.qty * l.unit_price, 0)
+  const subtotal    = lines.reduce((s, l) => s + l.qty * l.unit_price, 0)
+  const discount    = subtotal * (discountPct / 100)
+  const total       = subtotal - discount
+  const installAmt  = installments > 0 ? total / installments : total
+
+  function saveDraft() {
+    localStorage.setItem(draftKey, JSON.stringify({ intro, validity, payment, terms, lines, discountPct, installments }))
+  }
 
   function addLine() {
-    setLines((prev) => [...prev, { id: `l-${Date.now()}`, description: '', unit: 'un', qty: 1, unit_price: 0 }])
+    setLines((prev) => [...prev, { id: `l-${Date.now()}`, description: '', qty: 1, unit_price: 0 }])
   }
-
   function updateLine(id: string, patch: Partial<ProposalLine>) {
     setLines((prev) => prev.map((l) => l.id === id ? { ...l, ...patch } : l))
   }
-
   function removeLine(id: string) {
     setLines((prev) => prev.filter((l) => l.id !== id))
   }
 
   function handleSave() {
-    localStorage.setItem(storageKey, JSON.stringify({ intro, validity, payment, terms, lines, freeValue }))
-    setSaved(true); setTimeout(() => setSaved(false), 2000)
+    const p: SavedProposal = {
+      id: `p-${Date.now()}`,
+      createdAt: new Date().toISOString(),
+      intro, validity, payment, terms, lines, discountPct, installments,
+    }
+    const next = [p, ...history]
+    localStorage.setItem(historyKey, JSON.stringify(next))
+    localStorage.removeItem(draftKey)
+    setHistory(next)
+    setIntro(''); setValidity(''); setPayment(''); setTerms(''); setLines([]); setDiscountPct(0); setInstallments(1)
+    setSaved(true); setTimeout(() => setSaved(false), 2500)
   }
 
-  function handleCopy() {
-    const linesTxt = lines.map((l) => `  • ${l.description} (${l.qty} ${l.unit}) — ${fmtBRL(l.qty * l.unit_price)}`).join('\n')
-    const txt = [
-      'PROPOSTA COMERCIAL — ESQUIRE',
-      '─'.repeat(40),
-      `Cliente: ${deal.company_name}`,
-      `Contacto: ${deal.contact_name ?? '—'}`,
-      `Data: ${new Date().toLocaleDateString('pt-BR')}`,
-      validity ? `Validade: ${new Date(validity).toLocaleDateString('pt-BR')}` : '',
-      '',
-      intro ? `Apresentação:\n${intro}\n` : '',
-      'Serviços / Entregáveis:',
-      linesTxt || '  (sem itens)',
-      '',
-      `TOTAL: ${fmtBRL(total)}`,
-      freeValue ? `Valor negociado: ${freeValue}` : '',
-      '',
-      payment ? `Condições de pagamento:\n${payment}` : '',
-      terms   ? `\nTermos e condições:\n${terms}` : '',
-    ].filter(Boolean).join('\n')
-    navigator.clipboard.writeText(txt).catch(() => {})
-    setSaved(true); setTimeout(() => setSaved(false), 2000)
+  function deleteProposal(id: string) {
+    const next = history.filter((p) => p.id !== id)
+    localStorage.setItem(historyKey, JSON.stringify(next))
+    setHistory(next)
+    if (preview?.id === id) setPreview(null)
   }
 
-  const inp: React.CSSProperties = { backgroundColor: inputBg, border: `1px solid ${border}`, borderRadius: '4px', color: text, outline: 'none', fontSize: '12px', fontFamily: 'inherit', padding: '0 8px', height: '30px', boxSizing: 'border-box' }
+  const inp: React.CSSProperties = { backgroundColor: inputBg, border: `1px solid ${border}`, borderRadius: '6px', color: text, outline: 'none', fontSize: '12px', fontFamily: 'inherit', padding: '0 10px', height: '32px', boxSizing: 'border-box', transition: 'border-color 0.15s ease' }
   const lbl: React.CSSProperties = { fontSize: '10px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: '5px' }
-  const section: React.CSSProperties = { backgroundColor: isDark ? '#111110' : '#ffffff', border: `1px solid ${border}`, borderRadius: '8px', padding: '16px 18px' }
+  const section: React.CSSProperties = { backgroundColor: isDark ? '#111110' : '#ffffff', border: `1px solid ${border}`, borderRadius: '10px', padding: '18px 20px' }
 
+  // ── Preview modal ──────────────────────────────────────────────────────────
   if (preview) {
+    const p = preview
+    const sub   = p.lines.reduce((s, l) => s + l.qty * l.unit_price, 0)
+    const disc  = sub * (p.discountPct / 100)
+    const tot   = sub - disc
+    const inst  = p.installments > 1 ? tot / p.installments : null
     return (
       <div style={{ padding: '20px 24px' }}>
-        <div style={{ backgroundColor: '#ffffff', border: '1px solid #e4e0da', borderRadius: '8px', overflow: 'hidden' }}>
-          {/* Preview header */}
+        <div style={{ backgroundColor: '#ffffff', border: '1px solid #e4e0da', borderRadius: '10px', overflow: 'hidden' }}>
           <div style={{ backgroundColor: '#0d0d0b', padding: '24px 28px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
@@ -586,133 +599,77 @@ function ProposalTab({ deal, isDark, border, text, muted, inputBg }: {
             </div>
             <div style={{ textAlign: 'right' }}>
               <p style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#6b6560', marginBottom: '3px' }}>Proposta Comercial</p>
-              <p style={{ fontSize: '11px', color: '#a09890' }}>{new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}</p>
+              <p style={{ fontSize: '11px', color: '#a09890' }}>{new Date(p.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}</p>
             </div>
           </div>
-
-          {/* Red rule */}
           <div style={{ height: '3px', backgroundColor: '#e31e24' }} />
-
           <div style={{ padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            {/* Client */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
               <div>
                 <p style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#8a857d', marginBottom: '6px' }}>Para</p>
-                <p style={{ fontSize: '15px', fontWeight: 700, color: '#0d0d0b', lineHeight: 1.2 }}>{deal.company_name}</p>
+                <p style={{ fontSize: '15px', fontWeight: 700, color: '#0d0d0b' }}>{deal.company_name}</p>
                 {deal.contact_name && <p style={{ fontSize: '12px', color: '#6b6560', marginTop: '2px' }}>{deal.contact_name}</p>}
                 {deal.contact_email && <p style={{ fontSize: '11px', color: '#8a857d', marginTop: '1px' }}>{deal.contact_email}</p>}
               </div>
               <div style={{ textAlign: 'right' }}>
-                {validity && (
-                  <>
-                    <p style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#8a857d', marginBottom: '4px' }}>Válida até</p>
-                    <p style={{ fontSize: '13px', fontWeight: 600, color: '#0d0d0b' }}>{new Date(validity + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}</p>
-                  </>
-                )}
+                {p.validity && <><p style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#8a857d', marginBottom: '4px' }}>Válida até</p><p style={{ fontSize: '13px', fontWeight: 600, color: '#0d0d0b' }}>{new Date(p.validity + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}</p></>}
               </div>
             </div>
-
-            {/* Intro */}
-            {intro && (
-              <div>
-                <p style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#8a857d', marginBottom: '8px' }}>Apresentação</p>
-                <p style={{ fontSize: '12px', color: '#3a3632', lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>{intro}</p>
-              </div>
-            )}
-
-            {/* Services table */}
-            {lines.length > 0 && (
+            {p.intro && <div><p style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#8a857d', marginBottom: '8px' }}>Apresentação</p><p style={{ fontSize: '12px', color: '#3a3632', lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>{p.intro}</p></div>}
+            {p.lines.length > 0 && (
               <div>
                 <p style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#8a857d', marginBottom: '10px' }}>Serviços / Entregáveis</p>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
-                  <thead>
-                    <tr style={{ borderBottom: '2px solid #0d0d0b' }}>
-                      {['Descrição', 'Qtd', 'Unid.', 'Valor Unit.', 'Total'].map((h) => (
-                        <th key={h} style={{ padding: '6px 8px', textAlign: h === 'Descrição' ? 'left' : 'right', fontSize: '9px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#6b6560' }}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
+                  <thead><tr style={{ borderBottom: '2px solid #0d0d0b' }}>{['Descrição', 'Qtd', 'Valor Unit.', 'Total'].map((h) => (<th key={h} style={{ padding: '6px 8px', textAlign: h === 'Descrição' ? 'left' : 'right', fontSize: '9px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#6b6560' }}>{h}</th>))}</tr></thead>
                   <tbody>
-                    {lines.map((l, i) => (
-                      <tr key={l.id} style={{ borderBottom: `1px solid ${i === lines.length - 1 ? '#0d0d0b' : '#e4e0da'}` }}>
+                    {p.lines.map((l, i) => (
+                      <tr key={l.id} style={{ borderBottom: `1px solid ${i === p.lines.length - 1 ? '#0d0d0b' : '#e4e0da'}` }}>
                         <td style={{ padding: '10px 8px', color: '#0d0d0b', fontWeight: 500 }}>{l.description || '—'}</td>
-                        <td style={{ padding: '10px 8px', textAlign: 'right', color: '#3a3632', fontVariantNumeric: 'tabular-nums' }}>{l.qty}</td>
-                        <td style={{ padding: '10px 8px', textAlign: 'right', color: '#6b6560' }}>{l.unit}</td>
-                        <td style={{ padding: '10px 8px', textAlign: 'right', color: '#3a3632', fontVariantNumeric: 'tabular-nums' }}>{fmtBRL(l.unit_price)}</td>
-                        <td style={{ padding: '10px 8px', textAlign: 'right', fontWeight: 700, color: '#0d0d0b', fontVariantNumeric: 'tabular-nums' }}>{fmtBRL(l.qty * l.unit_price)}</td>
+                        <td style={{ padding: '10px 8px', textAlign: 'right', color: '#3a3632' }}>{l.qty}</td>
+                        <td style={{ padding: '10px 8px', textAlign: 'right', color: '#3a3632' }}>{fmtBRL(l.unit_price)}</td>
+                        <td style={{ padding: '10px 8px', textAlign: 'right', fontWeight: 700, color: '#0d0d0b' }}>{fmtBRL(l.qty * l.unit_price)}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
-                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '12px', paddingTop: '12px', borderTop: '3px solid #0d0d0b' }}>
-                  <div style={{ textAlign: 'right' }}>
-                    <p style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#8a857d', marginBottom: '3px' }}>Total</p>
-                    <p style={{ fontSize: '22px', fontWeight: 700, color: '#0d0d0b', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em' }}>{fmtBRL(total)}</p>
-                  </div>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px', marginTop: '12px', paddingTop: '12px', borderTop: '3px solid #0d0d0b' }}>
+                  {p.discountPct > 0 && <>
+                    <p style={{ fontSize: '11px', color: '#8a857d' }}>Subtotal: {fmtBRL(sub)}</p>
+                    <p style={{ fontSize: '11px', color: '#dc2626' }}>Desconto ({p.discountPct}%): −{fmtBRL(disc)}</p>
+                  </>}
+                  <p style={{ fontSize: '22px', fontWeight: 700, color: '#0d0d0b', letterSpacing: '-0.02em' }}>{fmtBRL(tot)}</p>
+                  {inst && <p style={{ fontSize: '12px', color: '#6b6560' }}>{p.installments}× de {fmtBRL(inst)}</p>}
                 </div>
               </div>
             )}
-
-            {/* Valor negociado */}
-            {freeValue && (
-              <div style={{ paddingTop: '12px', borderTop: '1px solid #e4e0da' }}>
-                <p style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#8a857d', marginBottom: '4px' }}>Valor Negociado</p>
-                <p style={{ fontSize: '16px', fontWeight: 700, color: '#0d0d0b' }}>{freeValue}</p>
+            {(p.payment || p.terms) && (
+              <div style={{ display: 'grid', gridTemplateColumns: p.payment && p.terms ? '1fr 1fr' : '1fr', gap: '20px', paddingTop: '16px', borderTop: '1px solid #e4e0da' }}>
+                {p.payment && <div><p style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#8a857d', marginBottom: '6px' }}>Condições de Pagamento</p><p style={{ fontSize: '12px', color: '#3a3632', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{p.payment}</p></div>}
+                {p.terms && <div><p style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#8a857d', marginBottom: '6px' }}>Termos e Condições</p><p style={{ fontSize: '12px', color: '#3a3632', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{p.terms}</p></div>}
               </div>
             )}
-
-            {/* Payment + Terms */}
-            {(payment || terms) && (
-              <div style={{ display: 'grid', gridTemplateColumns: payment && terms ? '1fr 1fr' : '1fr', gap: '20px', paddingTop: '16px', borderTop: '1px solid #e4e0da' }}>
-                {payment && (
-                  <div>
-                    <p style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#8a857d', marginBottom: '6px' }}>Condições de Pagamento</p>
-                    <p style={{ fontSize: '12px', color: '#3a3632', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{payment}</p>
-                  </div>
-                )}
-                {terms && (
-                  <div>
-                    <p style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#8a857d', marginBottom: '6px' }}>Termos e Condições</p>
-                    <p style={{ fontSize: '12px', color: '#3a3632', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{terms}</p>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Footer */}
             <div style={{ borderTop: '1px solid #e4e0da', paddingTop: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
               <p style={{ fontSize: '10px', color: '#a09890' }}>Documento gerado pelo Esquire CRM</p>
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ width: '120px', borderTop: '1px solid #0d0d0b', paddingTop: '6px' }}>
-                  <p style={{ fontSize: '10px', color: '#6b6560' }}>Assinatura</p>
-                </div>
-              </div>
+              <div style={{ width: '120px', borderTop: '1px solid #0d0d0b', paddingTop: '6px', textAlign: 'right' }}><p style={{ fontSize: '10px', color: '#6b6560' }}>Assinatura</p></div>
             </div>
           </div>
         </div>
-
         <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '14px' }}>
-          <button type="button" onClick={() => setPreview(false)} style={{ fontSize: '12px', fontWeight: 600, padding: '7px 16px', borderRadius: '4px', border: `1px solid ${border}`, backgroundColor: 'transparent', color: muted, cursor: 'pointer' }}>
-            ← Editar
-          </button>
-          <button type="button" onClick={handleCopy} style={{ fontSize: '12px', fontWeight: 600, padding: '7px 16px', borderRadius: '4px', border: `1px solid ${border}`, backgroundColor: 'transparent', color: text, cursor: 'pointer' }}>
-            Copiar texto
-          </button>
-          <button type="button" onClick={() => window.print()} style={{ fontSize: '12px', fontWeight: 600, padding: '7px 16px', borderRadius: '4px', border: 'none', backgroundColor: '#e31e24', color: '#fff', cursor: 'pointer' }}>
-            Imprimir / PDF
-          </button>
+          <button type="button" onClick={() => setPreview(null)} style={{ fontSize: '12px', fontWeight: 600, padding: '7px 16px', borderRadius: '6px', border: `1px solid ${border}`, backgroundColor: 'transparent', color: muted, cursor: 'pointer' }}>← Voltar</button>
+          <button type="button" onClick={() => window.print()} style={{ fontSize: '12px', fontWeight: 600, padding: '7px 16px', borderRadius: '6px', border: 'none', backgroundColor: '#e31e24', color: '#fff', cursor: 'pointer' }}>Imprimir / PDF</button>
         </div>
       </div>
     )
   }
 
+  // ── Editor ─────────────────────────────────────────────────────────────────
   return (
-    <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+    <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
       {/* Apresentação */}
       <div style={section}>
-        <p style={{ fontSize: '11px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '12px' }}>Apresentação</p>
-        <textarea value={intro} onChange={(e) => setIntro(e.target.value)} rows={3}
+        <p style={{ fontSize: '11px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '12px', borderLeft: '3px solid #e31e24', paddingLeft: '8px' }}>Apresentação</p>
+        <textarea value={intro} onChange={(e) => { setIntro(e.target.value); saveDraft() }} rows={3}
           placeholder="Breve apresentação da proposta, contexto da negociação..."
           style={{ ...inp, width: '100%', height: 'auto', padding: '8px 10px', lineHeight: 1.6, resize: 'vertical' }} />
       </div>
@@ -720,40 +677,53 @@ function ProposalTab({ deal, isDark, border, text, muted, inputBg }: {
       {/* Serviços */}
       <div style={section}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-          <p style={{ fontSize: '11px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Serviços / Entregáveis</p>
-          <button type="button" onClick={addLine} style={{ fontSize: '11px', fontWeight: 700, color: '#e31e24', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 0', letterSpacing: '0.04em' }}>
-            + Adicionar item
-          </button>
+          <p style={{ fontSize: '11px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.1em', borderLeft: '3px solid #e31e24', paddingLeft: '8px' }}>Serviços / Entregáveis</p>
+          <button type="button" onClick={addLine} style={{ fontSize: '11px', fontWeight: 700, color: '#e31e24', background: 'none', border: 'none', cursor: 'pointer' }}>+ Adicionar</button>
         </div>
-
         {lines.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '20px 0' }}>
-            <p style={{ fontSize: '12px', color: muted }}>Nenhum item adicionado.</p>
-            <button type="button" onClick={addLine} style={{ marginTop: '8px', fontSize: '12px', fontWeight: 600, color: '#e31e24', background: 'none', border: 'none', cursor: 'pointer' }}>
-              Adicionar primeiro item →
-            </button>
+          <div style={{ textAlign: 'center', padding: '16px 0' }}>
+            <p style={{ fontSize: '12px', color: muted }}>Nenhum serviço adicionado.</p>
+            <button type="button" onClick={addLine} style={{ marginTop: '6px', fontSize: '12px', fontWeight: 600, color: '#e31e24', background: 'none', border: 'none', cursor: 'pointer' }}>Adicionar primeiro item →</button>
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            {/* Header */}
-            <div style={{ display: 'grid', gridTemplateColumns: '3fr 60px 60px 100px 20px', gap: '6px', paddingBottom: '4px', borderBottom: `1px solid ${border}` }}>
-              {['Descrição', 'Qtd', 'Unid.', 'Valor unit.', ''].map((h) => (
+            <div style={{ display: 'grid', gridTemplateColumns: '3fr 70px 110px 100px 24px', gap: '6px', paddingBottom: '4px', borderBottom: `1px solid ${border}` }}>
+              {['Descrição', 'Qtd', 'Valor unit.', 'Total', ''].map((h) => (
                 <p key={h} style={{ fontSize: '9px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{h}</p>
               ))}
             </div>
             {lines.map((l) => (
-              <div key={l.id} style={{ display: 'grid', gridTemplateColumns: '3fr 60px 60px 100px 20px', gap: '6px', alignItems: 'center' }}>
-                <input value={l.description} onChange={(e) => updateLine(l.id, { description: e.target.value })} placeholder="Descrição do serviço" style={{ ...inp, width: '100%' }} />
+              <div key={l.id} style={{ display: 'grid', gridTemplateColumns: '3fr 70px 110px 100px 24px', gap: '6px', alignItems: 'center' }}>
+                <input value={l.description} onChange={(e) => updateLine(l.id, { description: e.target.value })} placeholder="Descrição do trabalho" style={{ ...inp, width: '100%' }} />
                 <input type="number" min={1} value={l.qty} onChange={(e) => updateLine(l.id, { qty: Number(e.target.value) })} style={{ ...inp, width: '100%', textAlign: 'right' }} />
-                <input value={l.unit} onChange={(e) => updateLine(l.id, { unit: e.target.value })} placeholder="un" style={{ ...inp, width: '100%', textAlign: 'center' }} />
                 <input type="number" min={0} value={l.unit_price || ''} onChange={(e) => updateLine(l.id, { unit_price: Number(e.target.value) })} placeholder="0" style={{ ...inp, width: '100%', textAlign: 'right' }} />
-                <button type="button" onClick={() => removeLine(l.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: muted, fontSize: '14px', lineHeight: 1, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+                <p style={{ fontSize: '12px', fontWeight: 600, color: isDark ? '#6ee7b7' : '#16a34a', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{fmtBRL(l.qty * l.unit_price)}</p>
+                <button type="button" onClick={() => removeLine(l.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: muted, fontSize: '16px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
               </div>
             ))}
-            {/* Total */}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '8px', borderTop: `1px solid ${border}`, gap: '12px', alignItems: 'center' }}>
-              <p style={{ fontSize: '10px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Total</p>
-              <p style={{ fontSize: '16px', fontWeight: 700, color: isDark ? '#6ee7b7' : '#16a34a', fontVariantNumeric: 'tabular-nums' }}>{fmtBRL(total)}</p>
+            {/* Totais */}
+            <div style={{ marginTop: '8px', paddingTop: '10px', borderTop: `1px solid ${border}`, display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'flex-end' }}>
+              {discountPct > 0 && (
+                <>
+                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                    <p style={{ fontSize: '10px', color: muted }}>Subtotal</p>
+                    <p style={{ fontSize: '13px', fontWeight: 600, color: text, fontVariantNumeric: 'tabular-nums' }}>{fmtBRL(subtotal)}</p>
+                  </div>
+                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                    <p style={{ fontSize: '10px', color: '#dc2626' }}>Desconto ({discountPct}%)</p>
+                    <p style={{ fontSize: '13px', fontWeight: 600, color: '#dc2626', fontVariantNumeric: 'tabular-nums' }}>−{fmtBRL(discount)}</p>
+                  </div>
+                </>
+              )}
+              <div style={{ display: 'flex', gap: '12px', alignItems: 'baseline' }}>
+                <p style={{ fontSize: '10px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Total</p>
+                <p style={{ fontSize: '18px', fontWeight: 700, color: isDark ? '#6ee7b7' : '#16a34a', fontVariantNumeric: 'tabular-nums' }}>{fmtBRL(total)}</p>
+              </div>
+              {installments > 1 && (
+                <p style={{ fontSize: '11px', color: muted }}>
+                  {installments}× de <strong style={{ color: text }}>{fmtBRL(installAmt)}</strong>
+                </p>
+              )}
             </div>
           </div>
         )}
@@ -761,40 +731,109 @@ function ProposalTab({ deal, isDark, border, text, muted, inputBg }: {
 
       {/* Condições */}
       <div style={section}>
-        <p style={{ fontSize: '11px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '12px' }}>Condições</p>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+        <p style={{ fontSize: '11px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '14px', borderLeft: '3px solid #e31e24', paddingLeft: '8px' }}>Condições Comerciais</p>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
           <div>
             <label style={lbl}>Validade da proposta</label>
-            <input type="date" value={validity} onChange={(e) => setValidity(e.target.value)} style={{ ...inp, width: '100%', colorScheme: isDark ? 'dark' : 'light' }} />
+            <input type="date" value={validity} onChange={(e) => { setValidity(e.target.value); saveDraft() }} style={{ ...inp, width: '100%', colorScheme: isDark ? 'dark' : 'light' }} />
           </div>
           <div>
-            <label style={lbl}>Condições de pagamento</label>
-            <input value={payment} onChange={(e) => setPayment(e.target.value)} placeholder="Ex: 50% entrada, 50% na entrega" style={{ ...inp, width: '100%' }} />
+            <label style={lbl}>Desconto (%)</label>
+            <div style={{ position: 'relative' }}>
+              <input type="number" min={0} max={100} value={discountPct || ''} onChange={(e) => { setDiscountPct(Number(e.target.value)); saveDraft() }} placeholder="0" style={{ ...inp, width: '100%', paddingRight: '28px' }} />
+              <span style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '12px', color: muted, pointerEvents: 'none' }}>%</span>
+            </div>
+          </div>
+          <div>
+            <label style={lbl}>Parcelar em</label>
+            <select value={installments} onChange={(e) => { setInstallments(Number(e.target.value)); saveDraft() }}
+              style={{ ...inp, width: '100%', cursor: 'pointer' }}>
+              {Array.from({ length: 12 }, (_, i) => i + 1).map((n) => (
+                <option key={n} value={n}>{n === 1 ? 'À vista' : `${n}× de ${total > 0 ? fmtBRL(total / n) : '—'}`}</option>
+              ))}
+            </select>
           </div>
         </div>
-        <div style={{ marginTop: '10px' }}>
-          <label style={lbl}>Valor negociado</label>
-          <input value={freeValue} onChange={(e) => setFreeValue(e.target.value)} placeholder="Ex: R$ 12.000,00 ou a definir em reunião" style={{ ...inp, width: '100%' }} />
-        </div>
-        <div style={{ marginTop: '10px' }}>
-          <label style={lbl}>Termos e condições</label>
-          <textarea value={terms} onChange={(e) => setTerms(e.target.value)} rows={3}
-            placeholder="Condições gerais, prazo de entrega, garantias..."
-            style={{ ...inp, width: '100%', height: 'auto', padding: '8px 10px', lineHeight: 1.6, resize: 'vertical' }} />
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '12px' }}>
+          <div>
+            <label style={lbl}>Condições de pagamento</label>
+            <input value={payment} onChange={(e) => { setPayment(e.target.value); saveDraft() }} placeholder="Ex: 50% entrada, 50% na entrega" style={{ ...inp, width: '100%' }} />
+          </div>
+          <div>
+            <label style={lbl}>Termos e condições</label>
+            <input value={terms} onChange={(e) => { setTerms(e.target.value); saveDraft() }} placeholder="Prazo de entrega, garantias..." style={{ ...inp, width: '100%' }} />
+          </div>
         </div>
       </div>
 
       {/* Actions */}
-      <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-        <button type="button" onClick={() => { handleSave(); setPreview(true) }} style={{ fontSize: '12px', fontWeight: 600, padding: '7px 16px', borderRadius: '4px', border: `1px solid ${border}`, backgroundColor: 'transparent', color: text, cursor: 'pointer' }}>
-          Pré-visualizar
-        </button>
-        <button type="button" onClick={handleSave} style={{ fontSize: '12px', fontWeight: 700, padding: '7px 18px', borderRadius: '4px', border: 'none', backgroundColor: '#e31e24', color: '#fff', cursor: 'pointer' }}>
-          {saved ? '✓ Salvo' : 'Salvar proposta'}
+      <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', alignItems: 'center' }}>
+        <p style={{ fontSize: '10px', color: muted, flex: 1 }}>Ao guardar, a proposta fica no histórico abaixo</p>
+        <button type="button" onClick={handleSave}
+          style={{ fontSize: '12px', fontWeight: 700, padding: '8px 20px', borderRadius: '6px', border: 'none', backgroundColor: saved ? '#16a34a' : '#e31e24', color: '#fff', cursor: 'pointer', transition: 'background-color 0.2s ease' }}>
+          {saved ? '✓ Proposta guardada!' : 'Guardar Proposta'}
         </button>
       </div>
 
-      <p style={{ fontSize: '10px', color: muted, textAlign: 'center' }}>Rascunho guardado localmente neste dispositivo</p>
+      {/* ── Histórico de propostas ── */}
+      {history.length > 0 && (
+        <div style={section}>
+          <p style={{ fontSize: '11px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '14px', borderLeft: '3px solid #e31e24', paddingLeft: '8px' }}>
+            Histórico de Propostas ({history.length})
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {history.map((p, i) => {
+              const sub  = p.lines.reduce((s, l) => s + l.qty * l.unit_price, 0)
+              const tot  = sub - sub * (p.discountPct / 100)
+              return (
+                <div key={p.id} style={{
+                  display: 'grid', gridTemplateColumns: '1fr auto auto auto',
+                  alignItems: 'center', gap: '12px',
+                  padding: '12px 14px', borderRadius: '8px',
+                  backgroundColor: isDark ? '#0d0d0b' : '#f9f8f5',
+                  border: `1px solid ${border}`,
+                }}>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '10px', fontWeight: 700, color: muted }}>
+                        #{history.length - i}
+                      </span>
+                      <span style={{ fontSize: '11px', fontWeight: 600, color: text }}>
+                        {new Date(p.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}
+                      </span>
+                      {p.discountPct > 0 && (
+                        <span style={{ fontSize: '9px', fontWeight: 700, color: '#dc2626', backgroundColor: '#dc262614', borderRadius: '3px', padding: '1px 5px' }}>
+                          -{p.discountPct}%
+                        </span>
+                      )}
+                      {p.installments > 1 && (
+                        <span style={{ fontSize: '9px', fontWeight: 700, color: '#4a7c8a', backgroundColor: '#4a7c8a14', borderRadius: '3px', padding: '1px 5px' }}>
+                          {p.installments}×
+                        </span>
+                      )}
+                    </div>
+                    <p style={{ fontSize: '10px', color: muted, marginTop: '2px' }}>
+                      {p.lines.length} {p.lines.length === 1 ? 'serviço' : 'serviços'}
+                      {p.validity ? ` · válida até ${new Date(p.validity + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}` : ''}
+                    </p>
+                  </div>
+                  <p style={{ fontSize: '14px', fontWeight: 700, color: isDark ? '#6ee7b7' : '#16a34a', fontVariantNumeric: 'tabular-nums' }}>
+                    {fmtBRL(tot)}
+                  </p>
+                  <button type="button" onClick={() => setPreview(p)}
+                    style={{ fontSize: '11px', fontWeight: 600, color: '#e31e24', backgroundColor: '#e31e2410', border: '1px solid #e31e2430', borderRadius: '5px', padding: '4px 10px', cursor: 'pointer' }}>
+                    Ver
+                  </button>
+                  <button type="button" onClick={() => deleteProposal(p.id)}
+                    style={{ fontSize: '11px', fontWeight: 600, color: muted, backgroundColor: 'transparent', border: `1px solid ${border}`, borderRadius: '5px', padding: '4px 10px', cursor: 'pointer' }}>
+                    ×
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -806,10 +845,13 @@ export function DealDetailPage() {
   const navigate = useNavigate()
   const isDark   = useThemeStore((s) => s.isDark)
   const deal     = useDealStore((s) => s.deals.find((d) => d.id === id))
+  const dealsLoading = useDealStore((s) => s.isLoading)
+  const dealsInitialized = useDealStore((s) => s.initialized)
 
   const moveDeal        = useDealStore((s) => s.moveDeal)
   const fetchActivities = useActivityStore((s) => s.fetchForDeal)
   const byDeal          = useActivityStore((s) => s.byDeal)
+  const addActivity     = useActivityStore((s) => s.addActivity)
   const activities      = (id ? byDeal[id] : undefined) ?? []
   const allMeetings     = useMeetingStore((s) => s.meetings)
   const meetings        = useMemo(
@@ -842,10 +884,6 @@ export function DealDetailPage() {
   const [editDraft, setEditDraft]       = useState('')
   const [savingField, setSavingField]   = useState(false)
 
-  // ── Stakeholders ─────────────────────────────────────────────────────────────
-  const [showAddStakeholder, setShowAddStakeholder] = useState(false)
-  const [profiles, setProfiles] = useState<{ id: string; full_name: string | null; email: string; avatar_color: string }[]>([])
-  const [loadingProfiles, setLoadingProfiles] = useState(false)
 
   // ── Teams ────────────────────────────────────────────────────────────────────
   const teams = useTeamStore((s) => s.teams)
@@ -855,11 +893,47 @@ export function DealDetailPage() {
   const [dealEvents, setDealEvents]       = useState<DealEvent[]>([])
   const [loadingEvents, setLoadingEvents] = useState(false)
 
+  // ── Stage history ─────────────────────────────────────────────────────────────
+  type StageHistoryEntry = { id: string; from_stage: string | null; to_stage: string; changed_at: string; days_in_previous_stage: number }
+  const [stageHistory, setStageHistory] = useState<StageHistoryEntry[]>([])
+
+  useEffect(() => {
+    if (!id) return
+    supabase
+      .from('deal_stage_history')
+      .select('id, from_stage, to_stage, changed_at, days_in_previous_stage')
+      .eq('deal_id', id)
+      .order('changed_at', { ascending: false })
+      .then(({ data }) => setStageHistory((data ?? []) as StageHistoryEntry[]))
+  }, [id])
+
+  // ── Meeting records ───────────────────────────────────────────────────────────
+  type MeetingRecord = { id: string; meeting_date: string; completed_items: string[]; score: number; notes: string | null }
+  const [meetingRecords, setMeetingRecords] = useState<MeetingRecord[]>([])
+
+  function loadMeetingRecords() {
+    if (!id) return
+    supabase
+      .from('meeting_records')
+      .select('id, meeting_date, completed_items, score, notes')
+      .eq('deal_id', id)
+      .order('meeting_date', { ascending: false })
+      .then(({ data }) => setMeetingRecords((data ?? []) as MeetingRecord[]))
+  }
+
+  useEffect(() => { loadMeetingRecords() }, [id])
+
   const clearByDeal = useNotificationStore((s) => s.clearByDeal)
+  const subscribeActivities = useActivityStore((s) => s.subscribeRealtime)
 
   useEffect(() => {
     if (id) fetchActivities(id)
   }, [id, fetchActivities])
+
+  useEffect(() => {
+    const unsubscribe = subscribeActivities()
+    return unsubscribe
+  }, [subscribeActivities])
 
   useEffect(() => {
     if (!id) return
@@ -888,34 +962,6 @@ export function DealDetailPage() {
     setEditDraft('')
   }
 
-  async function loadProfiles(force = false) {
-    if (!force && profiles.length > 0) return
-    setLoadingProfiles(true)
-    try {
-      const { data } = await supabase.from('profiles').select('id, full_name, email, avatar_color')
-      setProfiles((data ?? []) as typeof profiles)
-    } finally {
-      setLoadingProfiles(false)
-    }
-  }
-
-  async function addStakeholder(profile: { id: string; full_name: string | null; email: string; avatar_color: string }) {
-    if (!deal) return
-    const existing = deal.stakeholders ?? []
-    const displayName = profile.full_name || profile.email.split('@')[0]
-    const initials = getInitials(displayName)
-    const color = profile.avatar_color || getAvatarColor(profile.id)
-    const newS: Stakeholder = { initials, color, name: displayName }
-    await patchDealFields(deal.id, { stakeholders: [...existing, newS] })
-    setShowAddStakeholder(false)
-  }
-
-  async function removeStakeholder(index: number) {
-    if (!deal) return
-    const existing = deal.stakeholders ?? []
-    await patchDealFields(deal.id, { stakeholders: existing.filter((_, i) => i !== index) })
-  }
-
   async function loadEvents() {
     if (!deal || loadingEvents) return
     setLoadingEvents(true)
@@ -929,6 +975,15 @@ export function DealDetailPage() {
     }
   }
 
+
+  if (dealsLoading || !dealsInitialized) {
+    return (
+      <PageLoadingState
+        title="Carregando lead"
+        description="Estamos preparando os dados do lead e o histórico recente."
+      />
+    )
+  }
 
   if (!deal) {
     return (
@@ -953,7 +1008,7 @@ export function DealDetailPage() {
     id: '', name: 'Desconhecido', initials: '?', avatar_color: '#6b6560',
   }
 
-  const score = healthScore(deal)
+  const score = evaluateDealScore(deal)
 
   const border  = isDark ? '#242422' : '#e4e0da'
   const text    = isDark ? '#e8e4dc' : '#1a1814'
@@ -963,6 +1018,7 @@ export function DealDetailPage() {
   const currentStage = STAGES.find((s) => s.id === deal.stage_id)
 
   return (
+    <>
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: 'var(--surface-base)' }}>
 
       {/* ── Page header ── */}
@@ -983,18 +1039,19 @@ export function DealDetailPage() {
         </p>
         {/* Action buttons */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-          <a href={`mailto:${deal.contact_email ?? ''}`}
+          <button type="button"
+            onClick={() => deal.contact_email && navigate(`/email?to=${encodeURIComponent(deal.contact_email)}`)}
             style={{
               display: 'flex', alignItems: 'center', gap: '5px',
               height: '30px', padding: '0 12px', borderRadius: 'var(--radius-sm)',
               border: '1px solid var(--line)', backgroundColor: 'transparent',
-              fontSize: '12px', fontWeight: 500, color: 'var(--ink-muted)', textDecoration: 'none',
+              fontSize: '12px', fontWeight: 500, color: 'var(--ink-muted)',
               cursor: deal.contact_email ? 'pointer' : 'default',
               opacity: deal.contact_email ? 1 : 0.4,
             }}>
             <Mail style={{ width: '12px', height: '12px' }} />
             Email
-          </a>
+          </button>
         </div>
       </div>
 
@@ -1221,6 +1278,16 @@ export function DealDetailPage() {
                 {ARR_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
             </div>
+            <div style={{ marginBottom: '8px' }}>
+              <p style={{ fontSize: '10px', fontWeight: 600, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '3px' }}>Área</p>
+              <select value={deal.segment ?? ''} onChange={(e) => saveField({ segment: (e.target.value as 'B2B' | 'B2C' | 'B2G') || null })}
+                style={{ fontSize: '12px', fontWeight: 500, color: deal.segment ? text : muted, backgroundColor: inputBg, border: `1px solid var(--line)`, borderRadius: 'var(--radius-sm)', padding: '2px 6px', cursor: 'pointer', outline: 'none', width: '100%' }}>
+                <option value="">Selecionar...</option>
+                <option value="B2B">B2B — Empresa para Empresa</option>
+                <option value="B2C">B2C — Empresa para Consumidor</option>
+                <option value="B2G">B2G — Empresa para Governo</option>
+              </select>
+            </div>
             {teams.length > 0 && (
               <div>
                 <p style={{ fontSize: '10px', fontWeight: 600, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '3px' }}>Time</p>
@@ -1369,14 +1436,14 @@ export function DealDetailPage() {
             <HealthBar score={score} isDark={isDark} />
             <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
               {[
-                { label: 'Probabilidade', value: `${deal.probability}%`, ok: deal.probability >= 50 },
-                { label: 'Última atividade', value: deal.last_activity_at ? relativeDate(deal.last_activity_at) : '—', ok: deal.last_activity_at ? (Date.now() - new Date(deal.last_activity_at).getTime()) / 86_400_000 <= 14 : false },
-                { label: 'Contatos', value: `${deal.stakeholders?.length ?? 0} mapeados`, ok: (deal.stakeholders?.length ?? 0) >= 2 },
+                { label: 'Atividade recente', value: deal.last_activity_at ? relativeDate(deal.last_activity_at) : '—', ok: deal.last_activity_at ? (Date.now() - new Date(deal.last_activity_at).getTime()) / 86_400_000 <= 14 : false },
+                { label: 'Próxima atividade', value: deal.next_activity?.label ?? '—', ok: !!deal.next_activity },
+                { label: 'Temperatura', value: deal.lead_temperature === 'hot' ? 'Quente 🔥' : deal.lead_temperature === 'warm' ? 'Morno ☀' : deal.lead_temperature === 'cold' ? 'Frio ❄' : '—', ok: deal.lead_temperature === 'hot' || deal.lead_temperature === 'warm' },
                 { label: 'Tempo na etapa', value: `${deal.days_in_stage}d`, ok: deal.days_in_stage <= 60 },
               ].map(({ label, value: v, ok }) => (
                 <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontSize: '11px', color: muted }}>{label}</span>
-                  <span style={{ fontSize: '11px', fontWeight: 600, color: ok ? '#2d9e6b' : isDark ? '#fc8181' : '#c53030' }}>{v}</span>
+                  <span style={{ fontSize: '11px', fontWeight: 600, color: ok ? '#16a34a' : v === '—' ? muted : '#dc2626' }}>{v}</span>
                 </div>
               ))}
             </div>
@@ -1461,24 +1528,73 @@ export function DealDetailPage() {
             {/* ── Visão geral tab ── */}
             {activeTab === 'overview' && (
               <div style={{ padding: '20px 24px' }}>
-                {/* KPI cards */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '24px' }}>
-                  <div className="card" style={{ padding: '16px 18px' }}>
-                    <p className="section-header" style={{ marginBottom: '6px' }}>Valor</p>
-                    <p style={{ fontSize: '22px', fontWeight: 700, color: '#2d9e6b', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em' }}>{formatCurrency(deal.value)}</p>
-                  </div>
-                  <div className="card" style={{ padding: '16px 18px' }}>
-                    <p className="section-header" style={{ marginBottom: '6px' }}>Probabilidade</p>
-                    <p style={{ fontSize: '22px', fontWeight: 700, color: deal.probability >= 70 ? '#16a34a' : deal.probability >= 35 ? '#f59e0b' : '#ef4444', letterSpacing: '-0.02em', fontVariantNumeric: 'tabular-nums' }}>{deal.probability}%</p>
-                  </div>
-                </div>
+                {/* KPI cards — qualificação do lead */}
+                {(() => {
+                  const sizeLabel: Record<string, string> = { '1-50': 'Pequena · 1-50', '51-200': 'Média · 51-200', '201-1000': 'Grande · 201-1k', '1000+': 'Enterprise · 1k+' }
+                  const sourceIcon: Record<string, string> = { Indicação: '🤝', Inbound: '📥', Outbound: '📤', Evento: '🎯' }
+                  const segCfg: Record<string, { color: string; bg: string; bgDark: string; desc: string }> = {
+                    B2B: { color: '#2563eb', bg: '#eff6ff', bgDark: '#1e2d4a', desc: 'Empresa → Empresa' },
+                    B2C: { color: '#7c3aed', bg: '#f5f3ff', bgDark: '#2e1a5e', desc: 'Empresa → Consumidor' },
+                    B2G: { color: '#0e7490', bg: '#ecfeff', bgDark: '#083344', desc: 'Empresa → Governo' },
+                  }
+                  const seg = deal.segment ? segCfg[deal.segment] : null
+                  return (
+                    <div style={{ marginBottom: '24px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+
+                      {/* Segmento + Origem */}
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                        <div className="card" style={{ padding: '14px 16px', backgroundColor: seg ? (isDark ? seg.bgDark : seg.bg) : undefined, border: seg ? `1px solid ${seg.color}30` : undefined }}>
+                          <p className="section-header" style={{ marginBottom: '8px' }}>Área de Negócio</p>
+                          {seg ? (
+                            <div>
+                              <p style={{ fontSize: '22px', fontWeight: 800, color: seg.color, letterSpacing: '-0.02em', lineHeight: 1 }}>{deal.segment}</p>
+                              <p style={{ fontSize: '11px', color: seg.color, opacity: 0.75, marginTop: '4px' }}>{seg.desc}</p>
+                            </div>
+                          ) : (
+                            <p style={{ fontSize: '13px', color: muted, fontStyle: 'italic' }}>Não definido</p>
+                          )}
+                        </div>
+                        <div className="card" style={{ padding: '14px 16px' }}>
+                          <p className="section-header" style={{ marginBottom: '8px' }}>Origem</p>
+                          {deal.lead_source
+                            ? <p style={{ fontSize: '16px', fontWeight: 600, color: text }}>{sourceIcon[deal.lead_source] ?? ''} {deal.lead_source}</p>
+                            : <p style={{ fontSize: '13px', color: muted, fontStyle: 'italic' }}>—</p>}
+                        </div>
+                      </div>
+
+                      {/* Porte + Setor */}
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                        <div className="card" style={{ padding: '14px 16px' }}>
+                          <p className="section-header" style={{ marginBottom: '6px' }}>Porte</p>
+                          {deal.company_size
+                            ? <p style={{ fontSize: '13px', fontWeight: 600, color: text }}>{sizeLabel[deal.company_size] ?? deal.company_size}</p>
+                            : <p style={{ fontSize: '13px', color: muted, fontStyle: 'italic' }}>—</p>}
+                        </div>
+                        <div className="card" style={{ padding: '14px 16px' }}>
+                          <p className="section-header" style={{ marginBottom: '6px' }}>Setor</p>
+                          {deal.company_sector
+                            ? <p style={{ fontSize: '13px', fontWeight: 600, color: text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{deal.company_sector}</p>
+                            : <p style={{ fontSize: '13px', color: muted, fontStyle: 'italic' }}>—</p>}
+                        </div>
+                      </div>
+
+                      {/* Valor — só se existir */}
+                      {deal.value > 0 && (
+                        <div className="card" style={{ padding: '14px 16px' }}>
+                          <p className="section-header" style={{ marginBottom: '6px' }}>Valor estimado</p>
+                          <p style={{ fontSize: '20px', fontWeight: 700, color: '#16a34a', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em' }}>{formatCurrency(deal.value)}</p>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })()}
 
                 {/* Contato links */}
                 {(deal.contact_email || deal.contact_phone || deal.contact_linkedin || deal.company_website) && (
                   <div style={{ marginBottom: '24px' }}>
                     <p className="section-header" style={{ marginBottom: '12px' }}>Contacto</p>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                      {deal.contact_email && <LinkField label="Email" icon={Mail} href={`mailto:${deal.contact_email}`} muted={muted}>{deal.contact_email}</LinkField>}
+                      {deal.contact_email && <LinkField label="Email" icon={Mail} href={`/email?to=${encodeURIComponent(deal.contact_email)}`} muted={muted}>{deal.contact_email}</LinkField>}
                       {deal.contact_phone && <LinkField label="Telefone" icon={Phone} href={`tel:${deal.contact_phone}`} muted={muted}>{deal.contact_phone}</LinkField>}
                       {deal.contact_linkedin && <LinkField label="LinkedIn" icon={Linkedin} href={deal.contact_linkedin} external muted={muted}>Ver perfil ↗</LinkField>}
                       {deal.company_website && <LinkField label="Site" icon={Globe} href={deal.company_website} external muted={muted}>{deal.company_website.replace(/^https?:\/\//, '')} ↗</LinkField>}
@@ -1524,8 +1640,27 @@ export function DealDetailPage() {
                       ) : dealEvents.length === 0 ? (
                         <p style={{ fontSize: '11px', color: muted, fontStyle: 'italic' }}>Nenhuma alteração registrada</p>
                       ) : dealEvents.map((ev) => {
+                        const isStage    = ev.event_type === 'stage_change'
+                        const isTaskAdd  = ev.event_type === 'task_added'
+                        const isTaskRem  = ev.event_type === 'task_removed'
+                        const isTask     = isTaskAdd || isTaskRem
+
+                        if (isTask) {
+                          const taskTitle = (ev.new_value as { title?: string } | null)?.title ?? 'Tarefa'
+                          return (
+                            <div key={ev.id} style={{ display: 'flex', flexDirection: 'column', gap: '3px', padding: '8px 10px', backgroundColor: 'var(--surface-raised)', borderRadius: 'var(--radius-md)' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                <span style={{ fontSize: '10px', fontWeight: 700, color: isTaskAdd ? '#2d9e6b' : '#dc2626', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                                  {isTaskAdd ? '✓ Tarefa entrou' : '✗ Tarefa saiu'}
+                                </span>
+                                <span style={{ fontSize: '9px', color: muted }}>{relativeDate(ev.created_at.slice(0, 10))}</span>
+                              </div>
+                              <p style={{ fontSize: '11px', color: text, fontWeight: 500 }}>{taskTitle}</p>
+                            </div>
+                          )
+                        }
+
                         const fieldLabel = ev.field_name ? (FIELD_LABELS[ev.field_name] ?? ev.field_name) : 'Campo'
-                        const isStage = ev.event_type === 'stage_change'
                         function fmtVal(v: unknown, field?: string): string {
                           if (v == null) return '—'
                           if (field === 'stage_id') return STAGES.find((s) => s.id === String(v))?.label ?? String(v)
@@ -1565,7 +1700,15 @@ export function DealDetailPage() {
 
             {/* ── Atividade tab ── */}
             {activeTab === 'activity' && (
-              <div style={{ padding: '20px 24px' }}>
+              <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '28px' }}>
+
+                {/* ── Section 1: Atividades / Reuniões / Tarefas ── */}
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
+                    <span style={{ fontSize: '9px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Atividades & Reuniões</span>
+                    <div style={{ flex: 1, height: '1px', backgroundColor: border }} />
+                  </div>
+
                 {showQuickTask && (
                   <div style={{
                     marginBottom: '16px', padding: '12px', borderRadius: '8px',
@@ -1582,6 +1725,7 @@ export function DealDetailPage() {
                           setSavingQuickTask(true)
                           try {
                             await createTask({ title: quickTaskTitle.trim(), deal_id: deal.id, due_date: quickTaskDate || undefined, priority: 'medium', task_type: 'other' })
+                            await addActivity(deal.id, { type: 'task', subject: quickTaskTitle.trim(), owner })
                             setQuickTaskTitle(''); setQuickTaskDate(''); setShowQuickTask(false)
                           } finally { setSavingQuickTask(false) }
                         }
@@ -1608,6 +1752,7 @@ export function DealDetailPage() {
                           setSavingQuickTask(true)
                           try {
                             await createTask({ title: quickTaskTitle.trim(), deal_id: deal.id, due_date: quickTaskDate || undefined, priority: 'medium', task_type: 'other' })
+                            await addActivity(deal.id, { type: 'task', subject: quickTaskTitle.trim(), owner })
                             setQuickTaskTitle(''); setQuickTaskDate(''); setShowQuickTask(false)
                           } finally { setSavingQuickTask(false) }
                         }}
@@ -1653,6 +1798,72 @@ export function DealDetailPage() {
                     </div>
                   )
                 })()}
+                </div>{/* end section 1 */}
+
+                {/* ── Section 1b: Registros de Reunião ── */}
+                {meetingRecords.length > 0 && (
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
+                      <span style={{ fontSize: '9px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Registros de Reunião</span>
+                      <div style={{ flex: 1, height: '1px', backgroundColor: border }} />
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      {meetingRecords.map((rec) => {
+                        const scoreColor = rec.score >= 7 ? '#16a34a' : rec.score >= 4 ? '#d97706' : '#dc2626'
+                        return (
+                          <div key={rec.id} style={{ padding: '12px 14px', borderRadius: '8px', border: `1px solid ${border}`, backgroundColor: isDark ? '#111110' : '#fafaf8' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                              <span style={{ fontSize: '11px', fontWeight: 600, color: text }}>{formatDate(rec.meeting_date)}</span>
+                              <span style={{ fontSize: '11px', fontWeight: 700, color: scoreColor, backgroundColor: `${scoreColor}15`, borderRadius: '4px', padding: '2px 8px' }}>
+                                {rec.score.toFixed(1)} / 10
+                              </span>
+                            </div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', marginBottom: rec.notes ? '8px' : 0 }}>
+                              {rec.completed_items.map((item) => (
+                                <span key={item} style={{ fontSize: '10px', fontWeight: 500, color: '#16a34a', backgroundColor: '#16a34a15', borderRadius: '3px', padding: '2px 6px' }}>
+                                  ✓ {CHECKLIST_LABELS[item] ?? item}
+                                </span>
+                              ))}
+                            </div>
+                            {rec.notes && (
+                              <p style={{ fontSize: '11px', color: muted, marginTop: '6px', fontStyle: 'italic', lineHeight: 1.5 }}>{rec.notes}</p>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Section 2: Histórico de Pipeline ── */}
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
+                    <span style={{ fontSize: '9px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Jornada no Pipeline</span>
+                    <div style={{ flex: 1, height: '1px', backgroundColor: border }} />
+                  </div>
+                  {stageHistory.length === 0 ? (
+                    <p style={{ fontSize: '12px', color: muted, fontStyle: 'italic' }}>Nenhuma movimentação registrada ainda</p>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {stageHistory.map((entry) => {
+                        const fromLabel = entry.from_stage ? (STAGES.find((s) => s.id === entry.from_stage)?.label ?? entry.from_stage) : 'Início'
+                        const toLabel   = STAGES.find((s) => s.id === entry.to_stage)?.label ?? entry.to_stage
+                        return (
+                          <div key={entry.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px' }}>
+                            <span style={{ fontSize: '9px', color: muted, whiteSpace: 'nowrap', minWidth: '60px' }}>{relativeDate(entry.changed_at.slice(0, 10))}</span>
+                            <span style={{ color: isDark ? '#fc8181' : '#c53030', fontWeight: 500 }}>{fromLabel}</span>
+                            <span style={{ color: muted }}>→</span>
+                            <span style={{ color: '#2d9e6b', fontWeight: 600 }}>{toLabel}</span>
+                            {entry.days_in_previous_stage > 0 && (
+                              <span style={{ fontSize: '10px', color: muted, marginLeft: 'auto' }}>{entry.days_in_previous_stage}d na etapa</span>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>{/* end section 2 */}
+
               </div>
             )}
 
@@ -1684,6 +1895,7 @@ export function DealDetailPage() {
                           setSavingQuickTask(true)
                           try {
                             await createTask({ title: quickTaskTitle.trim(), deal_id: deal.id, due_date: quickTaskDate || undefined, priority: 'medium', task_type: 'other' })
+                            await addActivity(deal.id, { type: 'task', subject: quickTaskTitle.trim(), owner })
                             setQuickTaskTitle(''); setQuickTaskDate(''); setShowQuickTask(false)
                           } finally { setSavingQuickTask(false) }
                         }
@@ -1708,6 +1920,7 @@ export function DealDetailPage() {
                           setSavingQuickTask(true)
                           try {
                             await createTask({ title: quickTaskTitle.trim(), deal_id: deal.id, due_date: quickTaskDate || undefined, priority: 'medium', task_type: 'other' })
+                            await addActivity(deal.id, { type: 'task', subject: quickTaskTitle.trim(), owner })
                             setQuickTaskTitle(''); setQuickTaskDate(''); setShowQuickTask(false)
                           } finally { setSavingQuickTask(false) }
                         }}
@@ -1739,5 +1952,7 @@ export function DealDetailPage() {
         </div>
       </div>
     </div>
+
+    </>
   )
 }

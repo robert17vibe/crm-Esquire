@@ -6,6 +6,7 @@ import { useNotificationStore } from '@/store/useNotificationStore'
 import { useOwnerStore } from '@/store/useOwnerStore'
 import { useWebhookStore } from '@/store/useWebhookStore'
 import { fetchDeals, insertDeal, patchDeal, removeDeal } from '@/services/deal.service'
+import { logDistribution } from '@/services/distribution.service'
 import { supabase } from '@/lib/supabase'
 import type { Deal, NextActivity } from '@/types/deal.types'
 import type { StageId } from '@/constants/pipeline'
@@ -58,6 +59,7 @@ function loadLocalDeals(): Deal[] {
 interface DealStore {
   deals: Deal[]
   isLoading: boolean
+  initialized: boolean
   error: string | null
   staleDeals: Deal[]
   staleCount: number
@@ -94,20 +96,22 @@ export const useDealStore = create<DealStore>((set, get) => {
   return ({
   deals: loadLocalDeals(),
   isLoading: false,
+  initialized: false,
   error: null,
   staleDeals: _computeStale(loadLocalDeals()),
   staleCount: _computeStale(loadLocalDeals()).length,
 
   initialize: async () => {
+    if (get().isLoading || get().initialized) return
     set({ isLoading: true, error: null })
     try {
       const deals = await fetchDeals()
-      set({ deals, isLoading: false, staleDeals: _computeStale(deals), staleCount: _computeStale(deals).length })
+      set({ deals, isLoading: false, initialized: true, staleDeals: _computeStale(deals), staleCount: _computeStale(deals).length })
       persistDeals(deals)
       _runStaleAlerts(deals)
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Erro ao carregar deals'
-      set({ isLoading: false, error: msg })
+      set({ isLoading: false, initialized: true, error: msg })
     }
   },
 
@@ -145,7 +149,9 @@ export const useDealStore = create<DealStore>((set, get) => {
   },
 
   createDeal: async (values) => {
-    const owner = useOwnerStore.getState().getById(values.owner_id) ?? MOCK_OWNERS[0]
+    const { data: { user } } = await supabase.auth.getUser()
+    const resolvedOwnerId = values.owner_id || user?.id || MOCK_OWNERS[0].id
+    const owner = useOwnerStore.getState().getById(resolvedOwnerId) ?? MOCK_OWNERS[0]
     const now = new Date().toISOString()
     const optimistic: Deal = {
       id: `opt-${Date.now()}`,
@@ -168,6 +174,7 @@ export const useDealStore = create<DealStore>((set, get) => {
       company_sector: values.company_sector,
       company_size: values.company_size,
       lead_source: values.lead_source,
+      segment: values.segment as 'B2B' | 'B2C' | 'B2G' | undefined,
       created_at: now,
       updated_at: now,
     }
@@ -188,19 +195,33 @@ export const useDealStore = create<DealStore>((set, get) => {
       useToastStore.getState().addToast(`Lead criado — ${displayName}`, 'success')
       useNotificationStore.getState().addNotification(confirmed.id, displayName)
       useWebhookStore.getState().fire('deal.created', { id: confirmed.id, title: confirmed.title, company_name: confirmed.company_name, stage_id: confirmed.stage_id, owner_id: confirmed.owner_id, value: confirmed.value })
+      // Log da atribuição inicial no histórico de distribuição
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user && confirmed.owner_id) {
+        logDistribution({
+          dealIds: [confirmed.id],
+          distributedBy: user.id,
+          distributionType: 'manual',
+          assignments: { [confirmed.owner_id]: [confirmed.id] },
+          notes: 'Atribuição automática na criação do lead',
+        }).catch(() => {/* non-critical */})
+      }
       return confirmed
-    } catch {
+    } catch (err) {
       // Revert optimistic
       const reverted = get().deals.filter((d) => d.id !== optimistic.id)
       setDeals(reverted)
       persistDeals(reverted)
-      useToastStore.getState().addToast('Erro ao criar lead — tente novamente', 'error')
-      throw new Error('create failed')
+      const msg = (err as { message?: string })?.message ?? String(err)
+      console.error('[createDeal]', err)
+      useToastStore.getState().addToast(`Erro: ${msg}`, 'error')
+      throw err
     }
   },
 
   updateDeal: async (id, values) => {
-    const owner = useOwnerStore.getState().getById(values.owner_id) ?? MOCK_OWNERS[0]
+    const resolvedOwnerId = values.owner_id ?? get().deals.find((d) => d.id === id)?.owner_id ?? MOCK_OWNERS[0].id
+    const owner = useOwnerStore.getState().getById(resolvedOwnerId) ?? MOCK_OWNERS[0]
     const now = new Date().toISOString()
     const existing = get().deals.find((d) => d.id === id)
     const updated: Deal = {
@@ -274,6 +295,16 @@ export const useDealStore = create<DealStore>((set, get) => {
     setDeals(next)
     persistDeals(next)
 
+    // Skip DB call for mock/optimistic IDs (not real UUIDs)
+    const isMock = !id.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)
+    if (isMock) {
+      if (deal) {
+        const stageLabel = STAGES.find((s) => s.id === stageId)?.label ?? stageId
+        useToastStore.getState().addToast(`${deal.company_name} → ${stageLabel}`, 'info')
+      }
+      return
+    }
+
     try {
       await patchDeal(id, { stage_id: stageId, probability: DEFAULT_PROBABILITIES[stageId] })
       if (deal) {
@@ -281,10 +312,10 @@ export const useDealStore = create<DealStore>((set, get) => {
         useToastStore.getState().addToast(`${deal.company_name} → ${stageLabel}`, 'info')
         useWebhookStore.getState().fire('deal.stage_changed', { id: deal.id, company_name: deal.company_name, from_stage: deal.stage_id, to_stage: stageId })
       }
-    } catch {
-      setDeals(prev)
-      persistDeals(prev)
-      useToastStore.getState().addToast('Erro ao mover lead — tente novamente', 'error')
+    } catch (err) {
+      const msg = (err as { message?: string })?.message ?? String(err)
+      console.error('[moveDeal] DB error:', msg)
+      useToastStore.getState().addToast(`Erro ao mover: ${msg}`, 'error')
     }
   },
 

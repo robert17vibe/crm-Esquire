@@ -1,12 +1,20 @@
 import { useEffect, lazy, Suspense } from 'react'
 import { Routes, Route, Navigate, Outlet } from 'react-router-dom'
-import { AppLayout } from '@/components/layout/AppLayout'
 import { useThemeStore } from '@/store/useThemeStore'
 import { useAuthStore } from '@/store/useAuthStore'
 
+function RouteFallback() {
+  return (
+    <div style={{ minHeight: '240px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <p style={{ fontSize: '12px', color: '#8a857d', fontWeight: 600 }}>Carregando pagina...</p>
+    </div>
+  )
+}
+
 function AdminGuard() {
   const profile = useAuthStore((s) => s.profile)
-  if (!profile) return null
+  const loading = useAuthStore((s) => s.loading)
+  if (loading || !profile) return <RouteFallback />
   return (profile.is_admin)
     ? <Outlet />
     : <Navigate to="/dashboard" replace />
@@ -23,11 +31,13 @@ const TeamsPage        = lazy(() => import('@/pages/TeamsPage').then((m) => ({ d
 const TasksPage        = lazy(() => import('@/pages/TasksPage').then((m) => ({ default: m.TasksPage })))
 const AdminUsersPage          = lazy(() => import('@/pages/AdminUsersPage').then((m) => ({ default: m.AdminUsersPage })))
 const AdminNotificationsPage  = lazy(() => import('@/pages/AdminNotificationsPage').then((m) => ({ default: m.AdminNotificationsPage })))
+const AdminDistribuirLeadsPage = lazy(() => import('@/pages/AdminDistribuirLeadsPage').then((m) => ({ default: m.AdminDistribuirLeadsPage })))
 const LandingPage         = lazy(() => import('@/pages/LandingPage').then((m) => ({ default: m.LandingPage })))
 const LoginPage        = lazy(() => import('@/pages/LoginPage').then((m) => ({ default: m.LoginPage })))
 const ForgotPasswordPage = lazy(() => import('@/pages/ForgotPasswordPage').then((m) => ({ default: m.ForgotPasswordPage })))
 const ResetPasswordPage  = lazy(() => import('@/pages/ResetPasswordPage').then((m) => ({ default: m.ResetPasswordPage })))
 const EmailPage          = lazy(() => import('@/pages/EmailPage').then((m) => ({ default: m.EmailPage })))
+const AppLayout          = lazy(() => import('@/components/layout/AppLayout').then((m) => ({ default: m.AppLayout })))
 
 export default function App() {
   const isDark       = useThemeStore((s) => s.isDark)
@@ -69,7 +79,7 @@ export default function App() {
   }
 
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<RouteFallback />}>
     <Routes>
       <Route
         path="/login"
@@ -94,7 +104,8 @@ export default function App() {
         <Route element={<AdminGuard />}>
           <Route path="/teams"            element={<TeamsPage />} />
           <Route path="/admin/users"          element={<AdminUsersPage />} />
-          <Route path="/admin/notifications"  element={<AdminNotificationsPage />} />
+          <Route path="/admin/notifications"     element={<AdminNotificationsPage />} />
+          <Route path="/admin/distribuir-leads" element={<AdminDistribuirLeadsPage />} />
         </Route>
       </Route>
       <Route path="*" element={<Navigate to={session ? '/dashboard' : '/login'} replace />} />

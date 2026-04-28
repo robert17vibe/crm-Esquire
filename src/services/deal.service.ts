@@ -19,7 +19,7 @@ export async function insertDeal(
     .insert(payload)
     .select()
     .single()
-  if (error) throw error
+  if (error) { console.error('[insertDeal]', error.code, error.message, error.details); throw error }
   return data as Deal
 }
 
@@ -29,8 +29,10 @@ export async function patchDeal(id: string, patch: Partial<Deal>): Promise<Deal>
     .update(patch)
     .eq('id', id)
     .select()
-    .single()
+    .maybeSingle()
   if (error) throw error
+  // If data is null, the update was blocked by RLS — throw descriptive error
+  if (!data) throw new Error(`RLS bloqueou update do deal ${id} — verifique is_admin ou owner_id`)
   return data as Deal
 }
 

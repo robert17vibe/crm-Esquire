@@ -1,13 +1,12 @@
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  Plus, Trash2, Check, X, UserPlus, UserMinus, Users2, Eye,
+  Plus, Trash2, Check, X, UserPlus, UserMinus, Users2,
 } from 'lucide-react'
 import { useTeamStore } from '@/store/useTeamStore'
 import { useOwnerStore } from '@/store/useOwnerStore'
 import { useDealStore } from '@/store/useDealStore'
 import { useThemeStore } from '@/store/useThemeStore'
-import { useImpersonationStore } from '@/store/useImpersonationStore'
 import { Can } from '@/components/ui/Can'
 import type { Team, Owner } from '@/types/deal.types'
 import { UserAvatarRow } from '@/components/ui/UserAvatar'
@@ -71,7 +70,6 @@ function GroupDetailModal({
 }) {
   const navigate      = useNavigate()
   const deals         = useDealStore((s) => s.deals)
-  const startImperson = useImpersonationStore((s) => s.start)
   const [tab, setTab] = useState<DetailTab>('membros')
   const [roles, setRoles] = useState<Record<string, MemberRole>>(loadRoles)
   const [renameDraft, setRenameDraft] = useState(team.name)
@@ -114,12 +112,6 @@ function GroupDetailModal({
     const next = { ...roles, [ownerId]: role }
     setRoles(next)
     saveRoles(next)
-  }
-
-  function handleVerComo(owner: Owner) {
-    startImperson(owner.id, owner.name)
-    onClose()
-    navigate('/pipeline')
   }
 
   const TABS: { key: DetailTab; label: string }[] = [
@@ -207,22 +199,6 @@ function GroupDetailModal({
                         <option value="member">Membro</option>
                         <option value="observer">Observador</option>
                       </select>
-                    </Can>
-                    {/* Ver como */}
-                    <Can action="impersonate">
-                      <button type="button" onClick={() => handleVerComo(owner)}
-                        title="Ver pipeline como este membro"
-                        style={{
-                          display: 'flex', alignItems: 'center', gap: '5px',
-                          height: '28px', padding: '0 10px', fontSize: '11px', fontWeight: 600,
-                          backgroundColor: isDark ? 'rgba(227,30,36,0.08)' : '#f0f7f3',
-                          color: isDark ? 'rgba(227,30,36,0.50)' : '#e31e24',
-                          border: `1px solid ${isDark ? 'rgba(227,30,36,0.15)' : 'rgba(227,30,36,0.30)'}`,
-                          borderRadius: '6px', cursor: 'pointer',
-                        }}>
-                        <Eye style={{ width: '11px', height: '11px' }} />
-                        Ver como
-                      </button>
                     </Can>
                     {/* Remove */}
                     <Can action="manage_teams">

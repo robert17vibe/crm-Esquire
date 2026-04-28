@@ -19,6 +19,7 @@ interface TaskState {
   loading:  boolean
   fetch:    () => Promise<void>
   create:   (t: NewTask) => Promise<string | null>
+  update:   (id: string, patch: Partial<Pick<Task, 'title' | 'description' | 'assigned_to' | 'due_date' | 'priority' | 'task_type' | 'deal_id'>>) => Promise<void>
   complete: (id: string) => Promise<void>
   uncomplete:(id: string) => Promise<void>
   remove:   (id: string) => Promise<void>
@@ -86,6 +87,29 @@ export const useTaskStore = create<TaskState>((set) => ({
     }
 
     return null
+  },
+
+  update: async (id, patch) => {
+    const prevTask = useTaskStore.getState().tasks.find((t) => t.id === id)
+    const actorId  = useAuthStore.getState().profile?.id
+
+    // Update local state + DB
+    const dbPatch = { ...patch, deal_title: undefined }
+    delete (dbPatch as Record<string, unknown>).deal_title
+    set((s) => ({ tasks: s.tasks.map((t) => t.id === id ? { ...t, ...patch } : t) }))
+    await supabase.from('tasks').update(dbPatch).eq('id', id)
+
+    // Log task assignment changes to deal_events
+    if ('deal_id' in patch && prevTask && patch.deal_id !== prevTask.deal_id) {
+      const title = (patch as { title?: string }).title ?? prevTask.title
+      const evBase = { actor_id: actorId ?? null, field_name: 'task', new_value: { title } }
+      if (prevTask.deal_id) {
+        await supabase.from('deal_events').insert({ ...evBase, deal_id: prevTask.deal_id, event_type: 'task_removed', old_value: { title } })
+      }
+      if (patch.deal_id) {
+        await supabase.from('deal_events').insert({ ...evBase, deal_id: patch.deal_id, event_type: 'task_added' })
+      }
+    }
   },
 
   complete: async (id) => {

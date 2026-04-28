@@ -31,7 +31,10 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 
   loadProfile: async () => {
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
+    if (!user) {
+      set({ user: null, profile: null })
+      return
+    }
     const { data } = await supabase
       .from('profiles')
       .select('*')
@@ -41,14 +44,26 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   },
 
   initialize: () => {
-    supabase.auth.getSession().then(async ({ data }) => {
-      set({ session: data.session, loading: false })
-      if (data.session) await get().loadProfile()
-    })
+    void supabase.auth.getSession()
+      .then(async ({ data }) => {
+        set({ session: data.session })
+        if (data.session) await get().loadProfile()
+        else set({ user: null, profile: null })
+      })
+      .catch(() => {
+        set({ session: null, user: null, profile: null })
+      })
+      .finally(() => {
+        set({ loading: false })
+      })
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      set({ session, loading: false })
-      if (session) await get().loadProfile()
-      else set({ user: null, profile: null })
+      set({ session })
+      try {
+        if (session) await get().loadProfile()
+        else set({ user: null, profile: null })
+      } finally {
+        set({ loading: false })
+      }
     })
     return () => subscription.unsubscribe()
   },

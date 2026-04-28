@@ -7,6 +7,7 @@ import type { DealMeeting } from '@/types/deal.types'
 interface MeetingStore {
   meetings: DealMeeting[]
   isLoading: boolean
+  initialized: boolean
   initialize: () => Promise<void>
   addMeeting: (payload: Omit<DealMeeting, 'id'>) => Promise<DealMeeting>
   updateMeeting: (id: string, patch: Partial<Omit<DealMeeting, 'id'>>) => Promise<void>
@@ -17,14 +18,21 @@ interface MeetingStore {
 export const useMeetingStore = create<MeetingStore>((set) => ({
   meetings: MOCK_MEETINGS,
   isLoading: false,
+  initialized: false,
 
   initialize: async () => {
-    set({ isLoading: true })
+    let shouldRun = false
+    set((s) => {
+      if (s.isLoading || s.initialized) return s
+      shouldRun = true
+      return { ...s, isLoading: true }
+    })
+    if (!shouldRun) return
     try {
       const meetings = await fetchAllMeetings()
-      set({ meetings, isLoading: false })
+      set({ meetings, isLoading: false, initialized: true })
     } catch {
-      set({ isLoading: false })
+      set({ isLoading: false, initialized: true })
       // keep mock data on error
     }
   },
