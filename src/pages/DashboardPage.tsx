@@ -145,11 +145,11 @@ function KpiCard({
   label, value, sub, icon: Icon, accent, sparkline, donut, isDark,
   isDragging, onDragStart, onDragOver, onDrop, onDragEnd, onClick,
 }: KpiCardProps) {
-  const bg     = isDark ? '#161614' : '#ffffff'
-  const border = isDark ? '#242422' : '#e4e0da'
-  const text   = isDark ? '#e8e4dc' : '#1a1814'
-  const muted  = isDark ? '#6b6560' : '#8a857d'
-  const shadow = isDark ? '0 2px 8px rgba(0,0,0,0.35)' : '0 2px 12px rgba(0,0,0,0.07)'
+  const bg     = isDark ? '#111110' : '#ffffff'
+  const border = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.07)'
+  const text   = isDark ? '#e8e4dc' : '#111110'
+  const muted  = isDark ? '#6b6760' : '#6b6760'
+  const shadow = 'none'
 
   const [hovered, setHovered] = useState(false)
 
@@ -173,17 +173,16 @@ function KpiCard({
       style={{
         backgroundColor: bg,
         border: `1px solid ${isDragging ? accent : border}`,
-        borderRadius: '14px',
-        borderTop: `3px solid ${accent}`,
-        padding: '14px 16px 0',
+        borderRadius: '12px',
+        padding: '16px 16px 0',
         display: 'flex', flexDirection: 'column', gap: '10px',
         cursor: onClick ? 'pointer' : 'grab',
         opacity: isDragging ? 0.45 : 1,
         transition: 'transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease, opacity 0.15s ease',
         userSelect: 'none', overflow: 'hidden',
-        transform: hovered && !isDragging ? 'translateY(-2px)' : 'translateY(0)',
+        transform: hovered && !isDragging ? 'translateY(-1px)' : 'translateY(0)',
         boxShadow: hovered && !isDragging
-          ? (isDark ? '0 6px 18px rgba(0,0,0,0.45)' : '0 6px 20px rgba(0,0,0,0.12)')
+          ? (isDark ? '0 4px 16px rgba(0,0,0,0.40)' : '0 4px 12px rgba(16,24,40,0.08)')
           : shadow,
       }}
     >
@@ -245,10 +244,10 @@ function Sparkline({ data, color }: { data: number[]; color: string }) {
 }
 
 function KpiSkeleton({ isDark }: { isDark: boolean }) {
-  const bg     = isDark ? '#161614' : '#ffffff'
-  const border = isDark ? '#242422' : '#e4e0da'
+  const bg     = isDark ? '#111110' : '#ffffff'
+  const border = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.07)'
   return (
-    <div style={{ backgroundColor: bg, border: `1px solid ${border}`, borderRadius: '14px', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+    <div style={{ backgroundColor: bg, border: `1px solid ${border}`, borderRadius: '12px', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div className="skeleton" style={{ height: '10px', width: '80px', borderRadius: '4px' }} />
         <div className="skeleton" style={{ width: '32px', height: '32px', borderRadius: '10px' }} />
@@ -288,7 +287,7 @@ function WidgetWrapper({ id, onRemove, children, isDark }: WidgetWrapperProps) {
     position: 'relative',
   }
 
-  const handleColor = hovered ? '#e31e24' : (isDark ? '#6b6560' : '#8a857d')
+  const handleColor = hovered ? '#b91c22' : (isDark ? '#6b6760' : '#6b6760')
   const removeColor = isDark ? '#fc8181' : '#c53030'
 
   return (
@@ -446,12 +445,12 @@ export function DashboardPage() {
   const coverageAccent = coverage >= 100 ? '#2d9e6b' : coverage >= 70 ? '#b45309' : (isDark ? '#fc8181' : '#c53030')
 
   const kpiDefs: Record<string, { label: string; value: string; sub?: string; icon: typeof TrendingUp; accent: string; sparkline: number[]; donut?: boolean }> = useMemo(() => ({
-    pipeline: { label: 'Pipeline Total',    value: fmt(pipelineTotal), sub: `${valueDeals.length} deals ativos`, icon: TrendingUp, accent: '#e31e24', sparkline: sparkPipeline },
-    commit:   { label: 'Commit Trimestral', value: fmt(commitTotal),   sub: `${commitDeals.length} em fechamento`, icon: Briefcase, accent: '#4a7c8a', sparkline: sparkPipeline },
+    pipeline: { label: 'Pipeline Total',    value: fmt(pipelineTotal), sub: `${valueDeals.length} deals ativos`, icon: TrendingUp, accent: '#334155', sparkline: sparkPipeline },
+    commit:   { label: 'Commit Trimestral', value: fmt(commitTotal),   sub: `${commitDeals.length} em fechamento`, icon: Briefcase, accent: '#475569', sparkline: sparkPipeline },
     coverage: { label: 'Cobertura de Meta', value: `${coverage.toFixed(0)}%`, sub: `Meta Q: ${fmt(quarterlyGoal)}`, icon: Target, accent: coverageAccent, sparkline: sparkPipeline },
-    winrate:  { label: 'Win Rate',          value: `${winRate}%`, sub: `${closedWon.length} ganhos · ${closedLost.length} perdidos`, icon: Award, accent: '#e31e24', sparkline: sparkWon, donut: true },
-    ticket:   { label: 'Ticket Médio',      value: fmt(avgTicket), sub: 'média dos ativos com valor', icon: DollarSign, accent: '#8b6914', sparkline: sparkPipeline },
-    cycle:    { label: 'Ciclo Médio',       value: `${avgCycle}d`, sub: 'dias no estágio atual', icon: Clock, accent: '#78909c', sparkline: sparkCount },
+    winrate:  { label: 'Win Rate',          value: `${winRate}%`, sub: `${closedWon.length} ganhos · ${closedLost.length} perdidos`, icon: Award, accent: '#334155', sparkline: sparkWon, donut: true },
+    ticket:   { label: 'Ticket Médio',      value: fmt(avgTicket), sub: 'média dos ativos com valor', icon: DollarSign, accent: '#64748b', sparkline: sparkPipeline },
+    cycle:    { label: 'Ciclo Médio',       value: `${avgCycle}d`, sub: 'dias no estágio atual', icon: Clock, accent: '#94a3b8', sparkline: sparkCount },
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [pipelineTotal, commitTotal, coverage, winRate, avgTicket, avgCycle, sparkPipeline, sparkWon, sparkCount])
 
@@ -598,13 +597,13 @@ export function DashboardPage() {
 
   // ── Theme ──────────────────────────────────────────────────────────────────
 
-  const cardBg  = isDark ? '#161614' : '#ffffff'
-  const border  = isDark ? '#242422' : '#e4e0da'
-  const text    = isDark ? '#e8e4dc' : '#1a1814'
-  const muted   = isDark ? '#6b6560' : '#8a857d'
-  const trackBg = isDark ? '#1e1e1c' : '#eeece8'
-  const pageBg  = isDark ? '#0d0c0a' : '#f5f4f0'
-  const cardShadow = isDark ? '0 2px 8px rgba(0,0,0,0.35)' : '0 2px 12px rgba(0,0,0,0.07)'
+  const cardBg  = isDark ? '#111110' : '#ffffff'
+  const border  = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.07)'
+  const text    = isDark ? '#e8e4dc' : '#111110'
+  const muted   = isDark ? '#6b6760' : '#6b6760'
+  const trackBg = isDark ? '#1e1e1c' : '#f2f1ee'
+  const pageBg  = isDark ? '#0a0a08' : '#f7f6f3'
+  const cardShadow = 'none'
 
   // ─── Tab pill ────────────────────────────────────────────────────────────
 
@@ -615,12 +614,12 @@ export function DashboardPage() {
         type="button"
         onClick={() => setActiveTab(id)}
         style={{
-          padding: '5px 16px', borderRadius: '20px',
-          fontSize: '11px', fontWeight: 700,
-          color: active ? '#fff' : muted,
-          backgroundColor: active ? '#e31e24' : 'transparent',
+          padding: '4px 14px', borderRadius: '6px',
+          fontSize: '12px', fontWeight: active ? 600 : 400,
+          color: active ? text : muted,
+          backgroundColor: active ? (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)') : 'transparent',
           border: 'none',
-          cursor: 'pointer', letterSpacing: '0.06em', textTransform: 'uppercase',
+          cursor: 'pointer', letterSpacing: '-0.01em',
           transition: 'all 0.15s ease',
         }}
       >
@@ -663,8 +662,8 @@ export function DashboardPage() {
       case 'funil':
         return (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: '12px' }}>
-            <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '14px', padding: '18px 20px', boxShadow: cardShadow }}>
-              <p style={{ fontSize: '12px', fontWeight: 700, color: text, marginBottom: '14px', borderLeft: '3px solid #e31e24', paddingLeft: '8px' }}>Funil por Estágio</p>
+            <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '12px', padding: '18px 20px', boxShadow: cardShadow }}>
+              <p style={{ fontSize: '13px', fontWeight: 600, color: text, marginBottom: '14px', letterSpacing: '-0.01em' }}>Funil por Estágio</p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {funnelData.map(({ stage, count, value, convRate }) => (
                   <div key={stage.id}>
@@ -703,15 +702,15 @@ export function DashboardPage() {
                 ))}
               </div>
             </div>
-            <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '14px', padding: '18px 20px', display: 'flex', flexDirection: 'column', boxShadow: cardShadow }}>
-              <p style={{ fontSize: '12px', fontWeight: 700, color: text, marginBottom: '16px', borderLeft: '3px solid #e31e24', paddingLeft: '8px' }}>Forecast Q2 · 2026</p>
+            <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '12px', padding: '18px 20px', display: 'flex', flexDirection: 'column', boxShadow: cardShadow }}>
+              <p style={{ fontSize: '12px', fontWeight: 700, color: text, marginBottom: '16px', paddingLeft: '0' }}>Forecast Q2 · 2026</p>
               <div style={{ marginBottom: '18px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '7px' }}>
                   <span style={{ fontSize: '11px', color: muted }}>Pipeline ponderado</span>
                   <span style={{ fontSize: '11px', fontWeight: 700, color: text, fontVariantNumeric: 'tabular-nums' }}>{fmt(weightedPipeline)}</span>
                 </div>
                 <div style={{ height: '12px', borderRadius: '99px', backgroundColor: trackBg, overflow: 'hidden' }}>
-                  <div style={{ height: '100%', borderRadius: '99px', width: `${forecastPct}%`, background: 'linear-gradient(90deg, #e31e24cc, #e31e24)', transition: 'width 0.6s ease' }} />
+                  <div style={{ height: '100%', borderRadius: '99px', width: `${forecastPct}%`, background: 'linear-gradient(90deg, #b91c22cc, #b91c22)', transition: 'width 0.6s ease' }} />
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '5px' }}>
                   <span style={{ fontSize: '10px', color: muted }}>{forecastPct.toFixed(0)}% da meta</span>
@@ -748,8 +747,8 @@ export function DashboardPage() {
       case 'aging':
         return (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '14px', padding: '18px 20px', boxShadow: cardShadow }}>
-              <p style={{ fontSize: '12px', fontWeight: 700, color: text, marginBottom: '12px', borderLeft: '3px solid #e31e24', paddingLeft: '8px' }}>Aging — Top 5 Paralisados</p>
+            <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '12px', padding: '18px 20px', boxShadow: cardShadow }}>
+              <p style={{ fontSize: '13px', fontWeight: 600, color: text, marginBottom: '12px', letterSpacing: '-0.01em' }}>Aging — Top 5 Paralisados</p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                 {aging.map((deal) => {
                   const stage = STAGES.find((s) => s.id === deal.stage_id)
@@ -777,8 +776,8 @@ export function DashboardPage() {
                 })}
               </div>
             </div>
-            <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '14px', padding: '18px 20px', boxShadow: cardShadow }}>
-              <p style={{ fontSize: '12px', fontWeight: 700, color: text, marginBottom: '12px', borderLeft: '3px solid #e31e24', paddingLeft: '8px' }}>Evolução Mensal — Pipeline Criado</p>
+            <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '12px', padding: '18px 20px', boxShadow: cardShadow }}>
+              <p style={{ fontSize: '13px', fontWeight: 600, color: text, marginBottom: '12px', letterSpacing: '-0.01em' }}>Evolução Mensal — Pipeline Criado</p>
               <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px', height: '130px' }}>
                 {monthlyPipeline.map(({ label, value, key }) => {
                   const maxV = Math.max(...monthlyPipeline.map((m) => m.value), 1)
@@ -787,7 +786,7 @@ export function DashboardPage() {
                   return (
                     <div key={key} title={`${label}: ${fmt(value)}`} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px' }}>
                       <span style={{ fontSize: '8px', color: isCurrent ? text : muted, fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>{value > 0 ? fmt(value) : ''}</span>
-                      <div style={{ width: '100%', height: `${barH}px`, backgroundColor: isCurrent ? '#e31e24' : 'rgba(227,30,36,0.25)', borderRadius: '4px 4px 0 0', opacity: 1, transition: 'height 0.4s ease' }} />
+                      <div style={{ width: '100%', height: `${barH}px`, backgroundColor: isCurrent ? '#b91c22' : 'rgba(227,30,36,0.25)', borderRadius: '4px 4px 0 0', opacity: 1, transition: 'height 0.4s ease' }} />
                       <span style={{ fontSize: '9px', color: isCurrent ? text : muted, fontWeight: isCurrent ? 600 : 400, textTransform: 'capitalize' }}>{label}</span>
                     </div>
                   )
@@ -804,10 +803,10 @@ export function DashboardPage() {
       case 'riscos':
         return (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '14px', overflow: 'hidden', boxShadow: cardShadow }}>
+            <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '12px', overflow: 'hidden', boxShadow: cardShadow }}>
               <div style={{ padding: '12px 18px', borderBottom: `1px solid ${border}`, display: 'flex', alignItems: 'center', gap: '7px' }}>
                 <AlertTriangle style={{ width: '12px', height: '12px', color: isDark ? '#fc8181' : '#c53030' }} />
-                <p style={{ fontSize: '12px', fontWeight: 700, color: text, borderLeft: '3px solid #e31e24', paddingLeft: '8px' }}>Riscos da Semana</p>
+                <p style={{ fontSize: '13px', fontWeight: 600, color: text, letterSpacing: '-0.01em' }}>Riscos da Semana</p>
                 {risks.length > 0 && <span style={{ fontSize: '9px', fontWeight: 700, color: '#fff', backgroundColor: '#c53030', borderRadius: '99px', padding: '1px 6px', marginLeft: 'auto' }}>{risks.length}</span>}
               </div>
               {risks.length === 0 ? (
@@ -834,12 +833,12 @@ export function DashboardPage() {
                 )
               })}
             </div>
-            <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '14px', overflow: 'hidden', boxShadow: cardShadow }}>
+            <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '12px', overflow: 'hidden', boxShadow: cardShadow }}>
               <div style={{ padding: '12px 18px', borderBottom: `1px solid ${border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <p style={{ fontSize: '12px', fontWeight: 700, color: text, borderLeft: '3px solid #e31e24', paddingLeft: '8px' }}>Próximas Ações</p>
+                <p style={{ fontSize: '13px', fontWeight: 600, color: text, letterSpacing: '-0.01em' }}>Próximas Ações</p>
                 <button type="button" onClick={() => navigate('/pipeline')}
                   style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '10px', fontWeight: 600, color: muted, background: 'none', border: 'none', cursor: 'pointer', transition: 'color 0.15s ease' }}
-                  onMouseEnter={(e) => (e.currentTarget.style.color = '#e31e24')}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = '#b91c22')}
                   onMouseLeave={(e) => (e.currentTarget.style.color = muted)}
                 >
                   Ver pipeline <ArrowRight style={{ width: '10px', height: '10px' }} />
@@ -879,7 +878,7 @@ export function DashboardPage() {
       case 'inativos':
         if (inactiveDeals.length === 0) return null
         return (
-          <div style={{ backgroundColor: cardBg, border: `1px solid ${isDark ? '#4a2a1a' : '#fed7aa'}`, borderRadius: '14px', overflow: 'hidden', boxShadow: cardShadow }}>
+          <div style={{ backgroundColor: cardBg, border: `1px solid ${isDark ? '#4a2a1a' : '#fed7aa'}`, borderRadius: '12px', overflow: 'hidden', boxShadow: cardShadow }}>
             <div style={{ padding: '12px 18px', borderBottom: `1px solid ${border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <AlertTriangle style={{ width: '12px', height: '12px', color: '#b45309' }} />
@@ -932,12 +931,12 @@ export function DashboardPage() {
         return (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: '10px' }}>
             {[
-              { label: 'Ganhos Totais',       value: fmtFull(wonTotal),        sub: `${closedWon.length} deals fechados`, icon: Trophy,    accent: '#2d9e6b' },
-              { label: 'Meta Atingida',        value: `${goalPct.toFixed(1)}%`, sub: `Meta: ${fmt(quarterlyGoal)}`,        icon: Target,    accent: goalPct >= 100 ? '#2d9e6b' : goalPct >= 70 ? '#b45309' : (isDark ? '#fc8181' : '#c53030') },
-              { label: 'Ticket Médio Fechado', value: fmtFull(avgTicketWon),    sub: closedWon.length > 0 ? `${closedWon.length} deals base` : 'Sem dados', icon: DollarSign, accent: '#8b6914' },
-              { label: 'Conv. Pipeline → Won', value: `${roiPipeline.toFixed(1)}%`, sub: `${fmt(wonTotal)} ganhos de ${fmt(pipelineTotal + wonTotal)}`, icon: Percent, accent: '#4a7c8a' },
+              { label: 'Ganhos Totais',       value: fmtFull(wonTotal),        sub: `${closedWon.length} deals fechados`, icon: Trophy,    accent: '#15803d' },
+              { label: 'Meta Atingida',        value: `${goalPct.toFixed(1)}%`, sub: `Meta: ${fmt(quarterlyGoal)}`,        icon: Target,    accent: goalPct >= 100 ? '#15803d' : goalPct >= 70 ? '#b45309' : '#b91c22' },
+              { label: 'Ticket Médio Fechado', value: fmtFull(avgTicketWon),    sub: closedWon.length > 0 ? `${closedWon.length} deals base` : 'Sem dados', icon: DollarSign, accent: '#334155' },
+              { label: 'Conv. Pipeline → Won', value: `${roiPipeline.toFixed(1)}%`, sub: `${fmt(wonTotal)} ganhos de ${fmt(pipelineTotal + wonTotal)}`, icon: Percent, accent: '#475569' },
             ].map(({ label, value, sub, icon: Icon, accent }) => (
-              <div key={label} style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '14px', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: '10px', boxShadow: cardShadow }}>
+              <div key={label} style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '12px', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: '10px', boxShadow: cardShadow }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <p style={{ fontSize: '10px', fontWeight: 600, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', lineHeight: 1.2 }}>{label}</p>
                   <div style={{ width: '32px', height: '32px', borderRadius: '10px', backgroundColor: `${accent}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -956,10 +955,10 @@ export function DashboardPage() {
       case 'ranking':
         return (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '14px', padding: '18px 20px', boxShadow: cardShadow }}>
+            <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '12px', padding: '18px 20px', boxShadow: cardShadow }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
                 <Trophy style={{ width: '13px', height: '13px', color: '#b45309' }} />
-                <p style={{ fontSize: '12px', fontWeight: 700, color: text, borderLeft: '3px solid #e31e24', paddingLeft: '8px' }}>Performance por Operador</p>
+                <p style={{ fontSize: '13px', fontWeight: 600, color: text, letterSpacing: '-0.01em' }}>Performance por Operador</p>
               </div>
               {ownerStats.length === 0 ? (
                 <p style={{ fontSize: '12px', color: muted, textAlign: 'center', padding: '20px 0' }}>Sem dados ainda</p>
@@ -986,7 +985,7 @@ export function DashboardPage() {
                           <span style={{ fontSize: '10px', fontWeight: 700, color: '#2d9e6b', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>{fmt(o.wonValue)}</span>
                         </div>
                         <div style={{ height: '3px', borderRadius: '99px', backgroundColor: trackBg, overflow: 'hidden' }}>
-                          <div style={{ height: '100%', borderRadius: '99px', width: `${barW}%`, backgroundColor: '#4a7c8a', transition: 'width 0.5s ease' }} />
+                          <div style={{ height: '100%', borderRadius: '99px', width: `${barW}%`, backgroundColor: '#475569', transition: 'width 0.5s ease' }} />
                         </div>
                       </div>
                     )
@@ -994,10 +993,10 @@ export function DashboardPage() {
                 </div>
               )}
             </div>
-            <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '14px', padding: '18px 20px', boxShadow: cardShadow }}>
+            <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '12px', padding: '18px 20px', boxShadow: cardShadow }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
                 <BarChart2 style={{ width: '13px', height: '13px', color: '#2d9e6b' }} />
-                <p style={{ fontSize: '12px', fontWeight: 700, color: text, borderLeft: '3px solid #e31e24', paddingLeft: '8px' }}>Histórico de Vendas por Mês</p>
+                <p style={{ fontSize: '13px', fontWeight: 600, color: text, letterSpacing: '-0.01em' }}>Histórico de Vendas por Mês</p>
               </div>
               {monthlyWon.length === 0 ? (
                 <p style={{ fontSize: '12px', color: muted, textAlign: 'center', padding: '20px 0' }}>Sem histórico de vendas</p>
@@ -1011,7 +1010,7 @@ export function DashboardPage() {
                       return (
                         <div key={key} title={`${label}: ${fmt(value)}`} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px' }}>
                           <span style={{ fontSize: '8px', color: isCurrent ? text : muted, fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>{value > 0 ? fmt(value) : ''}</span>
-                          <div style={{ width: '100%', height: `${barH}px`, backgroundColor: isCurrent ? '#2d9e6b' : '#e31e24', borderRadius: '4px 4px 0 0', opacity: isCurrent ? 1 : 0.75, transition: 'height 0.4s ease' }} />
+                          <div style={{ width: '100%', height: `${barH}px`, backgroundColor: isCurrent ? '#2d9e6b' : '#b91c22', borderRadius: '4px 4px 0 0', opacity: isCurrent ? 1 : 0.75, transition: 'height 0.4s ease' }} />
                           <span style={{ fontSize: '9px', color: isCurrent ? text : muted, fontWeight: isCurrent ? 600 : 400, textTransform: 'capitalize' }}>{label}</span>
                         </div>
                       )
@@ -1030,8 +1029,8 @@ export function DashboardPage() {
       case 'conv':
         return (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '14px', padding: '18px 20px', boxShadow: cardShadow }}>
-              <p style={{ fontSize: '12px', fontWeight: 700, color: text, marginBottom: '14px', borderLeft: '3px solid #e31e24', paddingLeft: '8px' }}>Distribuição do Pipeline Ativo</p>
+            <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '12px', padding: '18px 20px', boxShadow: cardShadow }}>
+              <p style={{ fontSize: '13px', fontWeight: 600, color: text, marginBottom: '14px', letterSpacing: '-0.01em' }}>Distribuição do Pipeline Ativo</p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 {stageConversion.map(({ stage, pct }) => {
                   const count = activeDeals.filter((d) => d.stage_id === stage.id).length
@@ -1055,8 +1054,8 @@ export function DashboardPage() {
                 })}
               </div>
             </div>
-            <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '14px', padding: '18px 20px', boxShadow: cardShadow }}>
-              <p style={{ fontSize: '12px', fontWeight: 700, color: text, marginBottom: '4px', borderLeft: '3px solid #e31e24', paddingLeft: '8px' }}>Tempo Médio por Etapa</p>
+            <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '12px', padding: '18px 20px', boxShadow: cardShadow }}>
+              <p style={{ fontSize: '12px', fontWeight: 700, color: text, marginBottom: '4px', paddingLeft: '0' }}>Tempo Médio por Etapa</p>
               <p style={{ fontSize: '10px', color: muted, marginBottom: '14px' }}>Gargalos do pipeline — dias médios na etapa</p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 {avgDaysPerStage.map(({ stage, avg, count }) => {
@@ -1110,22 +1109,22 @@ export function DashboardPage() {
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div style={{
-        height: '60px', minHeight: '60px',
+        height: '56px', minHeight: '56px',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '0 24px',
         borderBottom: `1px solid ${border}`,
-        backgroundColor: cardBg, flexShrink: 0, borderRadius: '0',
+        backgroundColor: cardBg, flexShrink: 0,
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
           <div>
-            <p style={{ fontSize: '13px', fontWeight: 700, color: text, letterSpacing: '-0.01em' }}>Dashboard</p>
-            <p style={{ fontSize: '10px', color: muted, marginTop: '1px', textTransform: 'capitalize' }}>
+            <p style={{ fontSize: '15px', fontWeight: 600, color: text, letterSpacing: '-0.02em', lineHeight: 1.2 }}>Dashboard</p>
+            <p style={{ fontSize: '11px', color: muted, marginTop: '1px', textTransform: 'capitalize' }}>
               {new Intl.DateTimeFormat('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date())}
             </p>
           </div>
 
           {/* Tab pills */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '2px', backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)', borderRadius: '8px', padding: '3px' }}>
             <TabPill id="operacao"   label="Operação" />
             <TabPill id="resultados" label="Resultados" />
           </div>
@@ -1137,23 +1136,24 @@ export function DashboardPage() {
             onClick={() => setShowWidgetModal(true)}
             title="Gerenciar widgets"
             style={{
-              height: '28px', padding: '0 12px', borderRadius: '4px', border: '1px solid #e31e24',
-              backgroundColor: '#e31e24', cursor: 'pointer', display: 'flex', alignItems: 'center',
-              justifyContent: 'center', color: '#fff', fontSize: '10px', fontWeight: 700, gap: '4px',
-              letterSpacing: '0.08em', textTransform: 'uppercase',
-              transition: 'opacity 0.15s ease',
+              height: '30px', padding: '0 12px', borderRadius: '6px',
+              border: `1px solid ${border}`,
+              backgroundColor: 'transparent', cursor: 'pointer',
+              display: 'flex', alignItems: 'center',
+              color: muted, fontSize: '12px', fontWeight: 500, gap: '5px',
+              transition: 'all 0.15s ease',
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.85' }}
-            onMouseLeave={(e) => { e.currentTarget.style.opacity = '1' }}
+            onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#b91c22'; e.currentTarget.style.color = '#b91c22' }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = border; e.currentTarget.style.color = muted }}
           >
             + Widgets
           </button>
           <span style={{
-            fontSize: '10px', fontWeight: 700, color: '#e31e24',
-            backgroundColor: isDark ? '#1a2e22' : 'rgba(227,30,36,0.08)',
-            border: `1px solid ${isDark ? '#e31e24' : 'rgba(227,30,36,0.20)'}`,
-            borderRadius: '4px', padding: '3px 10px',
-            letterSpacing: '0.06em', textTransform: 'uppercase',
+            fontSize: '11px', fontWeight: 500, color: muted,
+            backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
+            border: `1px solid ${border}`,
+            borderRadius: '6px', padding: '4px 10px',
+            letterSpacing: '-0.01em',
           }}>
             Q2 · 2026
           </span>
@@ -1206,7 +1206,7 @@ export function DashboardPage() {
                 <div key={w.id}
                   style={{
                     display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 12px',
-                    borderRadius: '10px', border: `1px solid ${enabled ? '#e31e24' : border}`,
+                    borderRadius: '10px', border: `1px solid ${enabled ? '#b91c22' : border}`,
                     backgroundColor: enabled ? (isDark ? '#0e1f17' : '#f0faf4') : 'transparent',
                   }}
                 >
@@ -1222,7 +1222,7 @@ export function DashboardPage() {
                       style={{
                         flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
                         width: '22px', height: '22px', borderRadius: '4px',
-                        border: '1px solid #e31e24', backgroundColor: '#e31e24',
+                        border: '1px solid #b91c22', backgroundColor: '#b91c22',
                         cursor: 'pointer', color: '#fff', fontSize: '11px',
                       }}
                       title="Remover widget"
@@ -1251,7 +1251,7 @@ export function DashboardPage() {
               Restaurar padrão
             </button>
             <button type="button" onClick={() => setShowWidgetModal(false)}
-              style={{ fontSize: '11px', fontWeight: 600, color: '#fff', backgroundColor: '#e31e24', border: 'none', borderRadius: '6px', padding: '6px 14px', cursor: 'pointer' }}>
+              style={{ fontSize: '11px', fontWeight: 600, color: '#fff', backgroundColor: '#b91c22', border: 'none', borderRadius: '6px', padding: '6px 14px', cursor: 'pointer' }}>
               Fechar
             </button>
           </div>
@@ -1300,7 +1300,7 @@ function TasksWidget({ isDark, border, text, muted, cardBg, navigate }: {
         </button>
       </div>
 
-      <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '14px', overflow: 'hidden' }}>
+      <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '12px', overflow: 'hidden' }}>
         {upcoming.map((task, i) => {
           const isOverdue = !!task.due_date && task.due_date < today
           const isToday   = task.due_date === today
