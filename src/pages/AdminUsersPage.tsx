@@ -456,7 +456,7 @@ export function AdminUsersPage() {
                             style={{
                               width: '32px', height: '32px', borderRadius: '8px', cursor: 'pointer',
                               display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                              border: `1px solid ${isDisabled ? 'rgba(239,68,68,0.30)' : (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)')}`,
+                              border: `1px solid ${isDisabled ? 'rgba(239,68,68,0.30)' : (isDark ? 'rgba(255,255,255,0.08)' : '#eaecf0')}`,
                               backgroundColor: isDisabled
                                 ? (isDark ? 'rgba(239,68,68,0.10)' : 'rgba(239,68,68,0.07)')
                                 : (isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)'),
@@ -481,7 +481,7 @@ export function AdminUsersPage() {
                                 position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center',
                                 width: '32px', height: '32px', borderRadius: '8px', cursor: 'pointer',
                                 backgroundColor: isActive ? '#16a34a' : (isHovered ? (isDark ? 'rgba(22,163,74,0.12)' : 'rgba(22,163,74,0.08)') : (isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)')),
-                                border: `1px solid ${isActive ? '#15803d' : (isHovered ? 'rgba(22,163,74,0.40)' : (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'))}`,
+                                border: `1px solid ${isActive ? '#15803d' : (isHovered ? 'rgba(22,163,74,0.40)' : (isDark ? 'rgba(255,255,255,0.08)' : '#eaecf0'))}`,
                                 transition: 'all 0.18s ease', flexShrink: 0, overflow: 'hidden',
                               }}
                             >

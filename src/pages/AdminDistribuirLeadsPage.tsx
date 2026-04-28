@@ -218,7 +218,7 @@ export function AdminDistribuirLeadsPage() {
 
   const bg      = isDark ? '#0d0c0a' : '#f5f4f0'
   const card    = isDark ? '#111110' : '#ffffff'
-  const border  = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'
+  const border  = isDark ? 'rgba(255,255,255,0.08)' : '#eaecf0'
   const text    = isDark ? 'rgba(255,255,255,0.90)' : '#1a1a18'
   const muted   = isDark ? 'rgba(255,255,255,0.40)' : '#8a857d'
   const hoverBg = isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)'
@@ -477,7 +477,7 @@ export function AdminDistribuirLeadsPage() {
             {count > 0 && (
               <span style={{
                 fontSize: '8px', fontWeight: 800,
-                backgroundColor: tab === key ? '#e31e24' : (isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)'),
+                backgroundColor: tab === key ? '#e31e24' : (isDark ? 'rgba(255,255,255,0.12)' : '#eaecf0'),
                 color: tab === key ? '#fff' : muted,
                 borderRadius: '3px', padding: '1px 5px',
               }}>
@@ -576,7 +576,7 @@ export function AdminDistribuirLeadsPage() {
                           </div>
                           <div>
                             {seg ? (
-                              <span style={{ fontSize: '9px', fontWeight: 800, letterSpacing: '0.08em', padding: '2px 7px', borderRadius: '3px', backgroundColor: SEG_BG[seg] ?? 'rgba(0,0,0,0.06)', color: SEG_COLOR[seg] ?? muted }}>
+                              <span style={{ fontSize: '9px', fontWeight: 800, letterSpacing: '0.08em', padding: '2px 7px', borderRadius: '3px', backgroundColor: SEG_BG[seg] ?? '#eaecf0', color: SEG_COLOR[seg] ?? muted }}>
                                 {seg}
                               </span>
                             ) : <span style={{ fontSize: '10px', color: muted }}>—</span>}
@@ -593,13 +593,13 @@ export function AdminDistribuirLeadsPage() {
                                   title="Remover proprietário"
                                   style={{
                                     width: '26px', height: '26px', borderRadius: '6px',
-                                    border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'}`,
+                                    border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : '#eaecf0'}`,
                                     backgroundColor: 'transparent', cursor: 'pointer',
                                     display: 'flex', alignItems: 'center', justifyContent: 'center', color: muted,
                                     transition: 'all 0.15s',
                                   }}
                                   onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#ef4444'; e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.backgroundColor = isDark ? 'rgba(239,68,68,0.10)' : 'rgba(239,68,68,0.07)' }}
-                                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'; e.currentTarget.style.color = muted; e.currentTarget.style.backgroundColor = 'transparent' }}
+                                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = isDark ? 'rgba(255,255,255,0.08)' : '#eaecf0'; e.currentTarget.style.color = muted; e.currentTarget.style.backgroundColor = 'transparent' }}
                                 >
                                   <UserMinus style={{ width: '11px', height: '11px' }} />
                                 </button>

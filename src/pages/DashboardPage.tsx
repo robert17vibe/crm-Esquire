@@ -146,10 +146,10 @@ function KpiCard({
   isDragging, onDragStart, onDragOver, onDrop, onDragEnd, onClick,
 }: KpiCardProps) {
   const bg     = isDark ? '#111110' : '#ffffff'
-  const border = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.07)'
-  const text   = isDark ? '#e8e4dc' : '#111110'
-  const muted  = isDark ? '#6b6760' : '#6b6760'
-  const shadow = 'none'
+  const border = isDark ? 'rgba(255,255,255,0.08)' : '#eaecf0'
+  const text   = isDark ? '#e8e4dc' : '#101828'
+  const muted  = isDark ? '#667085' : '#667085'
+  const shadow = isDark ? 'none' : '0 1px 3px rgba(16,24,40,0.06), 0 1px 2px rgba(16,24,40,0.04)'
 
   const [hovered, setHovered] = useState(false)
 
@@ -245,9 +245,9 @@ function Sparkline({ data, color }: { data: number[]; color: string }) {
 
 function KpiSkeleton({ isDark }: { isDark: boolean }) {
   const bg     = isDark ? '#111110' : '#ffffff'
-  const border = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.07)'
+  const border = isDark ? 'rgba(255,255,255,0.08)' : '#eaecf0'
   return (
-    <div style={{ backgroundColor: bg, border: `1px solid ${border}`, borderRadius: '12px', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+    <div style={{ backgroundColor: bg, border: `1px solid ${border}`, borderRadius: '12px', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: '10px', boxShadow: isDark ? 'none' : '0 1px 3px rgba(16,24,40,0.06), 0 1px 2px rgba(16,24,40,0.04)' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div className="skeleton" style={{ height: '10px', width: '80px', borderRadius: '4px' }} />
         <div className="skeleton" style={{ width: '32px', height: '32px', borderRadius: '10px' }} />
@@ -597,13 +597,13 @@ export function DashboardPage() {
 
   // ── Theme ──────────────────────────────────────────────────────────────────
 
-  const cardBg  = isDark ? '#111110' : '#ffffff'
-  const border  = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.07)'
-  const text    = isDark ? '#e8e4dc' : '#111110'
-  const muted   = isDark ? '#6b6760' : '#6b6760'
-  const trackBg = isDark ? '#1e1e1c' : '#f2f1ee'
-  const pageBg  = isDark ? '#0a0a08' : '#f7f6f3'
-  const cardShadow = 'none'
+  const cardBg     = isDark ? '#111110' : '#ffffff'
+  const border     = isDark ? 'rgba(255,255,255,0.08)' : '#eaecf0'
+  const text       = isDark ? '#e8e4dc' : '#101828'
+  const muted      = isDark ? '#667085' : '#667085'
+  const trackBg    = isDark ? '#1e1e1c' : '#f3f4f6'
+  const pageBg     = isDark ? '#0a0a08' : '#f9fafb'
+  const cardShadow = isDark ? 'none' : '0 1px 3px rgba(16,24,40,0.06), 0 1px 2px rgba(16,24,40,0.04)'
 
   // ─── Tab pill ────────────────────────────────────────────────────────────
 
@@ -636,7 +636,7 @@ export function DashboardPage() {
       case 'kpis':
         return (
           <div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '10px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, minmax(0, 1fr))', gap: '12px' }}>
               {!loaded
                 ? DEFAULT_KPI_ORDER.map((kid) => <KpiSkeleton key={kid} isDark={isDark} />)
                 : kpiOrder.map((kid, idx) => {
@@ -929,7 +929,7 @@ export function DashboardPage() {
 
       case 'res_kpis':
         return (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: '10px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: '12px' }}>
             {[
               { label: 'Ganhos Totais',       value: fmtFull(wonTotal),        sub: `${closedWon.length} deals fechados`, icon: Trophy,    accent: '#15803d' },
               { label: 'Meta Atingida',        value: `${goalPct.toFixed(1)}%`, sub: `Meta: ${fmt(quarterlyGoal)}`,        icon: Target,    accent: goalPct >= 100 ? '#15803d' : goalPct >= 70 ? '#b45309' : '#b91c22' },
@@ -1109,59 +1109,80 @@ export function DashboardPage() {
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div style={{
-        height: '56px', minHeight: '56px',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '0 24px',
+        flexShrink: 0,
+        backgroundColor: cardBg,
         borderBottom: `1px solid ${border}`,
-        backgroundColor: cardBg, flexShrink: 0,
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+        {/* Top row */}
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '16px 24px 0',
+        }}>
           <div>
-            <p style={{ fontSize: '15px', fontWeight: 600, color: text, letterSpacing: '-0.02em', lineHeight: 1.2 }}>Dashboard</p>
-            <p style={{ fontSize: '11px', color: muted, marginTop: '1px', textTransform: 'capitalize' }}>
+            <p style={{ fontSize: '18px', fontWeight: 700, color: text, letterSpacing: '-0.03em', lineHeight: 1.2 }}>
+              Dashboard
+            </p>
+            <p style={{ fontSize: '12px', color: muted, marginTop: '2px', textTransform: 'capitalize' }}>
               {new Intl.DateTimeFormat('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date())}
             </p>
           </div>
 
-          {/* Tab pills */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '2px', backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)', borderRadius: '8px', padding: '3px' }}>
-            <TabPill id="operacao"   label="Operação" />
-            <TabPill id="resultados" label="Resultados" />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <button
+              type="button"
+              onClick={() => setShowWidgetModal(true)}
+              title="Gerenciar widgets"
+              style={{
+                height: '32px', padding: '0 14px', borderRadius: '8px',
+                border: `1px solid ${border}`,
+                backgroundColor: 'transparent', cursor: 'pointer',
+                display: 'flex', alignItems: 'center',
+                color: muted, fontSize: '12px', fontWeight: 500, gap: '5px',
+                transition: 'all 0.15s ease',
+                boxShadow: isDark ? 'none' : '0 1px 2px rgba(16,24,40,0.04)',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#b91c22'; e.currentTarget.style.color = '#b91c22' }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = border; e.currentTarget.style.color = muted }}
+            >
+              + Widgets
+            </button>
+            <span style={{
+              fontSize: '11px', fontWeight: 600, color: text,
+              backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#f3f4f6',
+              border: `1px solid ${border}`,
+              borderRadius: '8px', padding: '5px 12px',
+              letterSpacing: '-0.01em',
+            }}>
+              Q2 · 2026
+            </span>
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <button
-            type="button"
-            onClick={() => setShowWidgetModal(true)}
-            title="Gerenciar widgets"
-            style={{
-              height: '30px', padding: '0 12px', borderRadius: '6px',
-              border: `1px solid ${border}`,
-              backgroundColor: 'transparent', cursor: 'pointer',
-              display: 'flex', alignItems: 'center',
-              color: muted, fontSize: '12px', fontWeight: 500, gap: '5px',
-              transition: 'all 0.15s ease',
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#b91c22'; e.currentTarget.style.color = '#b91c22' }}
-            onMouseLeave={(e) => { e.currentTarget.style.borderColor = border; e.currentTarget.style.color = muted }}
-          >
-            + Widgets
-          </button>
-          <span style={{
-            fontSize: '11px', fontWeight: 500, color: muted,
-            backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
-            border: `1px solid ${border}`,
-            borderRadius: '6px', padding: '4px 10px',
-            letterSpacing: '-0.01em',
-          }}>
-            Q2 · 2026
-          </span>
+        {/* Tab bar */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0', padding: '12px 24px 0' }}>
+          {(['operacao', 'resultados'] as const).map((id) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setActiveTab(id)}
+              style={{
+                height: '36px', padding: '0 16px',
+                fontSize: '13px', fontWeight: activeTab === id ? 600 : 400,
+                color: activeTab === id ? text : muted,
+                backgroundColor: 'transparent',
+                border: 'none', borderBottom: activeTab === id ? `2px solid #b91c22` : '2px solid transparent',
+                marginBottom: '-1px', cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              {id === 'operacao' ? 'Operação' : 'Resultados'}
+            </button>
+          ))}
         </div>
       </div>
 
       {/* ── Content ────────────────────────────────────────────────────────── */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={tabWidgetIds} strategy={verticalListSortingStrategy}>
             {tabWidgetIds.map((id) => {

@@ -49,8 +49,8 @@ function NavItem({
       style={({ isActive }) => ({
         display: 'flex',
         alignItems: 'center',
-        height: '36px',
-        padding: collapsed ? '0' : '0 14px',
+        height: '38px',
+        padding: collapsed ? '0' : '0 12px',
         justifyContent: collapsed ? 'center' : 'flex-start',
         gap: '10px',
         fontSize: '13px',
@@ -60,11 +60,11 @@ function NavItem({
         userSelect: 'none',
         cursor: 'pointer',
         transition: 'color 0.15s ease, background-color 0.15s ease',
-        backgroundColor: isActive ? 'rgba(255,255,255,0.08)' : 'transparent',
-        color: isActive ? '#ffffff' : 'rgba(255,255,255,0.40)',
+        backgroundColor: isActive ? 'rgba(255,255,255,0.10)' : 'transparent',
+        color: isActive ? '#ffffff' : 'rgba(255,255,255,0.45)',
         position: 'relative',
-        borderRadius: '6px',
-        margin: '0 8px',
+        borderRadius: '8px',
+        margin: '0 10px',
       })}
       onMouseEnter={(e) => {
         const el = e.currentTarget as HTMLAnchorElement
@@ -287,7 +287,7 @@ export function Sidebar() {
     return () => window.removeEventListener('resize', handleResize)
   }, [])
 
-  const sidebarW = collapsed ? 56 : 224
+  const sidebarW = collapsed ? 64 : 248
   const isAdmin  = profile?.is_admin ?? false
 
   return (
@@ -306,12 +306,12 @@ export function Sidebar() {
 
         {/* ── Logo ── */}
         <div style={{
-          height: '56px', minHeight: '56px', flexShrink: 0,
+          height: '64px', minHeight: '64px', flexShrink: 0,
           display: 'flex', alignItems: 'center',
-          padding: collapsed ? '0' : '0 16px',
+          padding: collapsed ? '0' : '0 20px',
           justifyContent: collapsed ? 'center' : 'flex-start',
           gap: '10px',
-          borderBottom: '1px solid rgba(255,255,255,0.06)',
+          borderBottom: '1px solid rgba(255,255,255,0.07)',
         }}>
           {collapsed ? (
             <div style={{
@@ -335,8 +335,8 @@ export function Sidebar() {
         {/* ── Navigation ── */}
         <nav style={{
           flex: 1,
-          padding: '8px 0',
-          display: 'flex', flexDirection: 'column', gap: '1px',
+          padding: '10px 0',
+          display: 'flex', flexDirection: 'column', gap: '2px',
           overflowY: 'auto', overflowX: 'hidden',
         }}>
           {/* Section label */}

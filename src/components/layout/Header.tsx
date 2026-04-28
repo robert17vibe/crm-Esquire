@@ -13,10 +13,10 @@ function NotificationPanel({ onClose, isDark }: { onClose: () => void; isDark: b
   const navigate = useNavigate()
 
   const bg     = isDark ? '#141412' : '#ffffff'
-  const border = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'
-  const text   = isDark ? '#e8e4dc' : '#111110'
-  const muted  = isDark ? '#6b6560' : '#8a857d'
-  const hover  = isDark ? '#1c1c1a' : '#f2f1ee'
+  const border = isDark ? 'rgba(255,255,255,0.08)' : '#eaecf0'
+  const text   = isDark ? '#e8e4dc' : '#101828'
+  const muted  = isDark ? '#667085' : '#667085'
+  const hover  = isDark ? '#1c1c1a' : '#f3f4f6'
 
   useState(() => { fetchTeam().catch(() => {}) })
 
@@ -197,10 +197,10 @@ function UserMenu({ onClose, isDark }: { onClose: () => void; isDark: boolean })
   const navigate = useNavigate()
 
   const bg     = isDark ? '#141412' : '#ffffff'
-  const border = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'
-  const text   = isDark ? '#e8e4dc' : '#111110'
-  const muted  = isDark ? '#6b6560' : '#8a857d'
-  const hover  = isDark ? '#1c1c1a' : '#f2f1ee'
+  const border = isDark ? 'rgba(255,255,255,0.08)' : '#eaecf0'
+  const text   = isDark ? '#e8e4dc' : '#101828'
+  const muted  = isDark ? '#667085' : '#667085'
+  const hover  = isDark ? '#1c1c1a' : '#f3f4f6'
 
   const displayName     = profile?.full_name || 'Utilizador'
   const displayEmail    = profile?.email || '—'
@@ -307,7 +307,7 @@ export function Header({ onOpenSearch }: { onOpenSearch?: () => void }) {
   const displayName     = profile?.full_name || 'Utilizador'
   const displayInitials = displayName.split(' ').map((p: string) => p[0]).slice(0, 2).join('').toUpperCase()
 
-  const borderColor = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)'
+  const borderColor = isDark ? 'rgba(255,255,255,0.07)' : '#eaecf0'
   const bg          = isDark ? 'var(--surface-base)' : 'var(--surface-base)'
 
   return (

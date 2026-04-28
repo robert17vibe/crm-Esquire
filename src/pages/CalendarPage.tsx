@@ -163,7 +163,7 @@ function MiniCalendar({ year, month, selectedDay, eventsByDate, todayStr, isDark
   for (let d = 1; d <= rem; d++) cells.push({ day: d, year: month === 11 ? year + 1 : year, month: month === 11 ? 0 : month + 1 })
 
   return (
-    <div style={{ background: isDark ? '#111110' : '#ffffff', borderRadius: '18px', padding: '14px 12px 12px', border: `1px solid ${isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)'}` }}>
+    <div style={{ background: isDark ? '#111110' : '#ffffff', borderRadius: '18px', padding: '14px 12px 12px', border: `1px solid ${isDark ? 'rgba(255,255,255,0.07)' : '#eaecf0'}` }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
         <button type="button" onClick={onPrev} style={{ background: isDark ? '#1c1c1a' : '#f0ede8', border: 'none', cursor: 'pointer', color: muted, display: 'flex', padding: '5px', borderRadius: '10px', transition: 'color 0.12s, background 0.15s' }}
           onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = '#e31e24'; (e.currentTarget as HTMLElement).style.background = isDark ? '#252522' : '#e8e4de' }}
@@ -220,7 +220,7 @@ function MiniCalendar({ year, month, selectedDay, eventsByDate, todayStr, isDark
 function UpcomingCard({ ev, isDark, onClick }: { ev: CalEvent; isDark: boolean; onClick?: () => void }) {
   const text   = isDark ? '#e8e4dc' : '#1a1814'
   const muted  = isDark ? '#6b6560' : '#9a9590'
-  const border = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.07)'
+  const border = isDark ? 'rgba(255,255,255,0.06)' : '#eaecf0'
   const cfg    = EVENT_TYPE_CFG[normalizeType(ev.eventType ?? (ev.type === 'meeting' ? 'meeting' : 'task'))] ?? EVENT_TYPE_CFG.meeting
   const Icon   = cfg.icon
   const dateObj = new Date(ev.date + 'T12:00:00')
@@ -270,7 +270,7 @@ function MeetingDetailPanel({ meeting, isDark, onClose, onNavigate }: {
   const owners        = useOwnerStore((s) => s.owners)
 
   const bg     = isDark ? '#141412' : '#ffffff'
-  const border = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'
+  const border = isDark ? 'rgba(255,255,255,0.08)' : '#eaecf0'
   const text   = isDark ? '#e8e4dc' : '#1a1814'
   const muted  = isDark ? '#6b6560' : '#8a857d'
   const inBg   = isDark ? '#0f0f0e' : '#f8f7f4'
@@ -504,7 +504,7 @@ function WeekView({ weekDays, eventsByDate: _eventsByDate, meetings, calendarEve
   onCalEventOpen: (ce: CalendarEvent) => void
   onNewEvent: (date: string, time?: string) => void
 }) {
-  const border   = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.06)'
+  const border   = isDark ? 'rgba(255,255,255,0.05)' : '#eaecf0'
   const text     = isDark ? '#e8e4dc' : '#1a1814'
   const muted    = isDark ? '#5a5752' : '#a09890'
   const totalH   = (HOUR_END - HOUR_START) * SLOT_H
@@ -626,7 +626,7 @@ function NewMeetingModal({ defaultDate, onClose, isDark }: { defaultDate: string
   const owner           = owners.find((o) => o.id === authUser?.id) ?? owners[0] ?? { id: '', name: 'Desconhecido', initials: '?', avatar_color: '#6b6560' }
 
   const bg     = isDark ? '#141412' : '#ffffff'
-  const border = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'
+  const border = isDark ? 'rgba(255,255,255,0.08)' : '#eaecf0'
   const text   = isDark ? '#e8e4dc' : '#1a1814'
   const muted  = isDark ? '#6b6560' : '#8a857d'
   const inBg   = isDark ? '#0f0f0e' : '#f8f7f4'
@@ -753,7 +753,7 @@ function EventModal({ state, onClose, isDark, deals, onSaved, onLogActivity }: {
 }) {
   const isEdit = !!state.event
   const bg     = isDark ? '#141412' : '#ffffff'
-  const border = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'
+  const border = isDark ? 'rgba(255,255,255,0.08)' : '#eaecf0'
   const text   = isDark ? '#e8e4dc' : '#1a1814'
   const muted  = isDark ? '#6b6560' : '#8a857d'
   const inBg   = isDark ? '#0f0f0e' : '#f8f7f4'
@@ -902,7 +902,7 @@ export function CalendarPage() {
   }, [])
   useEffect(() => { loadEvents() }, [loadEvents])
 
-  const border = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.08)'
+  const border = isDark ? 'rgba(255,255,255,0.07)' : '#eaecf0'
   const text   = isDark ? '#e8e4dc' : '#1a1814'
   const muted  = isDark ? '#6b6560' : '#8a857d'
   const sideBg = isDark ? '#0e0e0c' : '#f8f7f4'
