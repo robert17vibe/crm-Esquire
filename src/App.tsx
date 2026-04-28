@@ -37,6 +37,9 @@ const LoginPage        = lazy(() => import('@/pages/LoginPage').then((m) => ({ d
 const ForgotPasswordPage = lazy(() => import('@/pages/ForgotPasswordPage').then((m) => ({ default: m.ForgotPasswordPage })))
 const ResetPasswordPage  = lazy(() => import('@/pages/ResetPasswordPage').then((m) => ({ default: m.ResetPasswordPage })))
 const EmailPage          = lazy(() => import('@/pages/EmailPage').then((m) => ({ default: m.EmailPage })))
+const RelatoriosPage     = lazy(() => import('@/pages/RelatoriosPage').then((m) => ({ default: m.RelatoriosPage })))
+const AtividadesPage     = lazy(() => import('@/pages/AtividadesPage').then((m) => ({ default: m.AtividadesPage })))
+const PropostasPage      = lazy(() => import('@/pages/PropostasPage').then((m) => ({ default: m.PropostasPage })))
 const AppLayout          = lazy(() => import('@/components/layout/AppLayout').then((m) => ({ default: m.AppLayout })))
 
 export default function App() {
@@ -97,8 +100,11 @@ export default function App() {
         <Route path="/clients"   element={<ClientsPage />} />
         <Route path="/meetings"  element={<MeetingsPage />} />
         <Route path="/calendar"  element={<CalendarPage />} />
-        <Route path="/email"     element={<EmailPage />} />
-        <Route path="/tarefas"   element={<TasksPage />} />
+        <Route path="/email"      element={<EmailPage />} />
+        <Route path="/tarefas"    element={<TasksPage />} />
+        <Route path="/relatorios" element={<RelatoriosPage />} />
+        <Route path="/atividades" element={<AtividadesPage />} />
+        <Route path="/propostas"  element={<PropostasPage />} />
         <Route path="/settings"  element={<SettingsPage />} />
         <Route path="/deal/:id"  element={<DealDetailPage />} />
         <Route element={<AdminGuard />}>

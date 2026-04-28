@@ -41,14 +41,14 @@ export function ClientsPage() {
   const [stageHistoryMap, setStageHistoryMap] = useState<Record<string, StageHistoryEntry[]>>({})
   const [loadingHistory, setLoadingHistory] = useState(false)
 
-  const border  = isDark ? '#242422' : '#e4e0da'
-  const text    = isDark ? '#e8e4dc' : '#1a1814'
-  const muted   = isDark ? '#6b6560' : '#8a857d'
+  const border  = isDark ? '#242422' : '#eaecf0'
+  const text    = isDark ? '#e8e4dc' : '#101828'
+  const muted   = isDark ? '#6b6560' : '#667085'
   const cardBg  = isDark ? '#161614' : '#ffffff'
-  const hoverBg = isDark ? '#1c1c1a' : '#f8f7f4'
-  const trackBg = isDark ? '#1e1e1c' : '#eeece8'
-  const inputBg = isDark ? '#111111' : '#f5f4f1'
-  const inputBorder = isDark ? '#2a2a2a' : '#e0ddd8'
+  const hoverBg = isDark ? '#1c1c1a' : '#f3f4f6'
+  const trackBg = isDark ? '#1e1e1c' : '#f3f4f6'
+  const inputBg = isDark ? '#111111' : '#f3f4f6'
+  const inputBorder = isDark ? '#2a2a2a' : '#eaecf0'
   const companies = useMemo(() => {
     const map = new Map<string, {
       name: string
@@ -134,26 +134,26 @@ export function ClientsPage() {
   }, [expandedCompany, filtered])
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: isDark ? '#0d0c0a' : '#f5f4f0' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: isDark ? '#0d0c0a' : '#f9fafb' }}>
 
       {/* Header */}
       <div style={{
         height: '56px', minHeight: '56px', display: 'flex', alignItems: 'center',
         justifyContent: 'space-between', padding: '0 20px',
         borderBottom: `1px solid ${border}`, flexShrink: 0, gap: '12px',
-        backgroundColor: isDark ? '#0d0c0a' : '#f5f4f0',
+        backgroundColor: isDark ? '#0d0c0a' : '#f9fafb',
       }}>
         <div>
-          <p style={{ fontSize: '13px', fontWeight: 700, color: text, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Clientes</p>
-          <p style={{ fontSize: '10px', color: muted, marginTop: '2px' }}>
+          <p style={{ fontSize: '16px', fontWeight: 600, color: text, letterSpacing: '-0.02em' }}>Clientes</p>
+          <p style={{ fontSize: '12px', color: muted, marginTop: '2px' }}>
             {`${filtered.length} empresas · ${fmt(totalPipeline)} em pipeline · ${fmt(totalWon)} fechado`}
           </p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <div style={{ position: 'relative' }}>
             <Search style={{
-              position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)',
-              width: '12px', height: '12px', color: muted, pointerEvents: 'none',
+              position: 'absolute', left: '9px', top: '50%', transform: 'translateY(-50%)',
+              width: '13px', height: '13px', color: muted, pointerEvents: 'none',
             }} />
             <input
               type="text"
@@ -161,42 +161,67 @@ export function ClientsPage() {
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Buscar empresa, setor..."
               style={{
-                height: '30px', paddingLeft: '26px', paddingRight: '10px',
-                fontSize: '12px', width: '200px',
+                height: '34px', paddingLeft: '30px', paddingRight: '10px',
+                fontSize: '13px', width: '220px',
                 backgroundColor: inputBg, border: `1px solid ${inputBorder}`,
-                borderRadius: '4px', color: text, outline: 'none',
+                borderRadius: '7px', color: text, outline: 'none',
               }}
             />
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', fontWeight: 600, color: '#e31e24', backgroundColor: isDark ? 'rgba(227,30,36,0.10)' : '#fde8e9', border: '1px solid rgba(227,30,36,0.25)', borderRadius: '4px', padding: '5px 10px' }}>
-            <Activity style={{ width: '12px', height: '12px' }} />
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: '5px',
+            fontSize: '12px', fontWeight: 600, color: '#b91c22',
+            backgroundColor: isDark ? 'rgba(185,28,34,0.10)' : '#fff1f2',
+            border: '1px solid rgba(185,28,34,0.20)',
+            borderRadius: '7px', padding: '5px 12px',
+          }}>
+            <Activity style={{ width: '13px', height: '13px' }} />
             {filtered.filter((c) => c.active > 0).length} ativos
           </div>
+          <button
+            type="button"
+            onClick={() => navigate('/pipeline')}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '6px',
+              height: '34px', padding: '0 14px',
+              backgroundColor: '#101828', color: '#fff',
+              border: 'none', borderRadius: '7px',
+              fontSize: '13px', fontWeight: 500, cursor: 'pointer',
+              transition: 'background-color 0.15s ease',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#b91c22' }}
+            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#101828' }}
+          >
+            + Novo Lead
+          </button>
         </div>
       </div>
 
       {/* Summary cards */}
-      <div style={{ padding: '12px 20px 0', display: 'flex', gap: '10px', flexShrink: 0 }}>
+      <div style={{ padding: '16px 20px 0', display: 'flex', gap: '10px', flexShrink: 0 }}>
         {[
-          { label: 'Empresas',  value: String(filtered.length), icon: Building2, color: '#4a7c8a' },
-          { label: 'Pipeline',  value: fmt(totalPipeline), icon: TrendingUp, color: '#e31e24' },
-          { label: 'Fechado',   value: fmt(totalWon), icon: DollarSign, color: '#2d9e6b' },
+          { label: 'Empresas',  value: String(filtered.length), icon: Building2, color: '#667085' },
+          { label: 'Pipeline',  value: fmt(totalPipeline), icon: TrendingUp, color: '#b91c22' },
+          { label: 'Fechado',   value: fmt(totalWon), icon: DollarSign, color: '#15803d' },
+          { label: 'Ativos',    value: String(filtered.filter((c) => c.active > 0).length), icon: Activity, color: '#2563eb' },
         ].map(({ label, value, icon: Icon, color }) => (
           <div key={label} style={{
-            flex: 1, padding: '10px 14px', borderRadius: '6px',
-            backgroundColor: cardBg, border: `1px solid ${border}`,
-            display: 'flex', alignItems: 'center', gap: '10px',
+            flex: 1, padding: '12px 16px', borderRadius: '10px',
+            backgroundColor: cardBg,
+            border: `1px solid ${border}`,
+            boxShadow: isDark ? 'none' : '0 1px 3px rgba(16,24,40,0.06)',
+            display: 'flex', alignItems: 'center', gap: '12px',
           }}>
             <div style={{
-              width: '32px', height: '32px', borderRadius: '4px', flexShrink: 0,
-              backgroundColor: `${color}14`, border: `1px solid ${color}25`,
+              width: '34px', height: '34px', borderRadius: '8px', flexShrink: 0,
+              backgroundColor: `${color}14`,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
-              <Icon style={{ width: '14px', height: '14px', color }} />
+              <Icon style={{ width: '15px', height: '15px', color }} />
             </div>
             <div>
-              <p style={{ fontSize: '15px', fontWeight: 700, color: text, fontVariantNumeric: 'tabular-nums' }}>{value}</p>
-              <p style={{ fontSize: '10px', color: muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: '1px' }}>{label}</p>
+              <p style={{ fontSize: '16px', fontWeight: 600, color: text, fontFamily: "'Geist Mono', monospace", letterSpacing: '-0.03em' }}>{value}</p>
+              <p style={{ fontSize: '11px', color: muted, marginTop: '1px' }}>{label}</p>
             </div>
           </div>
         ))}
@@ -215,13 +240,13 @@ export function ClientsPage() {
             </p>
           </div>
         ) : (
-          <div style={{ minWidth: '640px', backgroundColor: cardBg, borderRadius: '6px', border: `1px solid ${border}`, overflow: 'hidden' }}>
+          <div style={{ minWidth: '640px', backgroundColor: cardBg, borderRadius: '10px', border: `1px solid ${border}`, overflow: 'hidden', boxShadow: isDark ? 'none' : '0 1px 3px rgba(16,24,40,0.06)' }}>
             {/* Column headers */}
             <div style={{
               display: 'grid', gridTemplateColumns: 'minmax(180px, 2fr) minmax(80px, 110px) minmax(60px, 80px) minmax(100px, 120px) minmax(100px, 120px) 64px',
               padding: '10px 20px', gap: '10px',
               borderBottom: `1px solid ${border}`,
-              backgroundColor: isDark ? '#111110' : '#fafaf8',
+              backgroundColor: isDark ? '#111110' : '#f9fafb',
             }}>
               {['Empresa', 'Setor', 'Tam.', 'Pipeline', 'Fechado'].map((h) => (
                 <p key={h} style={{ fontSize: '10px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{h}</p>
@@ -357,7 +382,7 @@ export function ClientsPage() {
                   {isExpanded && (
                     <div style={{
                       borderBottom: isLast ? 'none' : `1px solid ${border}`,
-                      backgroundColor: isDark ? '#111110' : '#fafaf8',
+                      backgroundColor: isDark ? '#111110' : '#f9fafb',
                     }}>
                       {company.deals.map((deal, di) => {
                         const dealStage = STAGES.find((s) => s.id === deal.stage_id)

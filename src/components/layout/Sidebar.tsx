@@ -3,7 +3,7 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, Kanban, Users, Mic, CalendarDays,
   CheckSquare, Settings, LogOut, Users2, Shield, Mail,
-  Megaphone, GitFork, ChevronLeft, ChevronRight,
+  Megaphone, GitFork, ChevronLeft, ChevronRight, BarChart2, Activity, FileText,
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import esquireLogo from '@/assets/esquire_logo.png'
@@ -19,13 +19,16 @@ function hashColor(name: string): string {
 }
 
 const NAV_ITEMS = [
-  { to: '/dashboard', label: 'Dashboard',  icon: LayoutDashboard },
-  { to: '/pipeline',  label: 'Jornada',    icon: Kanban          },
-  { to: '/clients',   label: 'Clientes',   icon: Users           },
-  { to: '/tarefas',   label: 'Tarefas',    icon: CheckSquare     },
-  { to: '/meetings',  label: 'Registo',    icon: Mic             },
-  { to: '/calendar',  label: 'Calendário', icon: CalendarDays    },
-  { to: '/email',     label: 'Email',      icon: Mail            },
+  { to: '/dashboard',  label: 'Dashboard',   icon: LayoutDashboard },
+  { to: '/pipeline',   label: 'Jornada',     icon: Kanban          },
+  { to: '/clients',    label: 'Clientes',    icon: Users           },
+  { to: '/propostas',  label: 'Propostas',   icon: FileText        },
+  { to: '/tarefas',    label: 'Tarefas',     icon: CheckSquare     },
+  { to: '/atividades', label: 'Atividades',  icon: Activity        },
+  { to: '/meetings',   label: 'Registo',     icon: Mic             },
+  { to: '/calendar',   label: 'Calendário',  icon: CalendarDays    },
+  { to: '/email',      label: 'Email',       icon: Mail            },
+  { to: '/relatorios', label: 'Relatórios',  icon: BarChart2       },
 ] as const
 
 type NavTo = (typeof NAV_ITEMS)[number]['to'] | '/teams' | '/admin/users' | '/admin/notifications' | '/admin/distribuir-leads'
@@ -287,7 +290,7 @@ export function Sidebar() {
     return () => window.removeEventListener('resize', handleResize)
   }, [])
 
-  const sidebarW = collapsed ? 64 : 248
+  const sidebarW = collapsed ? 56 : 200
   const isAdmin  = profile?.is_admin ?? false
 
   return (
