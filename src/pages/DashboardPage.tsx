@@ -283,9 +283,10 @@ type GroupStat = {
 }
 
 function GruposPerformance({ groups, isDark }: { groups: GroupStat[]; isDark: boolean }) {
-  const text  = isDark ? '#edeae4' : '#101828'
-  const muted = isDark ? '#6b6760' : '#667085'
-  const border = isDark ? 'rgba(255,255,255,0.06)' : '#f3f4f6'
+  const text   = isDark ? '#edeae4' : '#101828'
+  const muted  = isDark ? '#6b6760' : '#667085'
+  const border = isDark ? 'rgba(255,255,255,0.07)' : '#eaecf0'
+  const subtleBg = isDark ? '#191917' : '#f9fafb'
 
   if (groups.length === 0) return (
     <div style={{ padding: '20px', textAlign: 'center', fontSize: '12px', color: muted }}>
@@ -293,84 +294,101 @@ function GruposPerformance({ groups, isDark }: { groups: GroupStat[]; isDark: bo
     </div>
   )
 
-  const maxRevenue = Math.max(...groups.map((g) => g.revenue + g.pipeline), 1)
+  const maxTotal = Math.max(...groups.map((g) => g.revenue + g.pipeline), 1)
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
       {groups.map((group, i) => {
         const rankEmoji = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : null
-        const barPct = ((group.revenue + group.pipeline) / maxRevenue) * 100
-        const wonBarPct = (group.revenue / Math.max(group.revenue + group.pipeline, 1)) * 100
+        const barPct    = ((group.revenue + group.pipeline) / maxTotal) * 100
+        const wonPct    = (group.revenue / Math.max(group.revenue + group.pipeline, 1)) * 100
 
         return (
           <motion.div
             key={group.id}
             {...motionPresets.listItem(i)}
             style={{
-              display: 'flex', alignItems: 'center', gap: '14px',
-              padding: '12px 0',
-              borderBottom: i < groups.length - 1 ? `1px solid ${border}` : 'none',
+              backgroundColor: isDark ? '#161614' : '#ffffff',
+              border: `1px solid ${border}`,
+              borderRadius: '14px',
+              overflow: 'hidden',
             }}
           >
-            {/* Rank */}
-            <div style={{ width: '28px', textAlign: 'center', flexShrink: 0 }}>
-              {rankEmoji
-                ? <span style={{ fontSize: '16px' }}>{rankEmoji}</span>
-                : <span style={{ fontSize: '12px', fontWeight: 700, color: muted }}>#{i + 1}</span>}
-            </div>
-
-            {/* Name + members */}
-            <div style={{ width: '130px', flexShrink: 0, minWidth: 0 }}>
-              <p style={{ fontSize: '13px', fontWeight: 600, color: text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {group.name}
-              </p>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '3px', marginTop: '3px' }}>
-                {group.members.slice(0, 4).map((m) => (
-                  <div key={m.id} title={m.name} style={{
-                    width: '18px', height: '18px', borderRadius: '5px',
-                    backgroundColor: m.color, color: '#fff',
-                    fontSize: '8px', fontWeight: 700,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    flexShrink: 0,
-                  }}>
-                    {m.initials.slice(0, 1)}
-                  </div>
-                ))}
-                {group.members.length > 4 && (
-                  <span style={{ fontSize: '9px', color: muted, fontWeight: 600 }}>+{group.members.length - 4}</span>
-                )}
-                {group.members.length === 0 && (
-                  <span style={{ fontSize: '10px', color: muted, fontStyle: 'italic' }}>Sem membros</span>
-                )}
+            {/* Group header */}
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '12px 16px 10px',
+              borderBottom: `1px solid ${border}`,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: rankEmoji ? '18px' : '11px', fontWeight: 700, color: muted, flexShrink: 0 }}>
+                  {rankEmoji ?? `#${i + 1}`}
+                </span>
+                <p style={{ fontSize: '14px', fontWeight: 700, color: text, letterSpacing: '-0.01em' }}>
+                  {group.name}
+                </p>
+                <span style={{ fontSize: '11px', color: muted }}>· {group.members.length} membros</span>
+              </div>
+              {/* KPIs inline */}
+              <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                <div style={{ textAlign: 'right' }}>
+                  <p style={{ fontSize: '10px', color: muted }}>Receita</p>
+                  <p style={{ fontSize: '13px', fontWeight: 700, color: '#15803d', fontFamily: "'Geist Mono', monospace" }}>{fmtBRL(group.revenue)}</p>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <p style={{ fontSize: '10px', color: muted }}>Pipeline</p>
+                  <p style={{ fontSize: '13px', fontWeight: 700, color: text, fontFamily: "'Geist Mono', monospace" }}>{fmtBRL(group.pipeline)}</p>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <p style={{ fontSize: '10px', color: muted }}>Win Rate</p>
+                  <p style={{ fontSize: '13px', fontWeight: 700, color: text }}>{group.winRate.toFixed(0)}%</p>
+                </div>
               </div>
             </div>
 
-            {/* Bar chart */}
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ height: '8px', borderRadius: '99px', backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#f3f4f6', overflow: 'hidden', position: 'relative' }}>
-                {/* Total pipeline bar */}
+            {/* Progress bar */}
+            <div style={{ padding: '8px 16px', borderBottom: `1px solid ${border}` }}>
+              <div style={{ height: '6px', borderRadius: '99px', backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#f3f4f6', overflow: 'hidden', position: 'relative' }}>
                 <motion.div
-                  initial={{ width: 0 }}
-                  animate={{ width: `${barPct}%` }}
+                  initial={{ width: 0 }} animate={{ width: `${barPct}%` }}
                   transition={{ duration: 0.8, delay: i * 0.07, ease: [0.16, 1, 0.3, 1] }}
-                  style={{ position: 'absolute', height: '100%', borderRadius: '99px', backgroundColor: isDark ? 'rgba(107,18,18,0.35)' : 'rgba(107,18,18,0.12)' }}
+                  style={{ position: 'absolute', height: '100%', borderRadius: '99px', backgroundColor: isDark ? 'rgba(107,18,18,0.3)' : 'rgba(107,18,18,0.15)' }}
                 />
-                {/* Won revenue bar */}
                 <motion.div
-                  initial={{ width: 0 }}
-                  animate={{ width: `${barPct * wonBarPct / 100}%` }}
+                  initial={{ width: 0 }} animate={{ width: `${barPct * wonPct / 100}%` }}
                   transition={{ duration: 0.9, delay: i * 0.07 + 0.1, ease: [0.16, 1, 0.3, 1] }}
                   style={{ position: 'absolute', height: '100%', borderRadius: '99px', backgroundColor: '#6b1212' }}
                 />
               </div>
-              <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
-                <span style={{ fontSize: '10px', color: '#15803d', fontWeight: 600, fontFamily: "'Geist Mono', monospace" }}>
-                  {fmtBRL(group.revenue)}
+              <div style={{ display: 'flex', gap: '12px', marginTop: '4px' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: muted }}>
+                  <div style={{ width: '8px', height: '8px', borderRadius: '2px', backgroundColor: '#6b1212' }} />Receita fechada
                 </span>
-                <span style={{ fontSize: '10px', color: muted }}>
-                  · {group.deals} deals · {group.winRate.toFixed(0)}% WR
+                <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: muted }}>
+                  <div style={{ width: '8px', height: '8px', borderRadius: '2px', backgroundColor: isDark ? 'rgba(107,18,18,0.3)' : 'rgba(107,18,18,0.15)' }} />Pipeline total
                 </span>
               </div>
+            </div>
+
+            {/* Members list */}
+            <div style={{ padding: '10px 16px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              {group.members.length === 0 ? (
+                <p style={{ fontSize: '12px', color: muted, fontStyle: 'italic' }}>Sem membros neste grupo</p>
+              ) : (
+                group.members.map((m) => (
+                  <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div style={{
+                      width: '24px', height: '24px', borderRadius: '7px', flexShrink: 0,
+                      backgroundColor: m.color, color: '#fff',
+                      fontSize: '9px', fontWeight: 700,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      {m.initials.slice(0, 2)}
+                    </div>
+                    <span style={{ fontSize: '12px', fontWeight: 500, color: text }}>{m.name}</span>
+                  </div>
+                ))
+              )}
             </div>
           </motion.div>
         )
