@@ -21,7 +21,7 @@ const STATUS_CFG: Record<ProposalStatus, { label: string; color: string; bg: str
   em_negociacao:   { label: 'Em Negociação', color: '#b45309', bg: '#b4530918', icon: <Clock size={11} /> },
   proposta_enviada:{ label: 'Proposta Enviada', color: '#2563eb', bg: '#2563eb18', icon: <FileText size={11} /> },
   won:             { label: 'Ganho',          color: '#15803d', bg: '#15803d18', icon: <CheckCircle2 size={11} /> },
-  lost:            { label: 'Perdido',         color: '#b91c22', bg: '#b91c2218', icon: <XCircle size={11} /> },
+  lost:            { label: 'Perdido',         color: 'var(--brand)', bg: 'var(--brand)18', icon: <XCircle size={11} /> },
 }
 
 const PROPOSAL_STAGES = new Set(['proposta_enviada', 'em_negociacao', 'won', 'lost'])

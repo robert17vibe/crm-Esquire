@@ -26,12 +26,31 @@
   --ink-faint:   #98a2b3;
   --ink-placeholder: #c4bfb8;
 
-  /* ── Brand — Carmesim (não grita, mas é presente) ────────────────────── */
-  --brand:         #b91c22;
-  --brand-hover:   #991418;
-  --brand-light:   rgba(185,28,34,0.07);
-  --brand-muted:   rgba(185,28,34,0.14);
-  --brand-glow:    rgba(185,28,34,0.06);
+  /* ── Brand — Bordô escuro (Esquire premium) ─────────────────────────── */
+  --brand:         #6b1212;
+  --brand-hover:   #520e0e;
+  --brand-light:   rgba(107,18,18,0.07);
+  --brand-muted:   rgba(107,18,18,0.14);
+  --brand-glow:    rgba(107,18,18,0.08);
+
+  /* ── Aurea token aliases (compatibilidade com novos componentes) ─────── */
+  --canvas:        #f9fafb;
+  --surface:       #ffffff;
+  --subtle:        #f3f4f6;
+  --inset:         #eaecf0;
+  --text-primary:  #101828;
+  --text-secondary:#475467;
+  --text-tertiary: #98a2b3;
+  --accent-color:  #6b1212;
+  --accent-soft:   rgba(107,18,18,0.08);
+  --success:       #15803d;
+  --success-soft:  rgba(21,128,61,0.08);
+  --warning:       #92400e;
+  --warning-soft:  rgba(146,64,14,0.08);
+  --danger:        #9b1c1c;
+  --danger-soft:   rgba(155,28,28,0.08);
+  --info:          #1e40af;
+  --info-soft:     rgba(30,64,175,0.08);
 
   /* ── Borders ─────────────────────────────────────────────────────────── */
   --line:         #eaecf0;
@@ -98,7 +117,7 @@
   --card-foreground:      16 24 40;
   --popover:              255 255 255;
   --popover-foreground:   16 24 40;
-  --primary:              185 28 34;
+  --primary:              107 18 18;
   --primary-foreground:   255 255 255;
   --secondary:            243 244 246;
   --secondary-foreground: 16 24 40;
@@ -110,7 +129,7 @@
   --destructive-foreground: 255 255 255;
   --border:               234 236 240;
   --input:                234 236 240;
-  --ring:                 185 28 34;
+  --ring:                 107 18 18;
 }
 
 .dark {
@@ -133,12 +152,19 @@
   --ink-faint:   #3a3734;
   --ink-placeholder: #2e2c29;
 
-  /* ── Brand ────────────────────────────────────────────────────────────── */
-  --brand:         #c42028;
-  --brand-hover:   #a8181f;
-  --brand-light:   rgba(196,32,40,0.10);
-  --brand-muted:   rgba(196,32,40,0.18);
-  --brand-glow:    rgba(196,32,40,0.08);
+  /* ── Brand (dark) ────────────────────────────────────────────────────── */
+  --brand:         #9b2020;
+  --brand-hover:   #7a1818;
+  --brand-light:   rgba(155,32,32,0.12);
+  --brand-muted:   rgba(155,32,32,0.20);
+  --brand-glow:    rgba(155,32,32,0.10);
+  --canvas:        #0a0a08;
+  --surface:       #111110;
+  --subtle:        #191917;
+  --text-primary:  #edeae4;
+  --text-secondary:#a09890;
+  --text-tertiary: #6b6760;
+  --accent-soft:   rgba(155,32,32,0.12);
 
   /* ── Borders ─────────────────────────────────────────────────────────── */
   --line:         rgba(255,255,255,0.07);

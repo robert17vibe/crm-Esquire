@@ -97,7 +97,7 @@ export function AtividadesPage() {
     new_deal:    { icon: <UserPlus size={13} />,    color: '#2563eb', bg: '#2563eb18', label: 'Novo Lead' },
     stage_move:  { icon: <ArrowRight size={13} />,  color: '#7c3aed', bg: '#7c3aed18', label: 'Avançou' },
     won:         { icon: <CheckCircle2 size={13} />, color: '#15803d', bg: '#15803d18', label: 'Ganho' },
-    lost:        { icon: <Zap size={13} />,          color: '#b91c22', bg: '#b91c2218', label: 'Perdido' },
+    lost:        { icon: <Zap size={13} />,          color: 'var(--brand)', bg: 'var(--brand)18', label: 'Perdido' },
     value_update:{ icon: <TrendingUp size={13} />,   color: '#b45309', bg: '#b4530918', label: 'Valor' },
   }
 

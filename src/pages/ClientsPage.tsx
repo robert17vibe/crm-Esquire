@@ -170,7 +170,7 @@ export function ClientsPage() {
           </div>
           <div style={{
             display: 'flex', alignItems: 'center', gap: '5px',
-            fontSize: '12px', fontWeight: 600, color: '#b91c22',
+            fontSize: '12px', fontWeight: 600, color: 'var(--brand)',
             backgroundColor: isDark ? 'rgba(185,28,34,0.10)' : '#fff1f2',
             border: '1px solid rgba(185,28,34,0.20)',
             borderRadius: '7px', padding: '5px 12px',
@@ -189,7 +189,7 @@ export function ClientsPage() {
               fontSize: '13px', fontWeight: 500, cursor: 'pointer',
               transition: 'background-color 0.15s ease',
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#b91c22' }}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--brand)' }}
             onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#101828' }}
           >
             + Novo Lead
@@ -201,7 +201,7 @@ export function ClientsPage() {
       <div style={{ padding: '16px 20px 0', display: 'flex', gap: '10px', flexShrink: 0 }}>
         {[
           { label: 'Empresas',  value: String(filtered.length), icon: Building2, color: '#667085' },
-          { label: 'Pipeline',  value: fmt(totalPipeline), icon: TrendingUp, color: '#b91c22' },
+          { label: 'Pipeline',  value: fmt(totalPipeline), icon: TrendingUp, color: 'var(--brand)' },
           { label: 'Fechado',   value: fmt(totalWon), icon: DollarSign, color: '#15803d' },
           { label: 'Ativos',    value: String(filtered.filter((c) => c.active > 0).length), icon: Activity, color: '#2563eb' },
         ].map(({ label, value, icon: Icon, color }) => (

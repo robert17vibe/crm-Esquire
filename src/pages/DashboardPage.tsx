@@ -1,1382 +1,870 @@
-import { useMemo, useState, useRef, useEffect } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { motion, AnimatePresence } from 'motion/react'
 import {
-  TrendingUp, Briefcase, Target, DollarSign, Clock, Award,
-  ArrowRight, AlertTriangle, Video, Phone, CheckSquare, Mail,
-  GripVertical, Trophy, BarChart2, Percent, Check,
+  TrendingUp, DollarSign, Target, Briefcase, Clock, Award, CheckSquare,
+  Users, AlertTriangle, ArrowRight, BarChart2, Activity,
 } from 'lucide-react'
-import {
-  DndContext,
-  DragEndEvent,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  closestCenter,
-} from '@dnd-kit/core'
-import {
-  SortableContext,
-  useSortable,
-  verticalListSortingStrategy,
-  arrayMove,
-} from '@dnd-kit/sortable'
-import { CSS } from '@dnd-kit/utilities'
 import { useThemeStore } from '@/store/useThemeStore'
-import { useSettingsStore } from '@/store/useSettingsStore'
+import { useAuthStore } from '@/store/useAuthStore'
 import { useTaskStore } from '@/store/useTaskStore'
-import { STAGES } from '@/constants/pipeline'
+import { useMeetingStore } from '@/store/useMeetingStore'
+import { useSettingsStore } from '@/store/useSettingsStore'
 import { useVisibleDeals } from '@/hooks/useVisibleDeals'
+import { STAGES } from '@/constants/pipeline'
+import { PageHeader } from '@/components/crm/PageHeader'
+import { StatCard } from '@/components/crm/StatCard'
+import { Timeline, type ActivityItemData } from '@/components/crm/Timeline'
+import { EmptyState } from '@/components/crm/EmptyState'
+import { CrmAreaChart } from '@/components/crm/charts/CrmAreaChart'
+import { CrmBarChart } from '@/components/crm/charts/CrmBarChart'
+import { CrmDonutChart } from '@/components/crm/charts/CrmDonutChart'
+import { motionPresets } from '@/lib/motion'
 
-// ─── Widget Registry ──────────────────────────────────────────────────────────
+// ─── Formatters ───────────────────────────────────────────────────────────────
 
-interface WidgetDef {
-  id: string
-  title: string
-  description: string
-  defaultEnabled: boolean
-  minRole: 'user' | 'admin'
-  tab: 'operacao' | 'resultados' | 'ambos'
+function fmtBRL(v: number) {
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', notation: 'compact', maximumFractionDigits: 1 }).format(v)
 }
-
-const WIDGET_DEFS: WidgetDef[] = [
-  { id: 'kpis',     title: 'KPIs de Performance',    description: 'Pipeline, commit, cobertura e win rate',    defaultEnabled: true,  minRole: 'user',  tab: 'operacao'   },
-  { id: 'funil',    title: 'Funil & Forecast',        description: 'Funil por estágio e forecast do trimestre', defaultEnabled: true,  minRole: 'user',  tab: 'operacao'   },
-  { id: 'aging',    title: 'Aging & Evolução Mensal', description: 'Top deals paralisados e pipeline mensal',   defaultEnabled: true,  minRole: 'user',  tab: 'operacao'   },
-  { id: 'riscos',   title: 'Riscos & Próximas Ações', description: 'Deals em risco e atividades pendentes',     defaultEnabled: true,  minRole: 'user',  tab: 'operacao'   },
-  { id: 'inativos', title: 'Leads Sem Atividade',     description: 'Leads sem atividade há mais de 21 dias',    defaultEnabled: true,  minRole: 'user',  tab: 'operacao'   },
-  { id: 'tarefas',  title: 'Próximas Tarefas',        description: 'Tarefas pendentes e vencidas',              defaultEnabled: true,  minRole: 'user',  tab: 'ambos'      },
-  { id: 'res_kpis', title: 'KPIs de Resultados',      description: 'Ganhos, meta atingida e ticket médio',      defaultEnabled: true,  minRole: 'user',  tab: 'resultados' },
-  { id: 'ranking',  title: 'Performance & Histórico', description: 'Ranking por operador e histórico de won',   defaultEnabled: true,  minRole: 'admin', tab: 'resultados' },
-  { id: 'conv',     title: 'Conversão & Ciclo',       description: 'Distribuição pipeline e tempo por etapa',   defaultEnabled: true,  minRole: 'user',  tab: 'resultados' },
-]
-
-// ─── Widget order localStorage ────────────────────────────────────────────────
-
-const WIDGET_ORDER_KEY = 'esq_dashboard_widgets_v1'
-
-function defaultWidgetOrder(): string[] {
-  return WIDGET_DEFS.filter((w) => w.defaultEnabled).map((w) => w.id)
-}
-
-function loadWidgetOrder(): string[] {
-  try {
-    const raw = localStorage.getItem(WIDGET_ORDER_KEY)
-    if (raw) {
-      const parsed = JSON.parse(raw) as string[]
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed
-    }
-  } catch { /* ignore */ }
-  return defaultWidgetOrder()
-}
-
-function saveWidgetOrder(order: string[]) {
-  localStorage.setItem(WIDGET_ORDER_KEY, JSON.stringify(order))
-}
-
-// ─── Constants ────────────────────────────────────────────────────────────────
-
-const KPI_ORDER_KEY     = 'esq_kpi_order'
-const DEFAULT_KPI_ORDER = ['pipeline', 'commit', 'coverage', 'winrate', 'ticket', 'cycle']
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function fmt(v: number) {
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency', currency: 'BRL', notation: 'compact', maximumFractionDigits: 1,
-  }).format(v)
-}
-
 function fmtFull(v: number) {
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency', currency: 'BRL', maximumFractionDigits: 0,
-  }).format(v)
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(v)
+}
+function fmtPct(v: number) { return `${v.toFixed(1)}%` }
+function getInitials(name?: string | null) {
+  if (!name) return '?'
+  return name.split(' ').map((p) => p[0]).slice(0, 2).join('').toUpperCase()
+}
+function timeAgo(iso: string) {
+  const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 60000)
+  if (diff < 1) return 'agora'
+  if (diff < 60) return `${diff}m`
+  if (diff < 1440) return `${Math.floor(diff / 60)}h`
+  return `${Math.floor(diff / 1440)}d`
+}
+function greeting() {
+  const h = new Date().getHours()
+  if (h < 12) return 'Bom dia'
+  if (h < 18) return 'Boa tarde'
+  return 'Boa noite'
 }
 
-function fmtDate(iso: string) {
-  return new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short' }).format(new Date(iso))
-}
+type Period = '30d' | '90d' | '12m'
 
-function daysDiff(iso: string) {
-  const today = new Date(); today.setHours(0, 0, 0, 0)
-  const d = new Date(iso); d.setHours(0, 0, 0, 0)
-  return Math.round((d.getTime() - today.getTime()) / 86_400_000)
-}
+// ─── Section Card wrapper ─────────────────────────────────────────────────────
 
-const ACT_ICONS: Record<string, React.ComponentType<{ style?: React.CSSProperties }>> = {
-  meeting: Video, call: Phone, task: CheckSquare, email: Mail,
-}
+function SectionCard({ title, subtitle, children, action, isDark }: {
+  title: string; subtitle?: string; children: React.ReactNode
+  action?: React.ReactNode; isDark: boolean
+}) {
+  const border = isDark ? 'rgba(255,255,255,0.07)' : '#eaecf0'
+  const bg     = isDark ? '#111110' : '#ffffff'
+  const text   = isDark ? '#edeae4' : '#101828'
+  const muted  = isDark ? '#6b6760' : '#667085'
+  const shadow = isDark ? 'none' : '0 1px 3px rgba(16,24,40,0.06)'
 
-// ─── DonutArc SVG Component ───────────────────────────────────────────────────
-
-function DonutArc({ pct, color, size = 44 }: { pct: number; color: string; size?: number }) {
-  const r = (size - 8) / 2
-  const circ = 2 * Math.PI * r
-  const dash = (pct / 100) * circ
-  const cx = size / 2, cy = size / 2
   return (
-    <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
-      <circle cx={cx} cy={cy} r={r} fill="none" stroke={`${color}20`} strokeWidth="5" />
-      <circle cx={cx} cy={cy} r={r} fill="none" stroke={color} strokeWidth="5"
-        strokeDasharray={`${dash} ${circ}`} strokeLinecap="round"
-        style={{ transition: 'stroke-dasharray 0.6s ease' }} />
-    </svg>
+    <div style={{ backgroundColor: bg, border: `1px solid ${border}`, borderRadius: '12px', overflow: 'hidden', boxShadow: shadow }}>
+      <div style={{ padding: '16px 20px', borderBottom: `1px solid ${border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div>
+          <p style={{ fontSize: '14px', fontWeight: 600, color: text, margin: 0, letterSpacing: '-0.01em' }}>{title}</p>
+          {subtitle && <p style={{ fontSize: '12px', color: muted, marginTop: '2px' }}>{subtitle}</p>}
+        </div>
+        {action}
+      </div>
+      <div style={{ padding: '20px' }}>{children}</div>
+    </div>
   )
 }
 
-// ─── KPI Card ─────────────────────────────────────────────────────────────────
+// ─── WelcomeHero ──────────────────────────────────────────────────────────────
 
-interface KpiCardProps {
-  label: string
-  value: string
-  sub?: string
-  icon: React.ComponentType<{ style?: React.CSSProperties }>
-  accent: string
-  sparkline?: number[]
-  donut?: boolean
-  isDark: boolean
-  isDragging: boolean
-  onDragStart: (e: React.DragEvent) => void
-  onDragOver: (e: React.DragEvent) => void
-  onDrop: (e: React.DragEvent) => void
-  onDragEnd: () => void
-  onClick?: () => void
-}
-
-function KpiCard({
-  label, value, sub, icon: Icon, accent, sparkline, donut, isDark,
-  isDragging, onDragStart, onDragOver, onDrop, onDragEnd, onClick,
-}: KpiCardProps) {
+function WelcomeHero({ name, goalPct, isDark }: { name: string; goalPct: number; isDark: boolean }) {
+  const border = isDark ? 'rgba(255,255,255,0.07)' : '#eaecf0'
   const bg     = isDark ? '#111110' : '#ffffff'
-  const border = isDark ? 'rgba(255,255,255,0.08)' : '#eaecf0'
-  const text   = isDark ? '#e8e4dc' : '#101828'
-  const muted  = isDark ? '#667085' : '#667085'
-  const shadow = isDark ? 'none' : '0 1px 3px rgba(16,24,40,0.06), 0 1px 2px rgba(16,24,40,0.04)'
-
-  const [hovered, setHovered] = useState(false)
-
-  // parse the numeric value from the string for DonutArc
-  const pctValue = useMemo(() => {
-    const n = parseFloat(value.replace('%', ''))
-    return isNaN(n) ? 0 : Math.min(n, 100)
-  }, [value])
+  const text   = isDark ? '#edeae4' : '#101828'
+  const muted  = isDark ? '#6b6760' : '#667085'
+  const shadow = isDark ? 'none' : '0 1px 3px rgba(16,24,40,0.06)'
+  const brand  = isDark ? '#9b2020' : '#6b1212'
+  const clamp  = Math.min(Math.max(goalPct, 0), 100)
 
   return (
-    <div
-      draggable
-      onDragStart={onDragStart}
-      onDragOver={onDragOver}
-      onDrop={onDrop}
-      onDragEnd={onDragEnd}
-      onClick={onClick}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      title="Arraste para reorganizar"
+    <motion.div
+      {...motionPresets.slideUp}
       style={{
-        backgroundColor: bg,
-        border: `1px solid ${isDragging ? accent : border}`,
-        borderRadius: '12px',
-        padding: '16px 16px 0',
-        display: 'flex', flexDirection: 'column', gap: '10px',
-        cursor: onClick ? 'pointer' : 'grab',
-        opacity: isDragging ? 0.45 : 1,
-        transition: 'transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease, opacity 0.15s ease',
-        userSelect: 'none', overflow: 'hidden',
-        transform: hovered && !isDragging ? 'translateY(-1px)' : 'translateY(0)',
-        boxShadow: hovered && !isDragging
-          ? (isDark ? '0 4px 16px rgba(0,0,0,0.40)' : '0 4px 12px rgba(16,24,40,0.08)')
-          : shadow,
+        backgroundColor: bg, border: `1px solid ${border}`, borderRadius: '12px',
+        padding: '20px 24px', boxShadow: shadow,
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '24px',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <p style={{ fontSize: '10px', fontWeight: 600, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', lineHeight: 1.2 }}>
-          {label}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <p style={{ fontSize: '13px', color: muted, margin: 0 }}>{greeting()},</p>
+        <h2 style={{ fontSize: '20px', fontWeight: 600, color: text, letterSpacing: '-0.03em', margin: '2px 0 0' }}>
+          {name.split(' ')[0]} 👋
+        </h2>
+      </div>
+      <div style={{ flexShrink: 0, textAlign: 'right', minWidth: '180px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '8px' }}>
+          <span style={{ fontSize: '12px', color: muted }}>Meta do mês</span>
+          <span style={{ fontSize: '13px', fontWeight: 600, color: text, fontFamily: "'Geist Mono', monospace" }}>
+            {clamp}%
+          </span>
+        </div>
+        <div style={{ height: '6px', backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#f3f4f6', borderRadius: '9999px', overflow: 'hidden' }}>
+          <motion.div
+            initial={{ width: 0 }}
+            animate={{ width: `${clamp}%` }}
+            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1], delay: 0.2 }}
+            style={{
+              height: '100%', borderRadius: '9999px',
+              backgroundColor: clamp >= 100 ? '#15803d' : clamp >= 70 ? brand : '#92400e',
+            }}
+          />
+        </div>
+        <p style={{ fontSize: '11px', color: muted, marginTop: '6px' }}>
+          {clamp >= 100 ? '🏆 Meta atingida!' : clamp >= 70 ? 'No caminho certo' : 'Abaixo do esperado'}
         </p>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-          <GripVertical style={{ width: '12px', height: '12px', color: muted, opacity: 0.4, cursor: 'grab' }} />
-          <div style={{ width: '32px', height: '32px', borderRadius: '10px', backgroundColor: `${accent}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <Icon style={{ width: '13px', height: '13px', color: accent }} />
-          </div>
-        </div>
       </div>
-      <div style={{ paddingBottom: (sparkline || donut) ? '0' : '14px' }}>
-        <p style={{ fontSize: '22px', fontWeight: 700, color: text, letterSpacing: '-0.02em', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
-          {value}
-        </p>
-        {sub && <p style={{ fontSize: '10px', color: muted, marginTop: '4px', lineHeight: 1.3 }}>{sub}</p>}
-      </div>
-      {donut ? (
-        <div style={{ display: 'flex', justifyContent: 'center', paddingBottom: '10px' }}>
-          <DonutArc pct={pctValue} color={accent} size={44} />
-        </div>
-      ) : sparkline ? (
-        <div style={{ marginLeft: '-16px', marginRight: '-16px' }}>
-          <Sparkline data={sparkline} color={accent} />
-        </div>
-      ) : null}
-    </div>
+    </motion.div>
   )
 }
 
-function Sparkline({ data, color }: { data: number[]; color: string }) {
-  if (data.length < 2) return null
-  const max = Math.max(...data, 1)
-  const min = Math.min(...data, 0)
-  const range = max - min || 1
-  const W = 100, H = 22
-  const pts = data.map((v, i) => {
-    const x = (i / (data.length - 1)) * W
-    const y = H - 2 - ((v - min) / range) * (H - 6)
-    return `${x.toFixed(1)},${y.toFixed(1)}`
-  }).join(' ')
-  const fill = `${pts} ${W},${H} 0,${H}`
-  const gId = `sg${color.replace(/[^a-z0-9]/gi, '')}`
-  return (
-    <svg width="100%" height={H} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ display: 'block' }}>
-      <defs>
-        <linearGradient id={gId} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity="0.18" />
-          <stop offset="100%" stopColor={color} stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <polygon points={fill} fill={`url(#${gId})`} />
-      <polyline points={pts} fill="none" stroke={color} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
-    </svg>
-  )
-}
+// ─── Team Leaderboard ─────────────────────────────────────────────────────────
 
-function KpiSkeleton({ isDark }: { isDark: boolean }) {
-  const bg     = isDark ? '#111110' : '#ffffff'
-  const border = isDark ? 'rgba(255,255,255,0.08)' : '#eaecf0'
-  return (
-    <div style={{ backgroundColor: bg, border: `1px solid ${border}`, borderRadius: '12px', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: '10px', boxShadow: isDark ? 'none' : '0 1px 3px rgba(16,24,40,0.06), 0 1px 2px rgba(16,24,40,0.04)' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div className="skeleton" style={{ height: '10px', width: '80px', borderRadius: '4px' }} />
-        <div className="skeleton" style={{ width: '32px', height: '32px', borderRadius: '10px' }} />
-      </div>
-      <div>
-        <div className="skeleton" style={{ height: '22px', width: '100px', borderRadius: '4px' }} />
-        <div className="skeleton" style={{ height: '9px', width: '70px', borderRadius: '4px', marginTop: '6px' }} />
-      </div>
-    </div>
-  )
-}
+function TeamLeaderboard({ owners, isDark }: { owners: { name: string; color: string; won: number; pipeline: number; deals: number }[]; isDark: boolean }) {
+  const text   = isDark ? '#edeae4' : '#101828'
+  const muted  = isDark ? '#6b6760' : '#667085'
+  const subtleBg = isDark ? '#191917' : '#f9fafb'
+  const maxWon = Math.max(...owners.map((o) => o.won), 1)
 
-// ─── WidgetWrapper ─────────────────────────────────────────────────────────────
-
-interface WidgetWrapperProps {
-  id: string
-  onRemove: (id: string) => void
-  children: React.ReactNode
-  isDark: boolean
-}
-
-function WidgetWrapper({ id, onRemove, children, isDark }: WidgetWrapperProps) {
-  const [hovered, setHovered] = useState(false)
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id })
-
-  const wrapperStyle: React.CSSProperties = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.4 : 1,
-    position: 'relative',
-  }
-
-  const handleColor = hovered ? '#b91c22' : (isDark ? '#6b6760' : '#6b6760')
-  const removeColor = isDark ? '#fc8181' : '#c53030'
+  if (owners.length === 0) return <EmptyState icon={<Users size={18} />} title="Sem dados de equipa" />
 
   return (
-    <div
-      ref={setNodeRef}
-      style={wrapperStyle}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-    >
-      <div
-        {...attributes}
-        {...listeners}
-        title="Arraste para reorganizar"
-        style={{
-          position: 'absolute', top: '8px', right: '36px', zIndex: 10,
-          width: '22px', height: '22px', borderRadius: '4px',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          cursor: 'grab', color: handleColor,
-          backgroundColor: hovered ? (isDark ? 'rgba(30,30,28,0.9)' : 'rgba(255,255,255,0.9)') : 'transparent',
-          border: hovered ? `1px solid ${isDark ? '#333' : '#ddd'}` : '1px solid transparent',
-          opacity: hovered ? 0.7 : 0.5,
-          transition: 'opacity 0.15s, background-color 0.15s, color 0.15s',
-        }}
-      >
-        <GripVertical style={{ width: '12px', height: '12px' }} />
-      </div>
-      {hovered && (
-        <button
-          type="button"
-          title="Remover widget"
-          onClick={() => onRemove(id)}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+      {owners.slice(0, 6).map((owner, i) => (
+        <motion.div
+          key={owner.name}
+          {...motionPresets.listItem(i)}
           style={{
-            position: 'absolute', top: '8px', right: '8px', zIndex: 10,
-            width: '22px', height: '22px', borderRadius: '4px',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: 'pointer', color: removeColor, border: 'none',
-            backgroundColor: isDark ? 'rgba(30,30,28,0.9)' : 'rgba(255,255,255,0.9)',
-            outline: `1px solid ${isDark ? '#333' : '#ddd'}`,
-            fontSize: '14px', lineHeight: 1,
+            display: 'grid', gridTemplateColumns: '32px 1fr 80px 80px',
+            alignItems: 'center', gap: '12px',
+            padding: '10px 12px', borderRadius: '8px',
+            backgroundColor: i === 0 ? (isDark ? 'rgba(107,18,18,0.12)' : 'rgba(107,18,18,0.04)') : 'transparent',
           }}
         >
-          ✕
-        </button>
+          {/* Rank */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            {i === 0
+              ? <span style={{ fontSize: '16px' }}>🥇</span>
+              : <span style={{ fontSize: '12px', fontWeight: 600, color: muted }}>#{i + 1}</span>
+            }
+          </div>
+          {/* Owner */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+            <div style={{
+              width: '28px', height: '28px', borderRadius: '7px',
+              backgroundColor: owner.color, color: '#fff',
+              fontSize: '10px', fontWeight: 700, flexShrink: 0,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              {getInitials(owner.name)}
+            </div>
+            <div style={{ minWidth: 0 }}>
+              <p style={{ fontSize: '13px', fontWeight: 500, color: text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {owner.name.split(' ')[0]}
+              </p>
+              <p style={{ fontSize: '11px', color: muted }}>{owner.deals} oportunidades</p>
+            </div>
+          </div>
+          {/* Pipeline bar */}
+          <div>
+            <div style={{ height: '4px', backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#f3f4f6', borderRadius: '9999px', overflow: 'hidden' }}>
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: `${(owner.pipeline / Math.max(...owners.map((o) => o.pipeline), 1)) * 100}%` }}
+                transition={{ duration: 0.6, delay: i * 0.05, ease: [0.16, 1, 0.3, 1] }}
+                style={{ height: '100%', borderRadius: '9999px', backgroundColor: owner.color }}
+              />
+            </div>
+            <p style={{ fontSize: '10px', color: muted, marginTop: '3px' }}>{fmtBRL(owner.pipeline)}</p>
+          </div>
+          {/* Won */}
+          <div style={{ textAlign: 'right' }}>
+            <p style={{ fontSize: '13px', fontWeight: 600, color: '#15803d', fontFamily: "'Geist Mono', monospace" }}>
+              {fmtBRL(owner.won)}
+            </p>
+            <div style={{ height: '3px', backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#f3f4f6', borderRadius: '9999px', overflow: 'hidden', marginTop: '3px' }}>
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: `${(owner.won / maxWon) * 100}%` }}
+                transition={{ duration: 0.6, delay: i * 0.05, ease: [0.16, 1, 0.3, 1] }}
+                style={{ height: '100%', borderRadius: '9999px', backgroundColor: '#15803d' }}
+              />
+            </div>
+          </div>
+        </motion.div>
+      ))}
+      {owners.length === 0 && (
+        <div style={{ textAlign: 'center', padding: '24px', color: subtleBg }}>
+          Sem dados disponíveis
+        </div>
       )}
-      {children}
     </div>
   )
 }
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
+// ─── Funnel chart section ─────────────────────────────────────────────────────
+
+function PipelineFunnel({ stageData, isDark }: { stageData: { label: string; count: number; value: number; color: string }[]; isDark: boolean }) {
+  const text  = isDark ? '#edeae4' : '#101828'
+  const muted = isDark ? '#6b6760' : '#667085'
+  const max   = Math.max(...stageData.map((s) => s.count), 1)
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+      {stageData.map((stage, i) => {
+        const pct = (stage.count / max) * 100
+        const convPct = i > 0 && stageData[i - 1].count > 0
+          ? Math.round((stage.count / stageData[i - 1].count) * 100)
+          : null
+
+        return (
+          <div key={stage.label}>
+            {convPct !== null && (
+              <div style={{ textAlign: 'center', fontSize: '10px', color: muted, marginBottom: '4px' }}>
+                ↓ {convPct}% conversão
+              </div>
+            )}
+            <div style={{ display: 'grid', gridTemplateColumns: '100px 1fr 60px 80px', gap: '12px', alignItems: 'center' }}>
+              <span style={{ fontSize: '12px', color: text, fontWeight: 500, textAlign: 'right' }}>{stage.label}</span>
+              <div style={{ height: '8px', backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#f3f4f6', borderRadius: '9999px', overflow: 'hidden' }}>
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ width: `${pct}%` }}
+                  transition={{ duration: 0.7, delay: i * 0.06, ease: [0.16, 1, 0.3, 1] }}
+                  style={{ height: '100%', borderRadius: '9999px', backgroundColor: stage.color }}
+                />
+              </div>
+              <span style={{ fontSize: '12px', fontWeight: 600, color: text, fontFamily: "'Geist Mono', monospace", textAlign: 'right' }}>
+                {stage.count}
+              </span>
+              <span style={{ fontSize: '11px', color: muted, fontFamily: "'Geist Mono', monospace", textAlign: 'right' }}>
+                {fmtBRL(stage.value)}
+              </span>
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+// ─── Tab bar ──────────────────────────────────────────────────────────────────
+
+function TabBar({ active, onChange, isDark }: { active: string; onChange: (t: string) => void; isDark: boolean }) {
+  const tabs = [
+    { id: 'operacao', label: 'Operação' },
+    { id: 'resultados', label: 'Resultados' },
+  ]
+  const border = isDark ? 'rgba(255,255,255,0.07)' : '#eaecf0'
+  const text   = isDark ? '#edeae4' : '#101828'
+  const muted  = isDark ? '#6b6760' : '#667085'
+
+  return (
+    <div style={{ display: 'flex', borderBottom: `1px solid ${border}`, marginBottom: '24px' }}>
+      {tabs.map((tab) => (
+        <button
+          key={tab.id}
+          type="button"
+          onClick={() => onChange(tab.id)}
+          style={{
+            height: '40px', padding: '0 20px', fontSize: '13px',
+            fontWeight: active === tab.id ? 600 : 400,
+            color: active === tab.id ? text : muted,
+            background: 'none', border: 'none', cursor: 'pointer',
+            borderBottom: `2px solid ${active === tab.id ? '#6b1212' : 'transparent'}`,
+            marginBottom: '-1px', transition: 'all 0.15s ease',
+            letterSpacing: '-0.01em',
+          }}
+        >
+          {tab.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+// ─── Period selector ──────────────────────────────────────────────────────────
+
+function PeriodSelector({ value, onChange, isDark }: { value: Period; onChange: (p: Period) => void; isDark: boolean }) {
+  const options: { key: Period; label: string }[] = [
+    { key: '30d', label: '30d' },
+    { key: '90d', label: '90d' },
+    { key: '12m', label: '12m' },
+  ]
+  const border = isDark ? 'rgba(255,255,255,0.10)' : '#eaecf0'
+  const bg     = isDark ? '#1c1c1a' : '#f3f4f6'
+
+  return (
+    <div style={{ display: 'flex', backgroundColor: bg, borderRadius: '8px', padding: '2px', gap: '1px' }}>
+      {options.map((o) => (
+        <button
+          key={o.key}
+          type="button"
+          onClick={() => onChange(o.key)}
+          style={{
+            height: '28px', padding: '0 12px', fontSize: '12px', fontWeight: 500,
+            borderRadius: '6px', border: 'none', cursor: 'pointer',
+            backgroundColor: value === o.key ? (isDark ? '#2a2a28' : '#ffffff') : 'transparent',
+            color: value === o.key ? (isDark ? '#edeae4' : '#101828') : (isDark ? '#6b6760' : '#667085'),
+            boxShadow: value === o.key ? (isDark ? 'none' : `0 1px 3px rgba(16,24,40,0.08), 0 0 0 1px ${border}`) : 'none',
+            transition: 'all 0.15s ease',
+          }}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+// ─── Main Dashboard ───────────────────────────────────────────────────────────
 
 export function DashboardPage() {
-  const deals    = useVisibleDeals()
   const isDark   = useThemeStore((s) => s.isDark)
+  const profile  = useAuthStore((s) => s.profile)
+  const deals    = useVisibleDeals()
+  const tasks    = useTaskStore((s) => s.tasks)
+  const { settings } = useSettingsStore()
   const navigate = useNavigate()
-  const { quarterlyGoal } = useSettingsStore()
 
-  const [loaded, setLoaded]   = useState(false)
-  const [activeTab, setActiveTab] = useState<'operacao' | 'resultados'>('operacao')
+  const [tab, setTab]       = useState<'operacao' | 'resultados'>('operacao')
+  const [period, setPeriod] = useState<Period>('90d')
 
-  useEffect(() => {
-    const t = setTimeout(() => setLoaded(true), 280)
-    return () => clearTimeout(t)
-  }, [])
+  const pageBg  = isDark ? '#0a0a08' : '#f9fafb'
+  const border  = isDark ? 'rgba(255,255,255,0.07)' : '#eaecf0'
+  const text    = isDark ? '#edeae4' : '#101828'
+  const muted   = isDark ? '#6b6760' : '#667085'
+  const cardBg  = isDark ? '#111110' : '#ffffff'
+  const shadow  = isDark ? 'none' : '0 1px 3px rgba(16,24,40,0.06)'
+  const brand   = isDark ? '#9b2020' : '#6b1212'
 
-  // ── Widget order state ─────────────────────────────────────────────────────
-  const [widgetOrder, setWidgetOrder] = useState<string[]>(loadWidgetOrder)
-  const [showWidgetModal, setShowWidgetModal] = useState(false)
+  // ── Period filter ──
+  const cutoff = useMemo(() => {
+    const now = new Date()
+    if (period === '30d') return new Date(now.getTime() - 30 * 86400000).toISOString()
+    if (period === '90d') return new Date(now.getTime() - 90 * 86400000).toISOString()
+    return new Date(now.getTime() - 365 * 86400000).toISOString()
+  }, [period])
 
-  useEffect(() => {
-    saveWidgetOrder(widgetOrder)
-  }, [widgetOrder])
-
-  function removeWidget(id: string) {
-    setWidgetOrder((prev) => prev.filter((w) => w !== id))
-  }
-
-  function addWidget(id: string) {
-    setWidgetOrder((prev) => prev.includes(id) ? prev : [...prev, id])
-  }
-
-  // ── dnd-kit sensors ────────────────────────────────────────────────────────
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+  const filteredDeals = useMemo(() =>
+    deals.filter((d) => d.created_at >= cutoff),
+    [deals, cutoff],
   )
 
-  function handleDragEnd(event: DragEndEvent) {
-    const { active, over } = event
-    if (over && active.id !== over.id) {
-      setWidgetOrder((prev) => {
-        const oldIndex = prev.indexOf(String(active.id))
-        const newIndex = prev.indexOf(String(over.id))
-        if (oldIndex === -1 || newIndex === -1) return prev
-        return arrayMove(prev, oldIndex, newIndex)
-      })
-    }
-  }
+  // ── Core KPIs ──
+  const kpis = useMemo(() => {
+    const active = filteredDeals.filter((d) => d.stage !== 'won' && d.stage !== 'lost')
+    const won    = filteredDeals.filter((d) => d.stage === 'won')
+    const pipeline = active.reduce((s, d) => s + (d.value ?? 0), 0)
+    const revenue  = won.reduce((s, d) => s + (d.value ?? 0), 0)
+    const winRate  = filteredDeals.length > 0 ? (won.length / filteredDeals.length) * 100 : 0
+    const ticket   = won.length > 0 ? revenue / won.length : 0
+    const today    = new Date().toISOString().slice(0, 10)
+    const overdue  = tasks.filter((t) => !t.completed_at && !!t.due_date && t.due_date < today).length
+    const pending  = tasks.filter((t) => !t.completed_at).length
 
-  // ── Shared Metrics ─────────────────────────────────────────────────────────
+    const meta = settings?.monthly_target ?? 0
+    const goalPct = meta > 0 ? Math.round((revenue / meta) * 100) : 0
 
-  const activeDeals  = useMemo(() => deals.filter((d) => !['closed_won', 'closed_lost'].includes(d.stage_id)), [deals])
-  const valueDeals   = useMemo(() => activeDeals.filter((d) => d.value > 0), [activeDeals])
-  const closedWon    = useMemo(() => deals.filter((d) => d.stage_id === 'closed_won'), [deals])
-  const closedLost   = useMemo(() => deals.filter((d) => d.stage_id === 'closed_lost'), [deals])
-  const commitDeals  = useMemo(() => deals.filter((d) => d.stage_id === 'negotiation'), [deals])
+    return { active: active.length, won: won.length, pipeline, revenue, winRate, ticket, overdue, pending, goalPct, total: filteredDeals.length }
+  }, [filteredDeals, tasks, settings])
 
-  const pipelineTotal    = useMemo(() => valueDeals.reduce((s, d) => s + d.value, 0), [valueDeals])
-  const commitTotal      = useMemo(() => commitDeals.reduce((s, d) => s + d.value, 0), [commitDeals])
-  const weightedPipeline = useMemo(() => valueDeals.reduce((s, d) => s + d.value * (d.probability / 100), 0), [valueDeals])
-  const wonTotal         = useMemo(() => closedWon.reduce((s, d) => s + Number(d.value), 0), [closedWon])
-  const lostTotal        = useMemo(() => closedLost.reduce((s, d) => s + Number(d.value), 0), [closedLost])
-  const coverage         = quarterlyGoal > 0 ? (commitTotal / quarterlyGoal) * 100 : 0
-  const winRate          = closedWon.length + closedLost.length > 0
-    ? Math.round((closedWon.length / (closedWon.length + closedLost.length)) * 100) : 0
-  const avgTicket        = valueDeals.length > 0 ? pipelineTotal / valueDeals.length : 0
-  const avgCycle         = valueDeals.length > 0
-    ? Math.round(valueDeals.reduce((s, d) => s + d.days_in_stage, 0) / valueDeals.length) : 0
-
-  // ── Sparkline data (last 6 months) ────────────────────────────────────────
-  const last6Months = useMemo(() => {
+  // ── Monthly bars for area chart ──
+  const monthlyData = useMemo(() => {
+    const months: Record<string, { label: string; value: number; value2: number }> = {}
     const now = new Date()
-    return Array.from({ length: 6 }, (_, i) => {
-      const d = new Date(now.getFullYear(), now.getMonth() - 5 + i, 1)
-      return d.toISOString().slice(0, 7)
-    })
-  }, [])
-
-  const sparkPipeline = useMemo(() => last6Months.map((m) =>
-    deals.filter((d) => d.created_at.slice(0, 7) === m && d.value > 0).reduce((s, d) => s + d.value, 0)
-  ), [deals, last6Months])
-
-  const sparkWon = useMemo(() => last6Months.map((m) =>
-    deals.filter((d) => d.stage_id === 'closed_won' && d.updated_at.slice(0, 7) === m).length
-  ), [deals, last6Months])
-
-  const sparkCount = useMemo(() => last6Months.map((m) =>
-    deals.filter((d) => d.created_at.slice(0, 7) === m).length
-  ), [deals, last6Months])
-
-  // ── KPI drag-and-drop ─────────────────────────────────────────────────────
-
-  const [kpiOrder, setKpiOrder] = useState<string[]>(() => {
-    try {
-      const saved = localStorage.getItem(KPI_ORDER_KEY)
-      if (saved) {
-        const parsed = JSON.parse(saved) as string[]
-        if (Array.isArray(parsed) && parsed.length === DEFAULT_KPI_ORDER.length) return parsed
-      }
-    } catch { /* ignore */ }
-    return DEFAULT_KPI_ORDER
-  })
-  const [draggingId, setDraggingId] = useState<string | null>(null)
-  const dragIdx = useRef<number | null>(null)
-
-  const coverageAccent = coverage >= 100 ? '#2d9e6b' : coverage >= 70 ? '#b45309' : (isDark ? '#fc8181' : '#c53030')
-
-  const kpiDefs: Record<string, { label: string; value: string; sub?: string; icon: typeof TrendingUp; accent: string; sparkline: number[]; donut?: boolean }> = useMemo(() => ({
-    pipeline: { label: 'Pipeline Total',    value: fmt(pipelineTotal), sub: `${valueDeals.length} deals ativos`, icon: TrendingUp, accent: '#334155', sparkline: sparkPipeline },
-    commit:   { label: 'Commit Trimestral', value: fmt(commitTotal),   sub: `${commitDeals.length} em fechamento`, icon: Briefcase, accent: '#475569', sparkline: sparkPipeline },
-    coverage: { label: 'Cobertura de Meta', value: `${coverage.toFixed(0)}%`, sub: `Meta Q: ${fmt(quarterlyGoal)}`, icon: Target, accent: coverageAccent, sparkline: sparkPipeline },
-    winrate:  { label: 'Win Rate',          value: `${winRate}%`, sub: `${closedWon.length} ganhos · ${closedLost.length} perdidos`, icon: Award, accent: '#334155', sparkline: sparkWon, donut: true },
-    ticket:   { label: 'Ticket Médio',      value: fmt(avgTicket), sub: 'média dos ativos com valor', icon: DollarSign, accent: '#64748b', sparkline: sparkPipeline },
-    cycle:    { label: 'Ciclo Médio',       value: `${avgCycle}d`, sub: 'dias no estágio atual', icon: Clock, accent: '#94a3b8', sparkline: sparkCount },
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [pipelineTotal, commitTotal, coverage, winRate, avgTicket, avgCycle, sparkPipeline, sparkWon, sparkCount])
-
-  function handleKpiDragStart(id: string, idx: number, e: React.DragEvent) {
-    dragIdx.current = idx; setDraggingId(id); e.dataTransfer.effectAllowed = 'move'
-  }
-  function handleKpiDrop(targetIdx: number) {
-    if (dragIdx.current === null || dragIdx.current === targetIdx) return
-    const next = [...kpiOrder]
-    const [moved] = next.splice(dragIdx.current, 1)
-    next.splice(targetIdx, 0, moved)
-    setKpiOrder(next)
-    localStorage.setItem(KPI_ORDER_KEY, JSON.stringify(next))
-  }
-
-  // ── Funnel ────────────────────────────────────────────────────────────────
-
-  const activeStages = STAGES.filter((s) => !s.is_closed)
-  const funnelData = useMemo(() => activeStages.map((stage, i) => {
-    const sd        = activeDeals.filter((d) => d.stage_id === stage.id)
-    const val       = sd.reduce((s, d) => s + d.value, 0)
-    const prevStage = i > 0 ? activeStages[i - 1] : null
-    const prevCount = prevStage ? activeDeals.filter((d) => d.stage_id === prevStage.id).length : sd.length
-    const convRate  = prevCount > 0 && i > 0 ? Math.round((sd.length / prevCount) * 100) : null
-    return { stage, count: sd.length, value: val, convRate }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [activeDeals])
-
-  const maxFunnelVal  = Math.max(...funnelData.map((f) => f.value), 1)
-  const forecastPct   = Math.min((weightedPipeline / quarterlyGoal) * 100, 100)
-
-  // ── Aging ─────────────────────────────────────────────────────────────────
-
-  const aging = useMemo(() => [...valueDeals].sort((a, b) => b.days_in_stage - a.days_in_stage).slice(0, 5), [valueDeals])
-
-  // ── Monthly pipeline created ───────────────────────────────────────────────
-
-  const monthlyPipeline = useMemo(() => {
-    const map: Record<string, number> = {}
-    deals.forEach((d) => {
-      if (d.value <= 0) return
-      const key = d.created_at.slice(0, 7)
-      map[key] = (map[key] ?? 0) + d.value
-    })
-    return Object.entries(map).sort(([a], [b]) => a.localeCompare(b)).map(([key, val]) => ({
-      label: new Intl.DateTimeFormat('pt-BR', { month: 'short' }).format(new Date(`${key}-01`)),
-      value: val, key,
-    }))
-  }, [deals])
-
-  // ── Monthly closed won ─────────────────────────────────────────────────────
-
-  const monthlyWon = useMemo(() => {
-    const map: Record<string, number> = {}
-    closedWon.forEach((d) => {
-      const key = d.updated_at.slice(0, 7)
-      map[key] = (map[key] ?? 0) + Number(d.value)
-    })
-    return Object.entries(map).sort(([a], [b]) => a.localeCompare(b)).map(([key, val]) => ({
-      label: new Intl.DateTimeFormat('pt-BR', { month: 'short' }).format(new Date(`${key}-01`)),
-      value: val, key,
-    }))
-  }, [closedWon])
-
-  // ── Risks ──────────────────────────────────────────────────────────────────
-
-  const risks = useMemo(() => deals.filter((d) => {
-    if (['closed_won', 'closed_lost'].includes(d.stage_id)) return false
-    const overdueActivity = d.next_activity && daysDiff(d.next_activity.due_date) < 0
-    const stuckLate       = ['negotiation', 'proposal'].includes(d.stage_id) && d.days_in_stage > 60
-    return overdueActivity || stuckLate
-  }).slice(0, 5), [deals])
-
-  // ── Upcoming ───────────────────────────────────────────────────────────────
-
-  const upcoming = useMemo(() => deals
-    .filter((d) => d.next_activity)
-    .map((d) => ({ deal: d, activity: d.next_activity! }))
-    .sort((a, b) => a.activity.due_date.localeCompare(b.activity.due_date))
-    .slice(0, 6),
-  [deals])
-
-  // ── Resultados metrics ─────────────────────────────────────────────────────
-
-  const avgTicketWon = closedWon.length > 0 ? wonTotal / closedWon.length : 0
-  const goalPct      = quarterlyGoal > 0 ? Math.min((wonTotal / quarterlyGoal) * 100, 999) : 0
-  const roiPipeline  = pipelineTotal > 0 ? ((wonTotal / (pipelineTotal + wonTotal)) * 100) : 0
-
-  // ── Stage conversion rates ─────────────────────────────────────────────────
-
-  const stageConversion = useMemo(() => {
-    const total = deals.length
-    return STAGES.filter((s) => !s.is_closed).map((stage) => {
-      const count = deals.filter((d) => d.stage_id === stage.id && !['closed_won', 'closed_lost'].includes(d.stage_id)).length
-      const pct   = total > 0 ? Math.round((activeDeals.filter((d) => d.stage_id === stage.id).length / Math.max(activeDeals.length, 1)) * 100) : 0
-      return { stage, count, pct }
-    })
-  }, [deals, activeDeals])
-
-  // ── Avg days per stage ─────────────────────────────────────────────────────
-
-  const avgDaysPerStage = useMemo(() => STAGES.filter((s) => !s.is_closed).map((stage) => {
-    const sd = activeDeals.filter((d) => d.stage_id === stage.id)
-    const avg = sd.length > 0 ? Math.round(sd.reduce((s, d) => s + d.days_in_stage, 0) / sd.length) : null
-    return { stage, avg, count: sd.length }
-  }), [activeDeals])
-
-  // ── Inactive leads ─────────────────────────────────────────────────────────
-
-  const inactiveDeals = useMemo(() => {
-    const cutoff = new Date(Date.now() - 21 * 86_400_000).toISOString()
-    return activeDeals
-      .filter((d) => !d.last_activity_at || d.last_activity_at < cutoff)
-      .sort((a, b) => {
-        if (!a.last_activity_at) return -1
-        if (!b.last_activity_at) return 1
-        return a.last_activity_at.localeCompare(b.last_activity_at)
-      })
-      .slice(0, 6)
-  }, [activeDeals])
-
-  // ── Owner stats ────────────────────────────────────────────────────────────
-
-  const ownerStats = useMemo(() => {
-    const map = new Map<string, {
-      name: string; color: string; initials: string
-      active: number; wonCount: number; lostCount: number; wonValue: number
-    }>()
-    deals.forEach((d) => {
-      const key = d.owner_id
-      if (!map.has(key)) map.set(key, { name: d.owner?.name ?? '—', color: d.owner?.avatar_color ?? '#888', initials: d.owner?.initials ?? '?', active: 0, wonCount: 0, lostCount: 0, wonValue: 0 })
-      const e = map.get(key)!
-      if (d.stage_id === 'closed_won')       { e.wonCount++; e.wonValue += Number(d.value) }
-      else if (d.stage_id === 'closed_lost') { e.lostCount++ }
-      else                                   { e.active++ }
-    })
-    return [...map.entries()]
-      .map(([id, v]) => ({
-        id, ...v,
-        convRate: v.wonCount + v.lostCount > 0 ? Math.round((v.wonCount / (v.wonCount + v.lostCount)) * 100) : null,
-      }))
-      .sort((a, b) => b.active - a.active)
-  }, [deals])
-
-  // ── Theme ──────────────────────────────────────────────────────────────────
-
-  const cardBg     = isDark ? '#111110' : '#ffffff'
-  const border     = isDark ? 'rgba(255,255,255,0.08)' : '#eaecf0'
-  const text       = isDark ? '#e8e4dc' : '#101828'
-  const muted      = isDark ? '#667085' : '#667085'
-  const trackBg    = isDark ? '#1e1e1c' : '#f3f4f6'
-  const pageBg     = isDark ? '#0a0a08' : '#f9fafb'
-  const cardShadow = isDark ? 'none' : '0 1px 3px rgba(16,24,40,0.06), 0 1px 2px rgba(16,24,40,0.04)'
-
-  // ─── Tab pill ────────────────────────────────────────────────────────────
-
-  function TabPill({ id, label }: { id: 'operacao' | 'resultados'; label: string }) {
-    const active = activeTab === id
-    return (
-      <button
-        type="button"
-        onClick={() => setActiveTab(id)}
-        style={{
-          padding: '4px 14px', borderRadius: '6px',
-          fontSize: '12px', fontWeight: active ? 600 : 400,
-          color: active ? text : muted,
-          backgroundColor: active ? (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)') : 'transparent',
-          border: 'none',
-          cursor: 'pointer', letterSpacing: '-0.01em',
-          transition: 'all 0.15s ease',
-        }}
-      >
-        {label}
-      </button>
-    )
-  }
-
-  // ── renderWidget ───────────────────────────────────────────────────────────
-
-  function renderWidgetContent(id: string): React.ReactNode {
-    switch (id) {
-
-      case 'kpis':
-        return (
-          <div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, minmax(0, 1fr))', gap: '12px' }}>
-              {!loaded
-                ? DEFAULT_KPI_ORDER.map((kid) => <KpiSkeleton key={kid} isDark={isDark} />)
-                : kpiOrder.map((kid, idx) => {
-                    const kpi = kpiDefs[kid]
-                    if (!kpi) return null
-                    return (
-                      <KpiCard
-                        key={kid} {...kpi} isDark={isDark}
-                        isDragging={draggingId === kid}
-                        onDragStart={(e) => handleKpiDragStart(kid, idx, e)}
-                        onDragOver={(e) => e.preventDefault()}
-                        onDrop={() => handleKpiDrop(idx)}
-                        onDragEnd={() => { dragIdx.current = null; setDraggingId(null) }}
-                        onClick={() => navigate('/pipeline')}
-                      />
-                    )
-                  })
-              }
-            </div>
-          </div>
-        )
-
-      case 'funil':
-        return (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: '12px' }}>
-            <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '12px', padding: '18px 20px', boxShadow: cardShadow }}>
-              <p style={{ fontSize: '13px', fontWeight: 600, color: text, marginBottom: '14px', letterSpacing: '-0.01em' }}>Funil por Estágio</p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {funnelData.map(({ stage, count, value, convRate }) => (
-                  <div key={stage.id}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '5px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
-                        <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: stage.color, display: 'inline-block', flexShrink: 0 }} />
-                        <span style={{ fontSize: '12px', fontWeight: 500, color: text }}>{stage.label}</span>
-                        <span style={{ fontSize: '10px', fontWeight: 600, color: muted, backgroundColor: trackBg, borderRadius: '3px', padding: '1px 5px' }}>{count}</span>
-                        {convRate !== null && (
-                          <span style={{ fontSize: '10px', fontWeight: 600, color: convRate > 60 ? '#2d9e6b' : convRate > 30 ? '#b45309' : (isDark ? '#fc8181' : '#c53030') }}>
-                            {convRate}% conv.
-                          </span>
-                        )}
-                      </div>
-                      <span style={{ fontSize: '11px', fontWeight: 600, color: value > 0 ? text : muted, fontVariantNumeric: 'tabular-nums' }}>
-                        {value > 0 ? fmt(value) : '—'}
-                      </span>
-                    </div>
-                    <div style={{ height: '4px', borderRadius: '99px', backgroundColor: trackBg, overflow: 'hidden' }}>
-                      <div style={{ height: '100%', borderRadius: '99px', width: `${value > 0 ? Math.round((value / maxFunnelVal) * 100) : (count > 0 ? 6 : 0)}%`, backgroundColor: stage.color, opacity: 0.85, transition: 'width 0.5s ease' }} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div style={{ marginTop: '16px', paddingTop: '14px', borderTop: `1px solid ${border}`, display: 'flex', gap: '24px' }}>
-                {[
-                  { label: 'Total Pipeline', value: fmt(pipelineTotal), color: text },
-                  { label: 'Ganhos',         value: fmt(wonTotal),      color: '#2d9e6b' },
-                  { label: 'Perdidos',       value: fmt(lostTotal),     color: isDark ? '#fc8181' : '#c53030' },
-                  { label: 'Win Rate',       value: `${winRate}%`,      color: text },
-                ].map(({ label, value: v, color }) => (
-                  <div key={label}>
-                    <p style={{ fontSize: '10px', fontWeight: 600, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '3px' }}>{label}</p>
-                    <p style={{ fontSize: '13px', fontWeight: 700, color, fontVariantNumeric: 'tabular-nums' }}>{v}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '12px', padding: '18px 20px', display: 'flex', flexDirection: 'column', boxShadow: cardShadow }}>
-              <p style={{ fontSize: '12px', fontWeight: 700, color: text, marginBottom: '16px', paddingLeft: '0' }}>Forecast Q2 · 2026</p>
-              <div style={{ marginBottom: '18px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '7px' }}>
-                  <span style={{ fontSize: '11px', color: muted }}>Pipeline ponderado</span>
-                  <span style={{ fontSize: '11px', fontWeight: 700, color: text, fontVariantNumeric: 'tabular-nums' }}>{fmt(weightedPipeline)}</span>
-                </div>
-                <div style={{ height: '12px', borderRadius: '99px', backgroundColor: trackBg, overflow: 'hidden' }}>
-                  <div style={{ height: '100%', borderRadius: '99px', width: `${forecastPct}%`, background: 'linear-gradient(90deg, #b91c22cc, #b91c22)', transition: 'width 0.6s ease' }} />
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '5px' }}>
-                  <span style={{ fontSize: '10px', color: muted }}>{forecastPct.toFixed(0)}% da meta</span>
-                  <span style={{ fontSize: '10px', color: muted }}>Meta: {fmt(quarterlyGoal)}</span>
-                </div>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
-                {funnelData.filter((f) => f.value > 0).map(({ stage, count }) => {
-                  const stageDeals = valueDeals.filter((d) => d.stage_id === stage.id)
-                  const weighted   = stageDeals.reduce((s, d) => s + d.value * (d.probability / 100), 0)
-                  const pct        = Math.round((weighted / quarterlyGoal) * 100)
-                  return (
-                    <div key={stage.id} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: stage.color, flexShrink: 0 }} />
-                      <span style={{ fontSize: '11px', color: muted, flex: 1 }}>{stage.label} ({count})</span>
-                      <span style={{ fontSize: '11px', fontWeight: 600, color: text, fontVariantNumeric: 'tabular-nums', minWidth: '56px', textAlign: 'right' }}>{fmt(weighted)}</span>
-                      <span style={{ fontSize: '10px', color: muted, minWidth: '28px', textAlign: 'right' }}>{pct}%</span>
-                    </div>
-                  )
-                })}
-              </div>
-              <div style={{ marginTop: '14px', paddingTop: '12px', borderTop: `1px solid ${border}` }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '10px', fontWeight: 600, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Gap para meta</span>
-                  <span style={{ fontSize: '13px', fontWeight: 700, color: weightedPipeline >= quarterlyGoal ? '#2d9e6b' : (isDark ? '#fc8181' : '#c53030'), fontVariantNumeric: 'tabular-nums' }}>
-                    {weightedPipeline >= quarterlyGoal ? '+' : ''}{fmt(weightedPipeline - quarterlyGoal)}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        )
-
-      case 'aging':
-        return (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '12px', padding: '18px 20px', boxShadow: cardShadow }}>
-              <p style={{ fontSize: '13px', fontWeight: 600, color: text, marginBottom: '12px', letterSpacing: '-0.01em' }}>Aging — Top 5 Paralisados</p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                {aging.map((deal) => {
-                  const stage = STAGES.find((s) => s.id === deal.stage_id)
-                  const agingColor = deal.days_in_stage > 60 ? (isDark ? '#fc8181' : '#c53030') : deal.days_in_stage > 30 ? '#b45309' : muted
-                  return (
-                    <button key={deal.id} type="button" onClick={() => navigate(`/deal/${deal.id}`)}
-                      style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '8px', borderRadius: '10px', border: 'none', backgroundColor: 'transparent', cursor: 'pointer', textAlign: 'left', transition: 'background-color 0.1s ease' }}
-                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = trackBg)}
-                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-                    >
-                      <span style={{ width: '3px', height: '32px', borderRadius: '99px', backgroundColor: stage?.color, flexShrink: 0 }} />
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <p style={{ fontSize: '12px', fontWeight: 600, color: text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{deal.company_name}</p>
-                        <p style={{ fontSize: '10px', color: muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{deal.title}</p>
-                      </div>
-                      <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                        <p style={{ fontSize: '13px', fontWeight: 700, color: agingColor }}>{deal.days_in_stage}d</p>
-                        <p style={{ fontSize: '10px', color: muted }}>{stage?.label}</p>
-                      </div>
-                      <div style={{ width: '24px', height: '24px', borderRadius: '50%', backgroundColor: deal.owner?.avatar_color ?? '#888', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '7px', fontWeight: 700, flexShrink: 0 }}>
-                        {deal.owner?.initials ?? '?'}
-                      </div>
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-            <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '12px', padding: '18px 20px', boxShadow: cardShadow }}>
-              <p style={{ fontSize: '13px', fontWeight: 600, color: text, marginBottom: '12px', letterSpacing: '-0.01em' }}>Evolução Mensal — Pipeline Criado</p>
-              <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px', height: '130px' }}>
-                {monthlyPipeline.map(({ label, value, key }) => {
-                  const maxV = Math.max(...monthlyPipeline.map((m) => m.value), 1)
-                  const barH = Math.max(Math.round((value / maxV) * 100), 3)
-                  const isCurrent = key === new Date().toISOString().slice(0, 7)
-                  return (
-                    <div key={key} title={`${label}: ${fmt(value)}`} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px' }}>
-                      <span style={{ fontSize: '8px', color: isCurrent ? text : muted, fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>{value > 0 ? fmt(value) : ''}</span>
-                      <div style={{ width: '100%', height: `${barH}px`, backgroundColor: isCurrent ? '#b91c22' : 'rgba(227,30,36,0.25)', borderRadius: '4px 4px 0 0', opacity: 1, transition: 'height 0.4s ease' }} />
-                      <span style={{ fontSize: '9px', color: isCurrent ? text : muted, fontWeight: isCurrent ? 600 : 400, textTransform: 'capitalize' }}>{label}</span>
-                    </div>
-                  )
-                })}
-              </div>
-              <div style={{ marginTop: '12px', paddingTop: '10px', borderTop: `1px solid ${border}`, display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: '10px', color: muted }}>{monthlyPipeline.length} meses analisados</span>
-                <span style={{ fontSize: '10px', fontWeight: 600, color: text, fontVariantNumeric: 'tabular-nums' }}>Total {fmt(monthlyPipeline.reduce((s, m) => s + m.value, 0))}</span>
-              </div>
-            </div>
-          </div>
-        )
-
-      case 'riscos':
-        return (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '12px', overflow: 'hidden', boxShadow: cardShadow }}>
-              <div style={{ padding: '12px 18px', borderBottom: `1px solid ${border}`, display: 'flex', alignItems: 'center', gap: '7px' }}>
-                <AlertTriangle style={{ width: '12px', height: '12px', color: isDark ? '#fc8181' : '#c53030' }} />
-                <p style={{ fontSize: '13px', fontWeight: 600, color: text, letterSpacing: '-0.01em' }}>Riscos da Semana</p>
-                {risks.length > 0 && <span style={{ fontSize: '9px', fontWeight: 700, color: '#fff', backgroundColor: '#c53030', borderRadius: '99px', padding: '1px 6px', marginLeft: 'auto' }}>{risks.length}</span>}
-              </div>
-              {risks.length === 0 ? (
-                <div style={{ padding: '20px', textAlign: 'center' }}>
-                  <p style={{ fontSize: '12px', color: muted }}>Nenhum risco identificado</p>
-                </div>
-              ) : risks.map((deal, i) => {
-                const stage     = STAGES.find((s) => s.id === deal.stage_id)
-                const isOverdue = deal.next_activity && daysDiff(deal.next_activity.due_date) < 0
-                const reason    = isOverdue ? `Atividade vencida há ${Math.abs(daysDiff(deal.next_activity!.due_date))}d` : `${deal.days_in_stage}d em ${stage?.label ?? ''} sem avançar`
-                return (
-                  <button key={deal.id} type="button" onClick={() => navigate(`/deal/${deal.id}`)}
-                    style={{ display: 'flex', alignItems: 'center', gap: '12px', width: '100%', padding: '10px 18px', borderBottom: i < risks.length - 1 ? `1px solid ${border}` : 'none', backgroundColor: 'transparent', cursor: 'pointer', textAlign: 'left', border: 'none', transition: 'background-color 0.1s ease' }}
-                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = trackBg; e.currentTarget.style.borderRadius = '10px' }}
-                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.borderRadius = '0' }}
-                  >
-                    <span style={{ width: '3px', height: '28px', borderRadius: '99px', backgroundColor: isDark ? '#fc8181' : '#c53030', flexShrink: 0 }} />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{ fontSize: '12px', fontWeight: 600, color: text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{deal.company_name}</p>
-                      <p style={{ fontSize: '10px', color: muted }}>{reason}</p>
-                    </div>
-                    <p style={{ fontSize: '11px', fontWeight: 700, color: text, flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>{fmt(deal.value)}</p>
-                  </button>
-                )
-              })}
-            </div>
-            <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '12px', overflow: 'hidden', boxShadow: cardShadow }}>
-              <div style={{ padding: '12px 18px', borderBottom: `1px solid ${border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <p style={{ fontSize: '13px', fontWeight: 600, color: text, letterSpacing: '-0.01em' }}>Próximas Ações</p>
-                <button type="button" onClick={() => navigate('/pipeline')}
-                  style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '10px', fontWeight: 600, color: muted, background: 'none', border: 'none', cursor: 'pointer', transition: 'color 0.15s ease' }}
-                  onMouseEnter={(e) => (e.currentTarget.style.color = '#b91c22')}
-                  onMouseLeave={(e) => (e.currentTarget.style.color = muted)}
-                >
-                  Ver pipeline <ArrowRight style={{ width: '10px', height: '10px' }} />
-                </button>
-              </div>
-              {upcoming.map(({ deal, activity }, i) => {
-                const diff = daysDiff(activity.due_date)
-                const Icon = ACT_ICONS[activity.type] ?? CheckSquare
-                const urgent = diff < 0; const today = diff === 0
-                const dateColor = urgent ? (isDark ? '#fc8181' : '#c53030') : today ? '#b45309' : muted
-                return (
-                  <button key={deal.id} type="button" onClick={() => navigate(`/deal/${deal.id}`)}
-                    style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '10px 18px', borderBottom: i < upcoming.length - 1 ? `1px solid ${border}` : 'none', backgroundColor: 'transparent', cursor: 'pointer', textAlign: 'left', border: 'none', transition: 'background-color 0.1s ease' }}
-                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = trackBg; e.currentTarget.style.borderRadius = '10px' }}
-                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.borderRadius = '0' }}
-                  >
-                    <div style={{ width: '26px', height: '26px', borderRadius: '6px', backgroundColor: `${deal.owner?.avatar_color ?? '#888'}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      <Icon style={{ width: '11px', height: '11px', color: deal.owner?.avatar_color ?? '#888' }} />
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{ fontSize: '12px', fontWeight: 600, color: text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{deal.company_name}</p>
-                      <p style={{ fontSize: '10px', color: muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{activity.label}</p>
-                    </div>
-                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                      <p style={{ fontSize: '10px', fontWeight: 600, color: dateColor }}>{urgent ? `${Math.abs(diff)}d atrás` : today ? 'Hoje' : diff === 1 ? 'Amanhã' : fmtDate(activity.due_date)}</p>
-                      <div style={{ width: '16px', height: '16px', borderRadius: '50%', backgroundColor: deal.owner?.avatar_color ?? '#888', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '6px', fontWeight: 700, marginTop: '3px', marginLeft: 'auto' }}>
-                        {deal.owner?.initials ?? '?'}
-                      </div>
-                    </div>
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-        )
-
-      case 'inativos':
-        if (inactiveDeals.length === 0) return null
-        return (
-          <div style={{ backgroundColor: cardBg, border: `1px solid ${isDark ? '#4a2a1a' : '#fed7aa'}`, borderRadius: '12px', overflow: 'hidden', boxShadow: cardShadow }}>
-            <div style={{ padding: '12px 18px', borderBottom: `1px solid ${border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <AlertTriangle style={{ width: '12px', height: '12px', color: '#b45309' }} />
-                <p style={{ fontSize: '12px', fontWeight: 700, color: text, borderLeft: '3px solid #b45309', paddingLeft: '8px' }}>Leads Sem Atividade</p>
-                <span style={{ fontSize: '9px', fontWeight: 700, color: '#b45309', backgroundColor: isDark ? '#2a1a0a' : '#fef3c7', borderRadius: '4px', padding: '1px 5px' }}>
-                  +21 dias
-                </span>
-              </div>
-              <span style={{ fontSize: '10px', color: muted }}>{inactiveDeals.length} leads</span>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)' }}>
-              {inactiveDeals.map((deal, i) => {
-                const daysSince = deal.last_activity_at
-                  ? Math.round((Date.now() - new Date(deal.last_activity_at).getTime()) / 86_400_000)
-                  : null
-                const stage = STAGES.find((s) => s.id === deal.stage_id)
-                const isLast = i >= inactiveDeals.length - 2
-                return (
-                  <button key={deal.id} type="button" onClick={() => navigate(`/deal/${deal.id}`)}
-                    style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 18px', backgroundColor: 'transparent', cursor: 'pointer', textAlign: 'left', border: 'none', borderBottom: isLast ? 'none' : `1px solid ${border}`, borderRight: i % 2 === 0 ? `1px solid ${border}` : 'none', transition: 'background-color 0.1s ease' }}
-                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = trackBg; e.currentTarget.style.borderRadius = '10px' }}
-                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.borderRadius = '0' }}
-                  >
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{ fontSize: '12px', fontWeight: 600, color: text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{deal.company_name}</p>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginTop: '2px' }}>
-                        {stage && <span style={{ fontSize: '9px', fontWeight: 600, color: stage.color }}>{stage.label}</span>}
-                        <span style={{ fontSize: '9px', color: muted }}>·</span>
-                        <span style={{ fontSize: '10px', color: '#b45309', fontWeight: 600 }}>
-                          {daysSince === null ? 'nunca' : `${daysSince}d sem atividade`}
-                        </span>
-                      </div>
-                    </div>
-                    <div style={{ width: '22px', height: '22px', borderRadius: '50%', backgroundColor: deal.owner?.avatar_color ?? '#888', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '7px', fontWeight: 700, flexShrink: 0 }} title={deal.owner?.name}>
-                      {deal.owner?.initials ?? '?'}
-                    </div>
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-        )
-
-      case 'tarefas':
-        return (
-          <TasksWidget isDark={isDark} border={border} text={text} muted={muted} cardBg={cardBg} navigate={navigate} />
-        )
-
-      case 'res_kpis':
-        return (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: '12px' }}>
-            {[
-              { label: 'Ganhos Totais',       value: fmtFull(wonTotal),        sub: `${closedWon.length} deals fechados`, icon: Trophy,    accent: '#15803d' },
-              { label: 'Meta Atingida',        value: `${goalPct.toFixed(1)}%`, sub: `Meta: ${fmt(quarterlyGoal)}`,        icon: Target,    accent: goalPct >= 100 ? '#15803d' : goalPct >= 70 ? '#b45309' : '#b91c22' },
-              { label: 'Ticket Médio Fechado', value: fmtFull(avgTicketWon),    sub: closedWon.length > 0 ? `${closedWon.length} deals base` : 'Sem dados', icon: DollarSign, accent: '#334155' },
-              { label: 'Conv. Pipeline → Won', value: `${roiPipeline.toFixed(1)}%`, sub: `${fmt(wonTotal)} ganhos de ${fmt(pipelineTotal + wonTotal)}`, icon: Percent, accent: '#475569' },
-            ].map(({ label, value, sub, icon: Icon, accent }) => (
-              <div key={label} style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '12px', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: '10px', boxShadow: cardShadow }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <p style={{ fontSize: '10px', fontWeight: 600, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', lineHeight: 1.2 }}>{label}</p>
-                  <div style={{ width: '32px', height: '32px', borderRadius: '10px', backgroundColor: `${accent}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    <Icon style={{ width: '13px', height: '13px', color: accent }} />
-                  </div>
-                </div>
-                <div>
-                  <p style={{ fontSize: '22px', fontWeight: 700, color: text, letterSpacing: '-0.02em', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{value}</p>
-                  {sub && <p style={{ fontSize: '10px', color: muted, marginTop: '4px', lineHeight: 1.3 }}>{sub}</p>}
-                </div>
-              </div>
-            ))}
-          </div>
-        )
-
-      case 'ranking':
-        return (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '12px', padding: '18px 20px', boxShadow: cardShadow }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
-                <Trophy style={{ width: '13px', height: '13px', color: '#b45309' }} />
-                <p style={{ fontSize: '13px', fontWeight: 600, color: text, letterSpacing: '-0.01em' }}>Performance por Operador</p>
-              </div>
-              {ownerStats.length === 0 ? (
-                <p style={{ fontSize: '12px', color: muted, textAlign: 'center', padding: '20px 0' }}>Sem dados ainda</p>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  {ownerStats.map((o) => {
-                    const maxActive = Math.max(...ownerStats.map((x) => x.active), 1)
-                    const barW = Math.round((o.active / maxActive) * 100)
-                    return (
-                      <div key={o.id}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '5px' }}>
-                          <div style={{ width: '22px', height: '22px', borderRadius: '50%', backgroundColor: o.color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '7px', fontWeight: 700, flexShrink: 0 }}>
-                            {o.initials}
-                          </div>
-                          <span style={{ fontSize: '12px', fontWeight: 500, color: text, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {o.name.split(' ')[0]}
-                          </span>
-                          <span style={{ fontSize: '10px', color: muted, flexShrink: 0 }} title="Leads ativos">{o.active} ativos</span>
-                          {o.convRate !== null && (
-                            <span style={{ fontSize: '10px', fontWeight: 700, color: o.convRate >= 50 ? '#2d9e6b' : '#b45309', flexShrink: 0 }} title="Taxa de conversão">
-                              {o.convRate}% conv.
-                            </span>
-                          )}
-                          <span style={{ fontSize: '10px', fontWeight: 700, color: '#2d9e6b', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>{fmt(o.wonValue)}</span>
-                        </div>
-                        <div style={{ height: '3px', borderRadius: '99px', backgroundColor: trackBg, overflow: 'hidden' }}>
-                          <div style={{ height: '100%', borderRadius: '99px', width: `${barW}%`, backgroundColor: '#475569', transition: 'width 0.5s ease' }} />
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-            <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '12px', padding: '18px 20px', boxShadow: cardShadow }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-                <BarChart2 style={{ width: '13px', height: '13px', color: '#2d9e6b' }} />
-                <p style={{ fontSize: '13px', fontWeight: 600, color: text, letterSpacing: '-0.01em' }}>Histórico de Vendas por Mês</p>
-              </div>
-              {monthlyWon.length === 0 ? (
-                <p style={{ fontSize: '12px', color: muted, textAlign: 'center', padding: '20px 0' }}>Sem histórico de vendas</p>
-              ) : (
-                <>
-                  <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px', height: '130px' }}>
-                    {monthlyWon.map(({ label, value, key }) => {
-                      const maxV = Math.max(...monthlyWon.map((m) => m.value), 1)
-                      const barH = Math.max(Math.round((value / maxV) * 100), 3)
-                      const isCurrent = key === new Date().toISOString().slice(0, 7)
-                      return (
-                        <div key={key} title={`${label}: ${fmt(value)}`} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px' }}>
-                          <span style={{ fontSize: '8px', color: isCurrent ? text : muted, fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>{value > 0 ? fmt(value) : ''}</span>
-                          <div style={{ width: '100%', height: `${barH}px`, backgroundColor: isCurrent ? '#2d9e6b' : '#b91c22', borderRadius: '4px 4px 0 0', opacity: isCurrent ? 1 : 0.75, transition: 'height 0.4s ease' }} />
-                          <span style={{ fontSize: '9px', color: isCurrent ? text : muted, fontWeight: isCurrent ? 600 : 400, textTransform: 'capitalize' }}>{label}</span>
-                        </div>
-                      )
-                    })}
-                  </div>
-                  <div style={{ marginTop: '12px', paddingTop: '10px', borderTop: `1px solid ${border}`, display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: '10px', color: muted }}>{monthlyWon.length} meses com vendas</span>
-                    <span style={{ fontSize: '10px', fontWeight: 600, color: '#2d9e6b', fontVariantNumeric: 'tabular-nums' }}>Total {fmtFull(wonTotal)}</span>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        )
-
-      case 'conv':
-        return (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '12px', padding: '18px 20px', boxShadow: cardShadow }}>
-              <p style={{ fontSize: '13px', fontWeight: 600, color: text, marginBottom: '14px', letterSpacing: '-0.01em' }}>Distribuição do Pipeline Ativo</p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {stageConversion.map(({ stage, pct }) => {
-                  const count = activeDeals.filter((d) => d.stage_id === stage.id).length
-                  return (
-                    <div key={stage.id}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: stage.color, flexShrink: 0 }} />
-                          <span style={{ fontSize: '11px', color: text }}>{stage.label}</span>
-                        </div>
-                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                          <span style={{ fontSize: '10px', color: muted }}>{count} deal{count !== 1 ? 's' : ''}</span>
-                          <span style={{ fontSize: '10px', fontWeight: 700, color: text }}>{pct}%</span>
-                        </div>
-                      </div>
-                      <div style={{ height: '3px', borderRadius: '99px', backgroundColor: trackBg, overflow: 'hidden' }}>
-                        <div style={{ height: '100%', borderRadius: '99px', width: `${pct}%`, backgroundColor: stage.color, opacity: 0.8, transition: 'width 0.5s ease' }} />
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-            <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '12px', padding: '18px 20px', boxShadow: cardShadow }}>
-              <p style={{ fontSize: '12px', fontWeight: 700, color: text, marginBottom: '4px', paddingLeft: '0' }}>Tempo Médio por Etapa</p>
-              <p style={{ fontSize: '10px', color: muted, marginBottom: '14px' }}>Gargalos do pipeline — dias médios na etapa</p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {avgDaysPerStage.map(({ stage, avg, count }) => {
-                  const maxAvg = Math.max(...avgDaysPerStage.map((x) => x.avg ?? 0), 1)
-                  const barW   = avg !== null ? Math.round((avg / maxAvg) * 100) : 0
-                  const isHot  = avg !== null && avg > 60
-                  return (
-                    <div key={stage.id}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: stage.color, flexShrink: 0 }} />
-                          <span style={{ fontSize: '11px', color: text }}>{stage.label}</span>
-                        </div>
-                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                          <span style={{ fontSize: '10px', color: muted }}>{count} lead{count !== 1 ? 's' : ''}</span>
-                          <span style={{ fontSize: '11px', fontWeight: 700, color: isHot ? (isDark ? '#fc8181' : '#c53030') : text, fontVariantNumeric: 'tabular-nums' }}>
-                            {avg !== null ? `${avg}d` : '—'}
-                          </span>
-                        </div>
-                      </div>
-                      <div style={{ height: '3px', borderRadius: '99px', backgroundColor: trackBg, overflow: 'hidden' }}>
-                        <div style={{ height: '100%', borderRadius: '99px', width: `${barW}%`, backgroundColor: isHot ? (isDark ? '#c53030' : '#ef4444') : stage.color, opacity: 0.8, transition: 'width 0.5s ease' }} />
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-              <div style={{ marginTop: '14px', paddingTop: '10px', borderTop: `1px solid ${border}`, display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: '10px', color: muted }}>Ciclo médio geral</span>
-                <span style={{ fontSize: '11px', fontWeight: 700, color: text }}>{avgCycle}d</span>
-              </div>
-            </div>
-          </div>
-        )
-
-      default:
-        return null
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+      const label = d.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '')
+      months[key] = { label, value: 0, value2: 0 }
     }
-  }
+    for (const deal of deals) {
+      const key = deal.created_at?.slice(0, 7)
+      if (key && months[key]) months[key].value += deal.value ?? 0
+      if (deal.stage === 'won') {
+        const wk = (deal.updated_at ?? deal.created_at)?.slice(0, 7)
+        if (wk && months[wk]) months[wk].value2 += deal.value ?? 0
+      }
+    }
+    return Object.values(months)
+  }, [deals])
 
-  // ── Visible widget ids for current tab ────────────────────────────────────
-  const tabWidgetIds = widgetOrder.filter((id) => {
-    const def = WIDGET_DEFS.find((w) => w.id === id)
-    if (!def) return false
-    return def.tab === activeTab || def.tab === 'ambos'
-  })
+  // ── Stage funnel ──
+  const stageData = useMemo(() => {
+    return STAGES.filter((s) => s.id !== 'won' && s.id !== 'lost').map((stage) => {
+      const stageDeals = deals.filter((d) => d.stage === stage.id)
+      return {
+        label: stage.label,
+        color: stage.color,
+        count: stageDeals.length,
+        value: stageDeals.reduce((s, d) => s + (d.value ?? 0), 0),
+      }
+    })
+  }, [deals])
+
+  // ── Donut — por fase ──
+  const donutData = useMemo(() =>
+    stageData.filter((s) => s.value > 0).map((s) => ({ label: s.label, value: s.value })),
+    [stageData],
+  )
+
+  // ── Owner leaderboard ──
+  const owners = useMemo(() => {
+    const map = new Map<string, { name: string; color: string; won: number; pipeline: number; deals: number }>()
+    for (const deal of deals) {
+      const name  = deal.owner_name ?? 'Sem responsável'
+      const color = deal.owner_avatar_color ?? '#667085'
+      if (!map.has(name)) map.set(name, { name, color, won: 0, pipeline: 0, deals: 0 })
+      const e = map.get(name)!
+      e.deals++
+      if (deal.stage === 'won') e.won += deal.value ?? 0
+      else e.pipeline += deal.value ?? 0
+    }
+    return [...map.values()].sort((a, b) => (b.won + b.pipeline) - (a.won + a.pipeline))
+  }, [deals])
+
+  // ── Recent activity timeline ──
+  const recentActivity = useMemo<ActivityItemData[]>(() => {
+    return [...deals]
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      .slice(0, 8)
+      .map((d) => ({
+        id: d.id,
+        title: d.name,
+        description: `${d.company_name ?? ''} ${d.stage === 'won' ? '· Ganho 🎉' : `· ${STAGES.find((s) => s.id === d.stage)?.label ?? ''}`}`.trim(),
+        timestamp: timeAgo(d.created_at),
+        color: d.stage === 'won' ? 'success' as const : d.stage === 'lost' ? 'danger' as const : 'accent' as const,
+      }))
+  }, [deals])
+
+  // ── Tasks section ──
+  const today = new Date().toISOString().slice(0, 10)
+  const upcomingTasks = useMemo(() =>
+    tasks.filter((t) => !t.completed_at).sort((a, b) => {
+      if (!a.due_date) return 1
+      if (!b.due_date) return -1
+      return a.due_date.localeCompare(b.due_date)
+    }).slice(0, 6),
+    [tasks],
+  )
+
+  // ── Bar chart data — monthly deals ──
+  const barData = useMemo(() => {
+    return monthlyData.slice(-6).map((m, i) => ({
+      label: m.label,
+      value: m.value,
+      highlight: i === 5,
+    }))
+  }, [monthlyData])
 
   return (
-    <>
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: pageBg }}>
 
-      {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <div style={{
-        flexShrink: 0,
-        backgroundColor: cardBg,
-        borderBottom: `1px solid ${border}`,
-      }}>
-        {/* Top row */}
-        <div style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '16px 24px 0',
-        }}>
-          <div>
-            <p style={{ fontSize: '18px', fontWeight: 700, color: text, letterSpacing: '-0.03em', lineHeight: 1.2 }}>
-              Dashboard
-            </p>
-            <p style={{ fontSize: '12px', color: muted, marginTop: '2px', textTransform: 'capitalize' }}>
-              {new Intl.DateTimeFormat('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date())}
-            </p>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+      {/* Page Header */}
+      <PageHeader
+        title="Dashboard"
+        subtitle={`${kpis.total} oportunidades`}
+        actions={
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <PeriodSelector value={period} onChange={setPeriod} isDark={isDark} />
             <button
               type="button"
-              onClick={() => setShowWidgetModal(true)}
-              title="Gerenciar widgets"
+              onClick={() => navigate('/pipeline')}
               style={{
-                height: '32px', padding: '0 14px', borderRadius: '8px',
-                border: `1px solid ${border}`,
-                backgroundColor: 'transparent', cursor: 'pointer',
-                display: 'flex', alignItems: 'center',
-                color: muted, fontSize: '12px', fontWeight: 500, gap: '5px',
-                transition: 'all 0.15s ease',
-                boxShadow: isDark ? 'none' : '0 1px 2px rgba(16,24,40,0.04)',
+                height: '32px', padding: '0 14px', borderRadius: '7px',
+                backgroundColor: brand, color: '#fff', border: 'none',
+                fontSize: '13px', fontWeight: 500, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', gap: '6px',
+                transition: 'background-color 0.15s ease',
               }}
-              onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#b91c22'; e.currentTarget.style.color = '#b91c22' }}
-              onMouseLeave={(e) => { e.currentTarget.style.borderColor = border; e.currentTarget.style.color = muted }}
+              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = isDark ? '#7a1818' : '#520e0e' }}
+              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = brand }}
             >
-              + Widgets
-            </button>
-            <span style={{
-              fontSize: '11px', fontWeight: 600, color: text,
-              backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#f3f4f6',
-              border: `1px solid ${border}`,
-              borderRadius: '8px', padding: '5px 12px',
-              letterSpacing: '-0.01em',
-            }}>
-              Q2 · 2026
-            </span>
-          </div>
-        </div>
-
-        {/* Tab bar */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0', padding: '12px 24px 0' }}>
-          {(['operacao', 'resultados'] as const).map((id) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => setActiveTab(id)}
-              style={{
-                height: '36px', padding: '0 16px',
-                fontSize: '13px', fontWeight: activeTab === id ? 600 : 400,
-                color: activeTab === id ? text : muted,
-                backgroundColor: 'transparent',
-                border: 'none', borderBottom: activeTab === id ? `2px solid #b91c22` : '2px solid transparent',
-                marginBottom: '-1px', cursor: 'pointer',
-                transition: 'all 0.15s ease',
-              }}
-            >
-              {id === 'operacao' ? 'Operação' : 'Resultados'}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* ── Content ────────────────────────────────────────────────────────── */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-          <SortableContext items={tabWidgetIds} strategy={verticalListSortingStrategy}>
-            {tabWidgetIds.map((id) => {
-              const content = renderWidgetContent(id)
-              if (content === null) return null
-              return (
-                <WidgetWrapper key={id} id={id} onRemove={removeWidget} isDark={isDark}>
-                  {content}
-                </WidgetWrapper>
-              )
-            })}
-          </SortableContext>
-        </DndContext>
-      </div>
-    </div>
-
-    {/* ── Widget modal ── */}
-    {showWidgetModal && (
-      <div
-        style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-        onClick={() => setShowWidgetModal(false)}
-      >
-        <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)' }} />
-        <div
-          style={{
-            position: 'relative', width: '380px', borderRadius: '16px',
-            backgroundColor: cardBg, border: `1px solid ${border}`,
-            padding: '20px', boxShadow: '0 16px 40px rgba(0,0,0,0.24)',
-            maxHeight: '80vh', overflowY: 'auto',
-          }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-            <p style={{ fontSize: '13px', fontWeight: 700, color: text }}>Gerenciar Widgets</p>
-            <button type="button" onClick={() => setShowWidgetModal(false)}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: muted, fontSize: '18px', lineHeight: 1, padding: '2px 6px' }}>×</button>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            {WIDGET_DEFS.map((w) => {
-              const enabled = widgetOrder.includes(w.id)
-              return (
-                <div key={w.id}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 12px',
-                    borderRadius: '10px', border: `1px solid ${enabled ? '#b91c22' : border}`,
-                    backgroundColor: enabled ? (isDark ? '#0e1f17' : '#f0faf4') : 'transparent',
-                  }}
-                >
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ fontSize: '12px', fontWeight: 600, color: text }}>{w.title}</p>
-                    <p style={{ fontSize: '10px', color: muted, marginTop: '1px' }}>{w.description}</p>
-                  </div>
-                  <span style={{ fontSize: '9px', color: muted, flexShrink: 0, textTransform: 'capitalize', minWidth: '52px', textAlign: 'right' }}>
-                    {w.tab === 'ambos' ? 'ambas' : w.tab}
-                  </span>
-                  {enabled ? (
-                    <button type="button" onClick={() => removeWidget(w.id)}
-                      style={{
-                        flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        width: '22px', height: '22px', borderRadius: '4px',
-                        border: '1px solid #b91c22', backgroundColor: '#b91c22',
-                        cursor: 'pointer', color: '#fff', fontSize: '11px',
-                      }}
-                      title="Remover widget"
-                    >
-                      ✓
-                    </button>
-                  ) : (
-                    <button type="button" onClick={() => addWidget(w.id)}
-                      style={{
-                        flexShrink: 0, padding: '3px 10px', borderRadius: '4px',
-                        border: `1px solid ${border}`, backgroundColor: 'transparent',
-                        cursor: 'pointer', color: text, fontSize: '10px', fontWeight: 600,
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      + Adicionar
-                    </button>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-          <div style={{ marginTop: '14px', paddingTop: '12px', borderTop: `1px solid ${border}`, display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-            <button type="button" onClick={() => setWidgetOrder(defaultWidgetOrder())}
-              style={{ fontSize: '11px', color: muted, background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px' }}>
-              Restaurar padrão
-            </button>
-            <button type="button" onClick={() => setShowWidgetModal(false)}
-              style={{ fontSize: '11px', fontWeight: 600, color: '#fff', backgroundColor: '#b91c22', border: 'none', borderRadius: '6px', padding: '6px 14px', cursor: 'pointer' }}>
-              Fechar
+              + Oportunidade
             </button>
           </div>
-        </div>
-      </div>
-    )}
-    </>
-  )
-}
+        }
+      />
 
-// ─── Tasks Widget ─────────────────────────────────────────────────────────────
+      {/* Content */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
+        <div style={{ maxWidth: '1400px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>
 
-function TasksWidget({ isDark, border, text, muted, cardBg, navigate }: {
-  isDark: boolean; border: string; text: string; muted: string; cardBg: string
-  navigate: ReturnType<typeof useNavigate>
-}) {
-  const tasks    = useTaskStore((s) => s.tasks)
-  const complete = useTaskStore((s) => s.complete)
+          {/* Welcome hero */}
+          <WelcomeHero
+            name={profile?.full_name ?? 'Utilizador'}
+            goalPct={kpis.goalPct}
+            isDark={isDark}
+          />
 
-  const today = new Date().toISOString().slice(0, 10)
+          {/* Tab bar */}
+          <TabBar active={tab} onChange={(t) => setTab(t as 'operacao' | 'resultados')} isDark={isDark} />
 
-  const upcoming = useMemo(() => {
-    const pending = tasks.filter((t) => !t.completed_at)
-    const overdue = pending.filter((t) => t.due_date && t.due_date < today)
-    const todayT  = pending.filter((t) => t.due_date === today)
-    const future  = pending.filter((t) => !t.due_date || t.due_date > today)
-    return [...overdue, ...todayT, ...future].slice(0, 5)
-  }, [tasks, today])
+          <AnimatePresence mode="wait">
 
-  if (upcoming.length === 0) return null
-
-  const hoverBg = isDark ? '#1c1c1a' : '#f8f7f4'
-
-  return (
-    <div style={{ marginTop: '16px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-        <p style={{ fontSize: '10px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-          Próximas Tarefas
-        </p>
-        <button
-          type="button"
-          onClick={() => navigate('/tarefas')}
-          style={{ fontSize: '10px', color: muted, background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px' }}
-        >
-          Ver todas <ArrowRight style={{ width: '10px', height: '10px' }} />
-        </button>
-      </div>
-
-      <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '12px', overflow: 'hidden' }}>
-        {upcoming.map((task, i) => {
-          const isOverdue = !!task.due_date && task.due_date < today
-          const isToday   = task.due_date === today
-
-          return (
-            <div
-              key={task.id}
-              style={{
-                display: 'flex', alignItems: 'center', gap: '10px',
-                padding: '9px 14px',
-                borderBottom: i < upcoming.length - 1 ? `1px solid ${border}` : 'none',
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = hoverBg)}
-              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-            >
-              <button
-                type="button"
-                onClick={() => complete(task.id)}
-                style={{
-                  width: '16px', height: '16px', borderRadius: '4px', flexShrink: 0,
-                  border: `2px solid ${border}`, backgroundColor: 'transparent',
-                  cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#2d9e6b'; e.currentTarget.style.backgroundColor = '#2d9e6b20' }}
-                onMouseLeave={(e) => { e.currentTarget.style.borderColor = border; e.currentTarget.style.backgroundColor = 'transparent' }}
+            {/* ── TAB OPERAÇÃO ── */}
+            {tab === 'operacao' && (
+              <motion.div
+                key="operacao"
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+                transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+                style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}
               >
-                <Check style={{ width: '9px', height: '9px', color: '#2d9e6b', opacity: 0 }}
-                  onMouseEnter={(e) => ((e.currentTarget as SVGElement).style.opacity = '1')}
-                />
-              </button>
 
-              <p style={{
-                flex: 1, fontSize: '12px', fontWeight: 500, color: text,
-                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-              }}>
-                {task.title}
-              </p>
+                {/* KPIs — 6 StatCards */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px' }}>
+                  <StatCard
+                    icon={<Briefcase size={16} />} color="accent"
+                    label="Pipeline Total" value={fmtBRL(kpis.pipeline)}
+                    delta={`${kpis.active} ativos`} deltaType="neutral" index={0}
+                    sparklineData={monthlyData.slice(-8).map((m) => m.value)}
+                  />
+                  <StatCard
+                    icon={<Target size={16} />} color="success"
+                    label="Receita Ganha" value={fmtBRL(kpis.revenue)}
+                    delta={`${kpis.won} fechados`} deltaType="positive" index={1}
+                    sparklineData={monthlyData.slice(-8).map((m) => m.value2)}
+                  />
+                  <StatCard
+                    icon={<Award size={16} />} color="info"
+                    label="Win Rate" value={fmtPct(kpis.winRate)}
+                    delta={kpis.winRate >= 30 ? 'Saudável' : 'A melhorar'} deltaType={kpis.winRate >= 30 ? 'positive' : 'negative'} index={2}
+                  />
+                  <StatCard
+                    icon={<DollarSign size={16} />} color="warning"
+                    label="Ticket Médio" value={fmtBRL(kpis.ticket)}
+                    delta="por fechamento" deltaType="neutral" index={3}
+                  />
+                  <StatCard
+                    icon={<CheckSquare size={16} />} color={kpis.overdue > 0 ? 'danger' : 'success'}
+                    label="Tarefas" value={String(kpis.pending)}
+                    delta={kpis.overdue > 0 ? `${kpis.overdue} em atraso` : 'Em dia'} deltaType={kpis.overdue > 0 ? 'negative' : 'positive'} index={4}
+                    onClick={() => navigate('/tarefas')}
+                  />
+                  <StatCard
+                    icon={<TrendingUp size={16} />} color="neutral"
+                    label="Total Oportunidades" value={String(kpis.total)}
+                    delta={`${period} selecionado`} deltaType="neutral" index={5}
+                  />
+                </div>
 
-              {task.deal_title && (
-                <span style={{ fontSize: '10px', color: muted, flexShrink: 0, maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {task.deal_title}
-                </span>
-              )}
+                {/* Pipeline + Funil */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                  <SectionCard title="Pipeline Mensal" subtitle="Criado vs Fechado" isDark={isDark}>
+                    <CrmAreaChart
+                      data={monthlyData.slice(-8)}
+                      color={brand}
+                      color2="#15803d"
+                      height={180}
+                      formatY={fmtBRL}
+                      formatTooltip={fmtFull}
+                    />
+                  </SectionCard>
 
-              {task.due_date && (
-                <span style={{
-                  fontSize: '10px', flexShrink: 0, fontWeight: 600,
-                  color: isOverdue ? '#dc2626' : isToday ? '#b45309' : muted,
-                }}>
-                  {isOverdue ? '⚠ ' : ''}{isToday ? 'Hoje' : new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short' }).format(new Date(task.due_date + 'T12:00:00'))}
-                </span>
-              )}
-            </div>
-          )
-        })}
+                  <SectionCard title="Funil de Conversão" subtitle="Por fase" isDark={isDark}>
+                    <PipelineFunnel stageData={stageData} isDark={isDark} />
+                  </SectionCard>
+                </div>
+
+                {/* Team + Activity */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                  <SectionCard
+                    title="Performance da Equipa" subtitle="Ranking por receita"
+                    isDark={isDark}
+                    action={
+                      <button
+                        type="button" onClick={() => navigate('/teams')}
+                        style={{ fontSize: '12px', color: brand, background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                      >
+                        Ver tudo <ArrowRight size={12} />
+                      </button>
+                    }
+                  >
+                    <TeamLeaderboard owners={owners} isDark={isDark} />
+                  </SectionCard>
+
+                  <SectionCard
+                    title="Atividade Recente" subtitle="Últimas oportunidades"
+                    isDark={isDark}
+                    action={
+                      <button
+                        type="button" onClick={() => navigate('/atividades')}
+                        style={{ fontSize: '12px', color: brand, background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                      >
+                        Ver feed <ArrowRight size={12} />
+                      </button>
+                    }
+                  >
+                    <Timeline items={recentActivity} />
+                  </SectionCard>
+                </div>
+
+                {/* Tasks section */}
+                <SectionCard
+                  title="Próximas Tarefas" subtitle={`${kpis.pending} pendentes · ${kpis.overdue} em atraso`}
+                  isDark={isDark}
+                  action={
+                    <button
+                      type="button" onClick={() => navigate('/tarefas')}
+                      style={{ fontSize: '12px', color: brand, background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                    >
+                      Ver todas <ArrowRight size={12} />
+                    </button>
+                  }
+                >
+                  {upcomingTasks.length === 0 ? (
+                    <EmptyState icon={<CheckSquare size={18} />} title="Nenhuma tarefa pendente" description="Está tudo em dia." />
+                  ) : (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+                      {upcomingTasks.map((task, i) => {
+                        const isOverdue = !!task.due_date && task.due_date < today
+                        return (
+                          <motion.div
+                            key={task.id}
+                            {...motionPresets.listItem(i)}
+                            style={{
+                              padding: '12px 14px', borderRadius: '8px',
+                              border: `1px solid ${isOverdue ? 'rgba(155,28,28,0.25)' : border}`,
+                              backgroundColor: isOverdue ? (isDark ? 'rgba(155,28,28,0.08)' : '#fff5f5') : (isDark ? '#191917' : '#f9fafb'),
+                            }}
+                          >
+                            <p style={{ fontSize: '13px', fontWeight: 500, color: text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {task.title}
+                            </p>
+                            <p style={{ fontSize: '11px', color: isOverdue ? '#9b1c1c' : muted, marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              {isOverdue && <AlertTriangle size={10} />}
+                              {task.due_date ? new Date(task.due_date + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }) : 'Sem prazo'}
+                            </p>
+                          </motion.div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </SectionCard>
+
+              </motion.div>
+            )}
+
+            {/* ── TAB RESULTADOS ── */}
+            {tab === 'resultados' && (
+              <motion.div
+                key="resultados"
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+                transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+                style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}
+              >
+
+                {/* KPIs resultado */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '14px' }}>
+                  <StatCard
+                    icon={<DollarSign size={16} />} color="success"
+                    label="Receita Fechada" value={fmtBRL(kpis.revenue)}
+                    delta={`${kpis.won} oportunidades`} deltaType="positive" index={0}
+                    sparklineData={monthlyData.slice(-6).map((m) => m.value2)}
+                  />
+                  <StatCard
+                    icon={<Target size={16} />} color={kpis.goalPct >= 100 ? 'success' : kpis.goalPct >= 70 ? 'warning' : 'danger'}
+                    label="Meta Atingida" value={`${kpis.goalPct}%`}
+                    delta={kpis.goalPct >= 100 ? 'Superada!' : `Faltam ${fmtBRL(Math.max(0, (settings?.monthly_target ?? 0) - kpis.revenue))}`}
+                    deltaType={kpis.goalPct >= 100 ? 'positive' : kpis.goalPct >= 70 ? 'neutral' : 'negative'} index={1}
+                  />
+                  <StatCard
+                    icon={<Award size={16} />} color="info"
+                    label="Win Rate" value={fmtPct(kpis.winRate)}
+                    delta={`${kpis.total} oportunidades`} deltaType={kpis.winRate >= 30 ? 'positive' : 'negative'} index={2}
+                  />
+                  <StatCard
+                    icon={<BarChart2 size={16} />} color="accent"
+                    label="Ticket Médio" value={fmtBRL(kpis.ticket)}
+                    delta="por negócio ganho" deltaType="neutral" index={3}
+                  />
+                </div>
+
+                {/* Revenue chart + donut */}
+                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '14px' }}>
+                  <SectionCard title="Receita Mensal" subtitle="Criado vs Fechado (12 meses)" isDark={isDark}>
+                    <CrmBarChart
+                      data={barData}
+                      color={brand}
+                      highlightColor="#15803d"
+                      height={200}
+                      formatY={fmtBRL}
+                      formatTooltip={fmtFull}
+                    />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginTop: '12px' }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: muted }}>
+                        <div style={{ width: '10px', height: '10px', borderRadius: '3px', backgroundColor: brand }} />
+                        Pipeline criado
+                      </span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: muted }}>
+                        <div style={{ width: '10px', height: '10px', borderRadius: '3px', backgroundColor: '#15803d' }} />
+                        Mês atual (destaque)
+                      </span>
+                    </div>
+                  </SectionCard>
+
+                  <SectionCard title="Por Fase" subtitle="Distribuição do pipeline" isDark={isDark}>
+                    <CrmDonutChart
+                      data={donutData}
+                      centerValue={fmtBRL(kpis.pipeline)}
+                      centerLabel="pipeline total"
+                      height={160}
+                      formatTooltip={fmtFull}
+                    />
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '12px' }}>
+                      {donutData.slice(0, 4).map((d, i) => {
+                        const COLORS = [brand, '#15803d', '#92400e', '#1e40af']
+                        return (
+                          <div key={d.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
+                              <div style={{ width: '8px', height: '8px', borderRadius: '2px', backgroundColor: COLORS[i] }} />
+                              <span style={{ fontSize: '12px', color: muted }}>{d.label}</span>
+                            </div>
+                            <span style={{ fontSize: '12px', fontWeight: 500, color: text, fontFamily: "'Geist Mono', monospace" }}>
+                              {fmtBRL(d.value)}
+                            </span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </SectionCard>
+                </div>
+
+                {/* Team performance (results view) */}
+                <SectionCard title="Performance da Equipa" subtitle="Receita fechada por Account Executive" isDark={isDark}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
+                    {owners.slice(0, 6).map((owner, i) => (
+                      <motion.div
+                        key={owner.name}
+                        {...motionPresets.listItem(i)}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: '12px',
+                          padding: '12px 14px', borderRadius: '8px',
+                          border: `1px solid ${border}`,
+                          backgroundColor: isDark ? '#191917' : '#f9fafb',
+                        }}
+                      >
+                        <div style={{
+                          width: '36px', height: '36px', borderRadius: '9px',
+                          backgroundColor: owner.color, color: '#fff',
+                          fontSize: '12px', fontWeight: 700, flexShrink: 0,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        }}>
+                          {getInitials(owner.name)}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <p style={{ fontSize: '13px', fontWeight: 500, color: text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {owner.name}
+                          </p>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+                            <span style={{ fontSize: '12px', fontWeight: 600, color: '#15803d', fontFamily: "'Geist Mono', monospace" }}>
+                              {fmtBRL(owner.won)}
+                            </span>
+                            <span style={{ fontSize: '11px', color: muted }}>ganho</span>
+                            <span style={{ fontSize: '11px', color: muted }}>·</span>
+                            <span style={{ fontSize: '11px', color: muted }}>{fmtBRL(owner.pipeline)} pipeline</span>
+                          </div>
+                        </div>
+                        <div style={{
+                          fontSize: '12px', fontWeight: 600,
+                          color: brand, backgroundColor: isDark ? 'rgba(107,18,18,0.12)' : 'rgba(107,18,18,0.06)',
+                          borderRadius: '5px', padding: '3px 8px',
+                        }}>
+                          {owner.deals} deals
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                  {owners.length === 0 && <EmptyState icon={<Users size={18} />} title="Sem dados de equipa" />}
+                </SectionCard>
+
+                {/* Top 5 deals */}
+                <SectionCard
+                  title="Top Oportunidades" subtitle="Por valor"
+                  isDark={isDark}
+                  action={
+                    <button
+                      type="button" onClick={() => navigate('/pipeline')}
+                      style={{ fontSize: '12px', color: brand, background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                    >
+                      Ver pipeline <ArrowRight size={12} />
+                    </button>
+                  }
+                >
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    {[...filteredDeals].sort((a, b) => (b.value ?? 0) - (a.value ?? 0)).slice(0, 5).map((deal, i) => {
+                      const stage = STAGES.find((s) => s.id === deal.stage)
+                      return (
+                        <motion.button
+                          key={deal.id}
+                          {...motionPresets.listItem(i)}
+                          type="button"
+                          onClick={() => navigate(`/deal/${deal.id}`)}
+                          style={{
+                            display: 'grid', gridTemplateColumns: '24px 1fr 100px 90px',
+                            alignItems: 'center', gap: '12px',
+                            padding: '10px 12px', borderRadius: '7px',
+                            backgroundColor: 'transparent', border: 'none', cursor: 'pointer',
+                            textAlign: 'left', transition: 'background-color 0.1s ease',
+                          }}
+                          whileHover={{ backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : '#f3f4f6' }}
+                        >
+                          <span style={{ fontSize: '13px', color: muted, fontWeight: 500 }}>#{i + 1}</span>
+                          <div style={{ minWidth: 0 }}>
+                            <p style={{ fontSize: '13px', fontWeight: 500, color: text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {deal.name}
+                            </p>
+                            {deal.company_name && (
+                              <p style={{ fontSize: '11px', color: muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {deal.company_name}
+                              </p>
+                            )}
+                          </div>
+                          {stage && (
+                            <span style={{
+                              fontSize: '10px', fontWeight: 600,
+                              color: stage.color, backgroundColor: `${stage.color}14`,
+                              borderRadius: '5px', padding: '3px 8px',
+                              textAlign: 'center', whiteSpace: 'nowrap',
+                            }}>
+                              {stage.label}
+                            </span>
+                          )}
+                          <span style={{
+                            fontSize: '13px', fontWeight: 600, color: deal.stage === 'won' ? '#15803d' : text,
+                            fontFamily: "'Geist Mono', monospace", textAlign: 'right',
+                          }}>
+                            {fmtBRL(deal.value ?? 0)}
+                          </span>
+                        </motion.button>
+                      )
+                    })}
+                    {filteredDeals.length === 0 && (
+                      <EmptyState icon={<Activity size={18} />} title="Sem oportunidades no período" />
+                    )}
+                  </div>
+                </SectionCard>
+
+              </motion.div>
+            )}
+
+          </AnimatePresence>
+        </div>
       </div>
     </div>
   )

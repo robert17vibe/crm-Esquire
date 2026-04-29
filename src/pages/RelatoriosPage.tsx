@@ -214,8 +214,8 @@ export function RelatoriosPage() {
         {/* KPI row */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: '12px' }}>
           <StatCard label="Ganhos no Período" value={fmtFull(wonTotal)} sub={`${closedWon.length} deals fechados`} icon={DollarSign} accent="#15803d" trend={{ dir: wonTotal > 0 ? 'up' : 'flat', pct: Math.round(goalPct) }} isDark={isDark} />
-          <StatCard label="Meta Atingida" value={`${goalPct.toFixed(1)}%`} sub={`Meta: ${fmt(quarterlyGoal)}`} icon={Target} accent={goalPct >= 100 ? '#15803d' : goalPct >= 60 ? '#b45309' : '#b91c22'} trend={{ dir: goalPct >= 100 ? 'up' : goalPct >= 60 ? 'flat' : 'down', pct: Math.round(goalPct) }} isDark={isDark} />
-          <StatCard label="Win Rate" value={`${winRate}%`} sub={`${closedWon.length} ganhos · ${closedLost.length} perdidos`} icon={Award} accent={winRate >= 40 ? '#15803d' : '#b91c22'} trend={{ dir: winRate >= 40 ? 'up' : 'down', pct: winRate }} isDark={isDark} />
+          <StatCard label="Meta Atingida" value={`${goalPct.toFixed(1)}%`} sub={`Meta: ${fmt(quarterlyGoal)}`} icon={Target} accent={goalPct >= 100 ? '#15803d' : goalPct >= 60 ? '#b45309' : 'var(--brand)'} trend={{ dir: goalPct >= 100 ? 'up' : goalPct >= 60 ? 'flat' : 'down', pct: Math.round(goalPct) }} isDark={isDark} />
+          <StatCard label="Win Rate" value={`${winRate}%`} sub={`${closedWon.length} ganhos · ${closedLost.length} perdidos`} icon={Award} accent={winRate >= 40 ? '#15803d' : 'var(--brand)'} trend={{ dir: winRate >= 40 ? 'up' : 'down', pct: winRate }} isDark={isDark} />
           <StatCard label="Ticket Médio" value={avgTicketWon > 0 ? fmtFull(avgTicketWon) : '—'} sub="média dos deals ganhos" icon={TrendingUp} accent="#334155" isDark={isDark} />
         </div>
 
@@ -239,7 +239,7 @@ export function RelatoriosPage() {
               </div>
               <span style={{ fontSize: '14px', fontWeight: 700, color: text, fontVariantNumeric: 'tabular-nums' }}>{fmt(pipelineTotal)}</span>
             </div>
-            <AreaChart data={monthlyPipeline} color="#b91c22" height={120} isDark={isDark} />
+            <AreaChart data={monthlyPipeline} color="var(--brand)" height={120} isDark={isDark} />
           </div>
         </div>
 
@@ -266,7 +266,7 @@ export function RelatoriosPage() {
               ))}
             </div>
             <div style={{ marginTop: '16px', paddingTop: '14px', borderTop: `1px solid ${border}`, display: 'flex', gap: '20px' }}>
-              {[{ label: 'Pipeline', v: fmt(pipelineTotal), c: text }, { label: 'Ganhos', v: fmtFull(wonTotal), c: '#15803d' }, { label: 'Perdidos', v: fmt(lostTotal), c: '#b91c22' }].map(({ label, v, c }) => (
+              {[{ label: 'Pipeline', v: fmt(pipelineTotal), c: text }, { label: 'Ganhos', v: fmtFull(wonTotal), c: '#15803d' }, { label: 'Perdidos', v: fmt(lostTotal), c: 'var(--brand)' }].map(({ label, v, c }) => (
                 <div key={label}>
                   <p style={{ fontSize: '10px', color: muted, marginBottom: '2px' }}>{label}</p>
                   <p style={{ fontSize: '13px', fontWeight: 700, color: c, fontVariantNumeric: 'tabular-nums' }}>{v}</p>
@@ -340,9 +340,9 @@ export function RelatoriosPage() {
                     <span style={{ width: '8px', height: '8px', borderRadius: '2px', backgroundColor: stage.color }} />
                     <span style={{ fontSize: '11px', color: muted, fontWeight: 500 }}>{stage.label}</span>
                   </div>
-                  <p style={{ fontSize: '22px', fontWeight: 700, color: isHot ? '#b91c22' : text, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em' }}>{avg !== null ? `${avg}d` : '—'}</p>
+                  <p style={{ fontSize: '22px', fontWeight: 700, color: isHot ? 'var(--brand)' : text, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em' }}>{avg !== null ? `${avg}d` : '—'}</p>
                   <p style={{ fontSize: '10px', color: muted, marginTop: '2px' }}>{sd.length} deal{sd.length !== 1 ? 's' : ''}</p>
-                  {isHot && <p style={{ fontSize: '9px', fontWeight: 600, color: '#b91c22', marginTop: '4px' }}>⚠ Atenção</p>}
+                  {isHot && <p style={{ fontSize: '9px', fontWeight: 600, color: 'var(--brand)', marginTop: '4px' }}>⚠ Atenção</p>}
                 </div>
               )
             })}
