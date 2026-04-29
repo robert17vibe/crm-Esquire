@@ -282,7 +282,7 @@ type GroupStat = {
   rank: number
 }
 
-function GruposPerformance({ groups, isDark, navigate }: { groups: GroupStat[]; isDark: boolean; navigate: (p: string) => void }) {
+function GruposPerformance({ groups, isDark }: { groups: GroupStat[]; isDark: boolean }) {
   const text  = isDark ? '#edeae4' : '#101828'
   const muted = isDark ? '#6b6760' : '#667085'
   const border = isDark ? 'rgba(255,255,255,0.06)' : '#f3f4f6'
@@ -303,20 +303,14 @@ function GruposPerformance({ groups, isDark, navigate }: { groups: GroupStat[]; 
         const wonBarPct = (group.revenue / Math.max(group.revenue + group.pipeline, 1)) * 100
 
         return (
-          <motion.button
+          <motion.div
             key={group.id}
             {...motionPresets.listItem(i)}
-            type="button"
-            onClick={() => navigate('/teams')}
             style={{
               display: 'flex', alignItems: 'center', gap: '14px',
               padding: '12px 0',
               borderBottom: i < groups.length - 1 ? `1px solid ${border}` : 'none',
-              backgroundColor: 'transparent', border: 'none',
-              cursor: 'pointer', textAlign: 'left', width: '100%',
-              transition: 'opacity 0.15s ease',
             }}
-            whileHover={{ opacity: 0.75 }}
           >
             {/* Rank */}
             <div style={{ width: '28px', textAlign: 'center', flexShrink: 0 }}>
@@ -378,7 +372,7 @@ function GruposPerformance({ groups, isDark, navigate }: { groups: GroupStat[]; 
                 </span>
               </div>
             </div>
-          </motion.button>
+          </motion.div>
         )
       })}
     </div>
@@ -1374,9 +1368,8 @@ export function DashboardPage() {
                     title="🏆 Performance por Grupo"
                     subtitle={`${groupStats.length} grupo${groupStats.length !== 1 ? 's' : ''} · ranking por receita`}
                     isDark={isDark}
-                    action={<button type="button" onClick={() => navigate('/teams')} style={{ fontSize: '12px', color: brand, background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>Ver grupos <ArrowRight size={12} /></button>}
                   >
-                    <GruposPerformance groups={groupStats} isDark={isDark} navigate={navigate} />
+                    <GruposPerformance groups={groupStats} isDark={isDark} />
                   </Card>
 
                   <Card
