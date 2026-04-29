@@ -635,7 +635,6 @@ const SECTIONS_CONFIG = [
   { id: 'kpis',         label: 'KPIs Principais' },
   { id: 'pipeline_area',label: 'Gráfico Pipeline + Funil' },
   { id: 'atencao',      label: 'Atenção Imediata' },
-  { id: 'team',         label: 'Performance da Equipa' },
   { id: 'tarefas',      label: 'Tarefas de Hoje' },
   { id: 'agenda',       label: 'Agenda de Hoje' },
   { id: 'oq_fazer',     label: 'O que fazer hoje' },
@@ -1187,36 +1186,28 @@ export function DashboardPage() {
                   </div>
                 )}
 
-                {/* Equipa + Atividade recente */}
-                {show('team') && (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                    <Card title="Top Performers" subtitle="Pipeline + receita" isDark={isDark}
-                      action={<button type="button" onClick={() => navigate('/teams')} style={{ fontSize: '12px', color: brand, background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>Equipa <ArrowRight size={12} /></button>}>
-                      <Leaderboard owners={owners} isDark={isDark} />
-                    </Card>
-                    {show('activity') && (
-                      <Card title="Atividade Recente" subtitle="Últimas oportunidades" isDark={isDark}
-                        action={<button type="button" onClick={() => navigate('/atividades')} style={{ fontSize: '12px', color: brand, background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>Ver tudo <ArrowRight size={12} /></button>}>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                          {[...deals].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 6).map((deal, i) => {
-                            const stage = STAGES.find((s) => s.id === (deal.stage ?? deal.stage_id))
-                            return (
-                              <motion.button key={deal.id} {...motionPresets.listItem(i)} type="button" onClick={() => navigate(`/deal/${deal.id}`)}
-                                style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 10px', borderRadius: '7px', backgroundColor: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left', width: '100%', transition: 'background-color 0.1s ease' }}
-                                whileHover={{ backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : '#f3f4f6' }}>
-                                <div style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: stage?.color ?? '#98a2b3', flexShrink: 0 }} />
-                                <span style={{ flex: 1, fontSize: '12px', fontWeight: 500, color: isDark ? '#edeae4' : '#101828', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                  {deal.name ?? deal.title}
-                                </span>
-                                <span style={{ fontSize: '11px', color: isDark ? '#6b6760' : '#98a2b3', flexShrink: 0 }}>{timeAgo(deal.created_at)}</span>
-                              </motion.button>
-                            )
-                          })}
-                          {deals.length === 0 && <EmptyState icon={<Activity size={16} />} title="Sem atividade" />}
-                        </div>
-                      </Card>
-                    )}
-                  </div>
+                {/* Atividade recente */}
+                {show('activity') && (
+                  <Card title="Atividade Recente" subtitle="Últimas oportunidades" isDark={isDark}
+                    action={<button type="button" onClick={() => navigate('/atividades')} style={{ fontSize: '12px', color: brand, background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>Ver tudo <ArrowRight size={12} /></button>}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      {[...deals].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 6).map((deal, i) => {
+                        const stage = STAGES.find((s) => s.id === (deal.stage ?? deal.stage_id))
+                        return (
+                          <motion.button key={deal.id} {...motionPresets.listItem(i)} type="button" onClick={() => navigate(`/deal/${deal.id}`)}
+                            style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 10px', borderRadius: '10px', backgroundColor: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left', width: '100%', transition: 'background-color 0.1s ease' }}
+                            whileHover={{ backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : '#f3f4f6' }}>
+                            <div style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: stage?.color ?? '#98a2b3', flexShrink: 0 }} />
+                            <span style={{ flex: 1, fontSize: '12px', fontWeight: 500, color: isDark ? '#edeae4' : '#101828', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {deal.name ?? deal.title}
+                            </span>
+                            <span style={{ fontSize: '11px', color: isDark ? '#6b6760' : '#98a2b3', flexShrink: 0 }}>{timeAgo(deal.created_at)}</span>
+                          </motion.button>
+                        )
+                      })}
+                      {deals.length === 0 && <EmptyState icon={<Activity size={16} />} title="Sem atividade" />}
+                    </div>
+                  </Card>
                 )}
 
                 {/* Tarefas + Agenda */}
@@ -1356,33 +1347,6 @@ export function DashboardPage() {
                   </div>
                 )}
 
-                {/* Team performance (detailed) */}
-                {show('team') && (
-                  <Card title="Performance da Equipa" subtitle="Receita por Account Executive" isDark={isDark}>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
-                      {owners.slice(0, 6).map((owner, i) => (
-                        <motion.div key={owner.name} {...motionPresets.listItem(i)} style={{
-                          display: 'flex', alignItems: 'center', gap: '10px',
-                          padding: '12px 14px', borderRadius: '8px',
-                          border: `1px solid ${isDark ? 'rgba(255,255,255,0.07)' : '#eaecf0'}`,
-                          backgroundColor: isDark ? '#191917' : '#f9fafb',
-                        }}>
-                          <div style={{ width: '34px', height: '34px', borderRadius: '8px', backgroundColor: owner.color, color: '#fff', fontSize: '11px', fontWeight: 700, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            {getInitials(owner.name)}
-                          </div>
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <p style={{ fontSize: '12px', fontWeight: 500, color: isDark ? '#edeae4' : '#101828', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{owner.name}</p>
-                            <div style={{ display: 'flex', gap: '8px', marginTop: '3px' }}>
-                              <span style={{ fontSize: '11px', fontWeight: 600, color: '#15803d', fontFamily: "'Geist Mono', monospace" }}>{fmtBRL(owner.won)}</span>
-                              <span style={{ fontSize: '11px', color: isDark ? '#6b6760' : '#98a2b3' }}>· {owner.deals} deals</span>
-                            </div>
-                          </div>
-                        </motion.div>
-                      ))}
-                      {owners.length === 0 && <EmptyState icon={<Users size={16} />} title="Sem dados" />}
-                    </div>
-                  </Card>
-                )}
 
                 {/* Top deals */}
                 {show('top_deals') && (

@@ -385,8 +385,15 @@ function GroupDetailModal({
 
 // ─── GroupCard ────────────────────────────────────────────────────────────────
 
+const ROLE_LABELS: Record<MemberRole, string> = {
+  leader: 'Líder', member: 'Membro', observer: 'Observador',
+}
+const ROLE_COLORS: Record<MemberRole, string> = {
+  leader: '#6b1212', member: '#1e40af', observer: '#667085',
+}
+
 function GroupCard({
-  team, owners, isDark, health, pipeline, openCount, wonCount, overdueCount, winRate,
+  team, owners, isDark, health, pipeline, openCount, wonCount, winRate, rank,
   onOpen,
 }: {
   team: Team
@@ -396,88 +403,126 @@ function GroupCard({
   pipeline: number
   openCount: number
   wonCount: number
-  overdueCount: number
   winRate: number
+  rank: number
   onOpen: () => void
 }) {
   const border  = isDark ? '#242422' : '#e4e0da'
   const cardBg  = isDark ? '#111110' : '#ffffff'
+  const subtleBg = isDark ? '#0d0d0b' : '#f9f8f5'
   const text    = isDark ? '#e8e4dc' : '#1a1814'
   const muted   = isDark ? '#5a5652' : '#8a857d'
   const members = owners.filter((o) => o.team_id === team.id)
+  const roles   = loadRoles()
+
+  // Sort: leader first, then member, then observer
+  const sortedMembers = [...members].sort((a, b) => {
+    const order: Record<MemberRole, number> = { leader: 0, member: 1, observer: 2 }
+    return (order[roles[a.id] ?? 'member'] ?? 1) - (order[roles[b.id] ?? 'member'] ?? 1)
+  })
+
+  const rankLabel = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `#${rank}`
 
   return (
-    <button type="button" onClick={onOpen} className="card-hover" style={{
-      display: 'flex', flexDirection: 'column', gap: '14px',
+    <button type="button" onClick={onOpen} style={{
+      display: 'flex', flexDirection: 'column', gap: '0',
       backgroundColor: cardBg, border: `1px solid ${border}`,
-      borderRadius: '12px', padding: '18px', cursor: 'pointer', textAlign: 'left',
-      boxShadow: 'var(--shadow-card)',
+      borderRadius: '16px', cursor: 'pointer', textAlign: 'left',
+      boxShadow: isDark ? 'none' : '0 1px 4px rgba(16,24,40,0.07)',
+      overflow: 'hidden', transition: 'box-shadow 0.15s ease',
     }}
+    onMouseEnter={(e) => { e.currentTarget.style.boxShadow = isDark ? '0 0 0 1px rgba(255,255,255,0.08)' : '0 4px 12px rgba(16,24,40,0.10)' }}
+    onMouseLeave={(e) => { e.currentTarget.style.boxShadow = isDark ? 'none' : '0 1px 4px rgba(16,24,40,0.07)' }}
     >
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-        <div>
-          <p style={{ fontSize: '15px', fontWeight: 700, color: text, letterSpacing: '-0.01em', marginBottom: '3px' }}>{team.name}</p>
-          <p style={{ fontSize: '11px', color: muted }}>{members.length} {members.length === 1 ? 'membro' : 'membros'}</p>
+      <div style={{ padding: '16px 18px 12px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+          {/* Rank badge */}
+          <div style={{
+            width: '32px', height: '32px', borderRadius: '10px', flexShrink: 0,
+            backgroundColor: isDark ? '#1a1a18' : '#f5f4f0',
+            border: `1px solid ${border}`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: rank <= 3 ? '16px' : '12px', fontWeight: 700, color: muted,
+          }}>
+            {rankLabel}
+          </div>
+          <div style={{ minWidth: 0 }}>
+            <p style={{ fontSize: '15px', fontWeight: 700, color: text, letterSpacing: '-0.01em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {team.name}
+            </p>
+            <p style={{ fontSize: '11px', color: muted, marginTop: '1px' }}>
+              {members.length} {members.length === 1 ? 'membro' : 'membros'} · {openCount} deals
+            </p>
+          </div>
         </div>
         <span style={{
           fontSize: '10px', fontWeight: 700, padding: '3px 8px', borderRadius: '20px',
-          backgroundColor: HEALTH_BG[health], color: HEALTH_COLOR[health],
-          flexShrink: 0,
-        }}>{HEALTH_LABEL[health]}</span>
+          backgroundColor: HEALTH_BG[health], color: HEALTH_COLOR[health], flexShrink: 0,
+        }}>
+          {HEALTH_LABEL[health]}
+        </span>
       </div>
 
-      {/* KPI grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-        {[
-          { label: 'Pipeline', value: fmtCompact(pipeline) },
-          { label: 'Win rate', value: `${(winRate * 100).toFixed(0)}%` },
-          { label: 'Abertos', value: String(openCount) },
-          { label: 'Vencidos', value: String(overdueCount) },
-        ].map(({ label, value }) => (
-          <div key={label} style={{ padding: '8px 10px', borderRadius: '8px', backgroundColor: isDark ? '#0d0d0b' : '#f5f4f0', border: `1px solid ${border}` }}>
-            <p style={{ fontSize: '10px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '3px' }}>{label}</p>
-            <p style={{ fontSize: '15px', fontWeight: 700, color: text }}>{value}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* Win-rate bar */}
-      <div>
+      {/* Pipeline bar */}
+      <div style={{ padding: '0 18px 14px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
-          <span style={{ fontSize: '11px', color: muted }}>Ganhos</span>
-          <span style={{ fontSize: '11px', color: muted }}>{wonCount} de {wonCount + openCount}</span>
+          <span style={{ fontSize: '12px', fontWeight: 700, color: text, fontFamily: "'Geist Mono', monospace" }}>{fmtCompact(pipeline)}</span>
+          <span style={{ fontSize: '11px', color: muted }}>{wonCount} ganhos · {(winRate * 100).toFixed(0)}% WR</span>
         </div>
-        <div style={{ height: '5px', borderRadius: '3px', backgroundColor: isDark ? '#1a1a18' : '#e8e4dc' }}>
-          <div style={{ height: '100%', width: `${Math.min(winRate * 100, 100)}%`, borderRadius: '3px', background: `linear-gradient(90deg, ${HEALTH_COLOR[health]}, ${HEALTH_COLOR[health]}aa)` }} />
+        <div style={{ height: '5px', borderRadius: '99px', backgroundColor: isDark ? '#1a1a18' : '#e8e4dc' }}>
+          <div style={{ height: '100%', width: `${Math.min(winRate * 100, 100)}%`, borderRadius: '99px', backgroundColor: '#6b1212', transition: 'width 0.4s ease' }} />
         </div>
       </div>
 
-      {/* Avatar row */}
-      {members.length > 0 && (
-        <div style={{ display: 'flex', gap: '-4px' }}>
-          {members.slice(0, 5).map((owner) => (
-            <div key={owner.id} title={owner.name} style={{
-              width: '26px', height: '26px', borderRadius: '50%', marginRight: '-6px',
-              backgroundColor: owner.avatar_color || '#e31e24',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: '10px', fontWeight: 700, color: '#fff',
-              border: `2px solid ${cardBg}`,
-            }}>
-              {owner.initials}
-            </div>
-          ))}
-          {members.length > 5 && (
-            <div style={{
-              width: '26px', height: '26px', borderRadius: '50%', marginRight: '-6px',
-              backgroundColor: isDark ? '#1a1a18' : '#e8e4dc',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: '9px', fontWeight: 700, color: muted,
-              border: `2px solid ${cardBg}`,
-            }}>+{members.length - 5}</div>
-          )}
-        </div>
-      )}
+      {/* Divider */}
+      <div style={{ height: '1px', backgroundColor: border }} />
+
+      {/* Members list */}
+      <div style={{ padding: '10px 0' }}>
+        {sortedMembers.length === 0 ? (
+          <p style={{ fontSize: '12px', color: muted, padding: '6px 18px', fontStyle: 'italic' }}>Sem membros ainda</p>
+        ) : (
+          sortedMembers.slice(0, 6).map((owner, i) => {
+            const role: MemberRole = roles[owner.id] ?? 'member'
+            return (
+              <div key={owner.id} style={{
+                display: 'flex', alignItems: 'center', gap: '10px',
+                padding: '7px 18px',
+                borderBottom: i < Math.min(sortedMembers.length, 6) - 1 ? `1px solid ${isDark ? 'rgba(255,255,255,0.04)' : '#f3f4f6'}` : 'none',
+              }}>
+                {/* Avatar */}
+                <div style={{
+                  width: '26px', height: '26px', borderRadius: '7px', flexShrink: 0,
+                  backgroundColor: owner.avatar_color || '#6b1212',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: '10px', fontWeight: 700, color: '#fff',
+                }}>
+                  {owner.initials}
+                </div>
+                {/* Name */}
+                <span style={{ flex: 1, fontSize: '13px', fontWeight: 500, color: text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {owner.name}
+                </span>
+                {/* Role badge */}
+                <span style={{
+                  fontSize: '10px', fontWeight: 600,
+                  color: ROLE_COLORS[role],
+                  backgroundColor: `${ROLE_COLORS[role]}14`,
+                  borderRadius: '5px', padding: '2px 7px', flexShrink: 0,
+                }}>
+                  {ROLE_LABELS[role]}
+                </span>
+              </div>
+            )
+          })
+        )}
+        {sortedMembers.length > 6 && (
+          <p style={{ fontSize: '11px', color: muted, padding: '6px 18px' }}>
+            +{sortedMembers.length - 6} mais membros
+          </p>
+        )}
+      </div>
     </button>
   )
 }
@@ -651,8 +696,8 @@ export function TeamsPage() {
             </Can>
           </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px', alignItems: 'start' }}>
-            {teamStats.map(({ team, pipeline, openCount, wonCount, overdueCount, winRate, health }) => (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px', alignItems: 'start' }}>
+            {[...teamStats].sort((a, b) => b.pipeline - a.pipeline).map(({ team, pipeline, openCount, wonCount, overdueCount, winRate, health }, idx) => (
               <GroupCard
                 key={team.id}
                 team={team}
@@ -664,6 +709,7 @@ export function TeamsPage() {
                 wonCount={wonCount}
                 overdueCount={overdueCount}
                 winRate={winRate}
+                rank={idx + 1}
                 onOpen={() => setOpenTeamId(team.id)}
               />
             ))}
