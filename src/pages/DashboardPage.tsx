@@ -15,6 +15,9 @@ import { useAuthStore } from '@/store/useAuthStore'
 import { useTaskStore } from '@/store/useTaskStore'
 import { useMeetingStore } from '@/store/useMeetingStore'
 import { useSettingsStore } from '@/store/useSettingsStore'
+import { useTeamStore } from '@/store/useTeamStore'
+import { useOwnerStore } from '@/store/useOwnerStore'
+import { useDealStore } from '@/store/useDealStore'
 import { useVisibleDeals } from '@/hooks/useVisibleDeals'
 import { STAGES } from '@/constants/pipeline'
 import { PageHeader } from '@/components/crm/PageHeader'
@@ -262,6 +265,122 @@ function MudancasFeed({ deals, isDark, navigate, isAdmin }: { deals: any[]; isDa
           )
         })}
       </div>
+    </div>
+  )
+}
+
+// ─── Grupos Performance ───────────────────────────────────────────────────────
+
+type GroupStat = {
+  id: string
+  name: string
+  members: { id: string; name: string; initials: string; color: string }[]
+  pipeline: number
+  revenue: number
+  deals: number
+  winRate: number
+  rank: number
+}
+
+function GruposPerformance({ groups, isDark, navigate }: { groups: GroupStat[]; isDark: boolean; navigate: (p: string) => void }) {
+  const text  = isDark ? '#edeae4' : '#101828'
+  const muted = isDark ? '#6b6760' : '#667085'
+  const border = isDark ? 'rgba(255,255,255,0.06)' : '#f3f4f6'
+
+  if (groups.length === 0) return (
+    <div style={{ padding: '20px', textAlign: 'center', fontSize: '12px', color: muted }}>
+      Nenhum grupo criado ainda
+    </div>
+  )
+
+  const maxRevenue = Math.max(...groups.map((g) => g.revenue + g.pipeline), 1)
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
+      {groups.map((group, i) => {
+        const rankEmoji = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : null
+        const barPct = ((group.revenue + group.pipeline) / maxRevenue) * 100
+        const wonBarPct = (group.revenue / Math.max(group.revenue + group.pipeline, 1)) * 100
+
+        return (
+          <motion.button
+            key={group.id}
+            {...motionPresets.listItem(i)}
+            type="button"
+            onClick={() => navigate('/teams')}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '14px',
+              padding: '12px 0',
+              borderBottom: i < groups.length - 1 ? `1px solid ${border}` : 'none',
+              backgroundColor: 'transparent', border: 'none',
+              cursor: 'pointer', textAlign: 'left', width: '100%',
+              transition: 'opacity 0.15s ease',
+            }}
+            whileHover={{ opacity: 0.75 }}
+          >
+            {/* Rank */}
+            <div style={{ width: '28px', textAlign: 'center', flexShrink: 0 }}>
+              {rankEmoji
+                ? <span style={{ fontSize: '16px' }}>{rankEmoji}</span>
+                : <span style={{ fontSize: '12px', fontWeight: 700, color: muted }}>#{i + 1}</span>}
+            </div>
+
+            {/* Name + members */}
+            <div style={{ width: '130px', flexShrink: 0, minWidth: 0 }}>
+              <p style={{ fontSize: '13px', fontWeight: 600, color: text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {group.name}
+              </p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '3px', marginTop: '3px' }}>
+                {group.members.slice(0, 4).map((m) => (
+                  <div key={m.id} title={m.name} style={{
+                    width: '18px', height: '18px', borderRadius: '5px',
+                    backgroundColor: m.color, color: '#fff',
+                    fontSize: '8px', fontWeight: 700,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    flexShrink: 0,
+                  }}>
+                    {m.initials.slice(0, 1)}
+                  </div>
+                ))}
+                {group.members.length > 4 && (
+                  <span style={{ fontSize: '9px', color: muted, fontWeight: 600 }}>+{group.members.length - 4}</span>
+                )}
+                {group.members.length === 0 && (
+                  <span style={{ fontSize: '10px', color: muted, fontStyle: 'italic' }}>Sem membros</span>
+                )}
+              </div>
+            </div>
+
+            {/* Bar chart */}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ height: '8px', borderRadius: '99px', backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#f3f4f6', overflow: 'hidden', position: 'relative' }}>
+                {/* Total pipeline bar */}
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ width: `${barPct}%` }}
+                  transition={{ duration: 0.8, delay: i * 0.07, ease: [0.16, 1, 0.3, 1] }}
+                  style={{ position: 'absolute', height: '100%', borderRadius: '99px', backgroundColor: isDark ? 'rgba(107,18,18,0.35)' : 'rgba(107,18,18,0.12)' }}
+                />
+                {/* Won revenue bar */}
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ width: `${barPct * wonBarPct / 100}%` }}
+                  transition={{ duration: 0.9, delay: i * 0.07 + 0.1, ease: [0.16, 1, 0.3, 1] }}
+                  style={{ position: 'absolute', height: '100%', borderRadius: '99px', backgroundColor: '#6b1212' }}
+                />
+              </div>
+              <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                <span style={{ fontSize: '10px', color: '#15803d', fontWeight: 600, fontFamily: "'Geist Mono', monospace" }}>
+                  {fmtBRL(group.revenue)}
+                </span>
+                <span style={{ fontSize: '10px', color: muted }}>
+                  · {group.deals} deals · {group.winRate.toFixed(0)}% WR
+                </span>
+              </div>
+            </div>
+          </motion.button>
+        )
+      })}
     </div>
   )
 }
@@ -642,7 +761,7 @@ const SECTIONS_CONFIG = [
   { id: 'loss',         label: 'Por que perdemos?' },
   { id: 'activity',     label: 'Atividade Recente' },
   { id: 'top_deals',    label: 'Top Oportunidades' },
-  { id: 'mudancas',     label: 'Mudanças Recentes' },
+  { id: 'grupos',       label: 'Performance por Grupo' },
   { id: 'renovacao',    label: 'Alertas de Renovação' },
 ]
 
@@ -846,9 +965,12 @@ export function DashboardPage() {
   const isDark   = useThemeStore((s) => s.isDark)
   const profile  = useAuthStore((s) => s.profile)
   const deals    = useVisibleDeals()
+  const allDeals = useDealStore((s) => s.deals)
   const tasks    = useTaskStore((s) => s.tasks)
   const meetings = useMeetingStore((s) => s.meetings)
   const { settings } = useSettingsStore()
+  const teams  = useTeamStore((s) => s.teams)
+  const owners = useOwnerStore((s) => s.owners)
   const navigate = useNavigate()
 
   const [tab, setTab]           = useState<'operacao' | 'resultados'>('operacao')
@@ -1010,6 +1132,24 @@ export function DashboardPage() {
       .filter((d) => d.expected_close && d.expected_close > in7 && d.expected_close <= in60 && d.stage !== 'lost' && d.stage_id !== 'closed_lost')
       .sort((a, b) => (a.expected_close ?? '').localeCompare(b.expected_close ?? ''))
   }, [deals])
+
+  // ── Group stats ──
+  const groupStats = useMemo((): GroupStat[] => {
+    return [...teams].map((team) => {
+      const teamDeals = allDeals.filter((d) => d.team_id === team.id)
+      const won = teamDeals.filter((d) => d.stage === 'won' || d.stage_id === 'closed_won')
+      const active = teamDeals.filter((d) => d.stage !== 'won' && d.stage !== 'lost' && d.stage_id !== 'closed_won' && d.stage_id !== 'closed_lost')
+      const revenue = won.reduce((s, d) => s + (d.value ?? 0), 0)
+      const pipeline = active.reduce((s, d) => s + (d.value ?? 0), 0)
+      const winRate = teamDeals.length > 0 ? (won.length / teamDeals.length) * 100 : 0
+      const teamMembers = owners
+        .filter((o) => o.team_id === team.id)
+        .map((o) => ({ id: o.id, name: o.name, initials: o.initials, color: o.avatar_color ?? '#667085' }))
+      return { id: team.id, name: team.name, members: teamMembers, pipeline, revenue, deals: teamDeals.length, winRate, rank: 0 }
+    })
+      .sort((a, b) => (b.revenue + b.pipeline) - (a.revenue + a.pipeline))
+      .map((g, i) => ({ ...g, rank: i + 1 }))
+  }, [teams, allDeals, owners])
 
   // ── Meetings hoje ──
   const todayMeetings = useMemo(() => {
@@ -1228,18 +1368,15 @@ export function DashboardPage() {
                   </div>
                 )}
 
-                {/* Mudanças Recentes + Renovações */}
+                {/* Grupos + Renovações */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: '12px' }}>
                   <Card
-                    title={isAdmin ? '🔄 Mudanças Recentes — Equipa' : '🔄 Mudanças Recentes — Minhas'}
-                    subtitle={isAdmin ? 'Todos os movimentos do time' : 'Apenas as suas oportunidades'}
+                    title="🏆 Performance por Grupo"
+                    subtitle={`${groupStats.length} grupo${groupStats.length !== 1 ? 's' : ''} · ranking por receita`}
                     isDark={isDark}
-                    noPadding
-                    action={<button type="button" onClick={() => navigate('/atividades')} style={{ fontSize: '12px', color: brand, background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>Ver tudo <ArrowRight size={12} /></button>}
+                    action={<button type="button" onClick={() => navigate('/teams')} style={{ fontSize: '12px', color: brand, background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>Ver grupos <ArrowRight size={12} /></button>}
                   >
-                    <div style={{ padding: '0 18px 16px' }}>
-                      <MudancasFeed deals={deals} isDark={isDark} navigate={navigate} isAdmin={isAdmin} />
-                    </div>
+                    <GruposPerformance groups={groupStats} isDark={isDark} navigate={navigate} />
                   </Card>
 
                   <Card

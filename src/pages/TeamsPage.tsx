@@ -396,131 +396,107 @@ function GroupCard({
   team, owners, isDark, health, pipeline, openCount, wonCount, winRate, rank,
   onOpen,
 }: {
-  team: Team
-  owners: Owner[]
-  isDark: boolean
-  health: HealthStatus
-  pipeline: number
-  openCount: number
-  wonCount: number
-  winRate: number
-  rank: number
-  onOpen: () => void
+  team: Team; owners: Owner[]; isDark: boolean; health: HealthStatus
+  pipeline: number; openCount: number; wonCount: number; winRate: number
+  rank: number; onOpen: () => void
 }) {
-  const border  = isDark ? '#242422' : '#e4e0da'
+  const border  = isDark ? 'rgba(255,255,255,0.07)' : '#eaecf0'
   const cardBg  = isDark ? '#111110' : '#ffffff'
-  const subtleBg = isDark ? '#0d0d0b' : '#f9f8f5'
-  const text    = isDark ? '#e8e4dc' : '#1a1814'
-  const muted   = isDark ? '#5a5652' : '#8a857d'
+  const text    = isDark ? '#e8e4dc' : '#101828'
+  const muted   = isDark ? '#5a5652' : '#667085'
   const members = owners.filter((o) => o.team_id === team.id)
   const roles   = loadRoles()
 
-  // Sort: leader first, then member, then observer
   const sortedMembers = [...members].sort((a, b) => {
     const order: Record<MemberRole, number> = { leader: 0, member: 1, observer: 2 }
     return (order[roles[a.id] ?? 'member'] ?? 1) - (order[roles[b.id] ?? 'member'] ?? 1)
   })
 
-  const rankLabel = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `#${rank}`
+  const rankEmoji = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : null
 
   return (
     <button type="button" onClick={onOpen} style={{
-      display: 'flex', flexDirection: 'column', gap: '0',
+      display: 'flex', flexDirection: 'column',
       backgroundColor: cardBg, border: `1px solid ${border}`,
       borderRadius: '16px', cursor: 'pointer', textAlign: 'left',
-      boxShadow: isDark ? 'none' : '0 1px 4px rgba(16,24,40,0.07)',
-      overflow: 'hidden', transition: 'box-shadow 0.15s ease',
+      boxShadow: isDark ? 'none' : '0 1px 3px rgba(16,24,40,0.06)',
+      overflow: 'hidden', transition: 'box-shadow 0.15s ease', padding: '16px 18px', gap: '12px',
     }}
-    onMouseEnter={(e) => { e.currentTarget.style.boxShadow = isDark ? '0 0 0 1px rgba(255,255,255,0.08)' : '0 4px 12px rgba(16,24,40,0.10)' }}
-    onMouseLeave={(e) => { e.currentTarget.style.boxShadow = isDark ? 'none' : '0 1px 4px rgba(16,24,40,0.07)' }}
+    onMouseEnter={(e) => { e.currentTarget.style.boxShadow = isDark ? '0 0 0 1px rgba(255,255,255,0.1)' : '0 4px 12px rgba(16,24,40,0.09)' }}
+    onMouseLeave={(e) => { e.currentTarget.style.boxShadow = isDark ? 'none' : '0 1px 3px rgba(16,24,40,0.06)' }}
     >
-      {/* Header */}
-      <div style={{ padding: '16px 18px 12px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '10px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
-          {/* Rank badge */}
-          <div style={{
-            width: '32px', height: '32px', borderRadius: '10px', flexShrink: 0,
-            backgroundColor: isDark ? '#1a1a18' : '#f5f4f0',
-            border: `1px solid ${border}`,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: rank <= 3 ? '16px' : '12px', fontWeight: 700, color: muted,
-          }}>
-            {rankLabel}
-          </div>
-          <div style={{ minWidth: 0 }}>
-            <p style={{ fontSize: '15px', fontWeight: 700, color: text, letterSpacing: '-0.01em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {team.name}
-            </p>
-            <p style={{ fontSize: '11px', color: muted, marginTop: '1px' }}>
-              {members.length} {members.length === 1 ? 'membro' : 'membros'} · {openCount} deals
-            </p>
-          </div>
+      {/* Header row */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+          <span style={{ fontSize: rankEmoji ? '18px' : '12px', fontWeight: 700, color: muted, flexShrink: 0 }}>
+            {rankEmoji ?? `#${rank}`}
+          </span>
+          <p style={{ fontSize: '14px', fontWeight: 600, color: text, letterSpacing: '-0.01em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {team.name}
+          </p>
         </div>
         <span style={{
-          fontSize: '10px', fontWeight: 700, padding: '3px 8px', borderRadius: '20px',
+          fontSize: '10px', fontWeight: 600, padding: '2px 8px', borderRadius: '99px',
           backgroundColor: HEALTH_BG[health], color: HEALTH_COLOR[health], flexShrink: 0,
         }}>
           {HEALTH_LABEL[health]}
         </span>
       </div>
 
-      {/* Pipeline bar */}
-      <div style={{ padding: '0 18px 14px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
-          <span style={{ fontSize: '12px', fontWeight: 700, color: text, fontFamily: "'Geist Mono', monospace" }}>{fmtCompact(pipeline)}</span>
-          <span style={{ fontSize: '11px', color: muted }}>{wonCount} ganhos · {(winRate * 100).toFixed(0)}% WR</span>
+      {/* Stats row */}
+      <div style={{ display: 'flex', gap: '16px' }}>
+        <div>
+          <p style={{ fontSize: '11px', color: muted, marginBottom: '2px' }}>Pipeline</p>
+          <p style={{ fontSize: '14px', fontWeight: 700, color: text, fontFamily: "'Geist Mono', monospace" }}>{fmtCompact(pipeline)}</p>
         </div>
-        <div style={{ height: '5px', borderRadius: '99px', backgroundColor: isDark ? '#1a1a18' : '#e8e4dc' }}>
-          <div style={{ height: '100%', width: `${Math.min(winRate * 100, 100)}%`, borderRadius: '99px', backgroundColor: '#6b1212', transition: 'width 0.4s ease' }} />
+        <div>
+          <p style={{ fontSize: '11px', color: muted, marginBottom: '2px' }}>Ganhos</p>
+          <p style={{ fontSize: '14px', fontWeight: 700, color: '#15803d', fontFamily: "'Geist Mono', monospace" }}>{wonCount}</p>
+        </div>
+        <div>
+          <p style={{ fontSize: '11px', color: muted, marginBottom: '2px' }}>Win Rate</p>
+          <p style={{ fontSize: '14px', fontWeight: 700, color: text }}>{(winRate * 100).toFixed(0)}%</p>
+        </div>
+        <div>
+          <p style={{ fontSize: '11px', color: muted, marginBottom: '2px' }}>Abertos</p>
+          <p style={{ fontSize: '14px', fontWeight: 700, color: text }}>{openCount}</p>
         </div>
       </div>
 
-      {/* Divider */}
-      <div style={{ height: '1px', backgroundColor: border }} />
+      {/* Win rate bar */}
+      <div style={{ height: '4px', borderRadius: '99px', backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#f3f4f6' }}>
+        <div style={{ height: '100%', width: `${Math.min(winRate * 100, 100)}%`, borderRadius: '99px', backgroundColor: '#6b1212', transition: 'width 0.4s ease' }} />
+      </div>
 
-      {/* Members list */}
-      <div style={{ padding: '10px 0' }}>
+      {/* Members */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
         {sortedMembers.length === 0 ? (
-          <p style={{ fontSize: '12px', color: muted, padding: '6px 18px', fontStyle: 'italic' }}>Sem membros ainda</p>
+          <p style={{ fontSize: '12px', color: muted, fontStyle: 'italic' }}>Sem membros</p>
         ) : (
-          sortedMembers.slice(0, 6).map((owner, i) => {
+          sortedMembers.slice(0, 5).map((owner) => {
             const role: MemberRole = roles[owner.id] ?? 'member'
             return (
-              <div key={owner.id} style={{
-                display: 'flex', alignItems: 'center', gap: '10px',
-                padding: '7px 18px',
-                borderBottom: i < Math.min(sortedMembers.length, 6) - 1 ? `1px solid ${isDark ? 'rgba(255,255,255,0.04)' : '#f3f4f6'}` : 'none',
-              }}>
-                {/* Avatar */}
+              <div key={owner.id} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <div style={{
-                  width: '26px', height: '26px', borderRadius: '7px', flexShrink: 0,
+                  width: '22px', height: '22px', borderRadius: '6px', flexShrink: 0,
                   backgroundColor: owner.avatar_color || '#6b1212',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: '10px', fontWeight: 700, color: '#fff',
+                  fontSize: '8px', fontWeight: 700, color: '#fff',
                 }}>
                   {owner.initials}
                 </div>
-                {/* Name */}
-                <span style={{ flex: 1, fontSize: '13px', fontWeight: 500, color: text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <span style={{ flex: 1, fontSize: '12px', color: text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {owner.name}
                 </span>
-                {/* Role badge */}
-                <span style={{
-                  fontSize: '10px', fontWeight: 600,
-                  color: ROLE_COLORS[role],
-                  backgroundColor: `${ROLE_COLORS[role]}14`,
-                  borderRadius: '5px', padding: '2px 7px', flexShrink: 0,
-                }}>
+                <span style={{ fontSize: '10px', fontWeight: 500, color: ROLE_COLORS[role] }}>
                   {ROLE_LABELS[role]}
                 </span>
               </div>
             )
           })
         )}
-        {sortedMembers.length > 6 && (
-          <p style={{ fontSize: '11px', color: muted, padding: '6px 18px' }}>
-            +{sortedMembers.length - 6} mais membros
-          </p>
+        {sortedMembers.length > 5 && (
+          <p style={{ fontSize: '11px', color: muted }}>+{sortedMembers.length - 5} mais</p>
         )}
       </div>
     </button>
