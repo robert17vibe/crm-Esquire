@@ -1098,8 +1098,8 @@ export function DashboardPage() {
     return { label: stage.label, color: stage.color, count: sd.length, value: sd.reduce((s, d) => s + (d.value ?? 0), 0) }
   }).filter((s) => s.count > 0), [deals])
 
-  // ── Owners ──
-  const owners = useMemo(() => {
+  // ── Deal owners (leaderboard) ──
+  const dealOwners = useMemo(() => {
     const map = new Map<string, { name: string; color: string; won: number; pipeline: number; deals: number }>()
     for (const deal of deals) {
       const name  = deal.owner_name ?? deal.owner?.name ?? 'Sem responsável'
