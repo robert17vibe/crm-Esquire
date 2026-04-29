@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import { motion, AnimatePresence } from 'motion/react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, Kanban, Users, Mic, CalendarDays,
@@ -66,7 +67,7 @@ function NavItem({
         backgroundColor: isActive ? 'rgba(255,255,255,0.10)' : 'transparent',
         color: isActive ? '#ffffff' : 'rgba(255,255,255,0.45)',
         position: 'relative',
-        borderRadius: '8px',
+        borderRadius: '10px',
         margin: '0 10px',
       })}
       onMouseEnter={(e) => {
@@ -96,7 +97,7 @@ function NavItem({
               <span style={{
                 position: 'absolute', top: '-3px', right: '-3px',
                 width: '7px', height: '7px', borderRadius: '50%',
-                backgroundColor: '#b91c22',
+                backgroundColor: '#6b1212',
                 border: '1.5px solid #0c0c0a',
               }} />
             )}
@@ -107,7 +108,7 @@ function NavItem({
               {hasBadge && (
                 <span style={{
                   fontSize: '10px', fontWeight: 600, minWidth: '18px', height: '18px',
-                  borderRadius: '4px', backgroundColor: '#b91c22', color: '#fff',
+                  borderRadius: '4px', backgroundColor: '#6b1212', color: '#fff',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   padding: '0 5px', flexShrink: 0,
                 }}>
@@ -132,7 +133,7 @@ function _NotificationPanel({ onClose, bottom }: { onClose: () => void; bottom: 
   const unread = notifications.filter((n) => !n.read)
 
   const NOTIF_CFG: Record<string, { label: string; color: string }> = {
-    new_deal:         { label: 'Novo Lead',  color: '#b91c22' },
+    new_deal:         { label: 'Novo Lead',  color: '#6b1212' },
     overdue_activity: { label: 'Parado',     color: '#b45309' },
     sla_breach:       { label: 'SLA',        color: '#dc2626' },
     meeting_invite:   { label: 'Reunião',    color: '#7c3aed' },
@@ -188,7 +189,7 @@ function _NotificationPanel({ onClose, bottom }: { onClose: () => void; bottom: 
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span style={{ fontSize: '12px', fontWeight: 600, color: '#ffffff' }}>Notificações</span>
           {unread.length > 0 && (
-            <span style={{ fontSize: '10px', fontWeight: 600, color: '#fff', backgroundColor: '#b91c22', borderRadius: '4px', padding: '1px 6px' }}>
+            <span style={{ fontSize: '10px', fontWeight: 600, color: '#fff', backgroundColor: '#6b1212', borderRadius: '4px', padding: '1px 6px' }}>
               {unread.length}
             </span>
           )}
@@ -319,7 +320,7 @@ export function Sidebar() {
           {collapsed ? (
             <div style={{
               width: '28px', height: '28px', borderRadius: '5px',
-              backgroundColor: '#b91c22',
+              backgroundColor: '#6b1212',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
               <span style={{
@@ -451,7 +452,7 @@ export function Sidebar() {
                 </div>
                 <button type="button" onClick={() => signOut()} title="Sair"
                   style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', flexShrink: 0, color: 'rgba(255,255,255,0.20)', transition: 'color 0.15s ease' }}
-                  onMouseEnter={(e) => (e.currentTarget.style.color = '#b91c22')}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = '#6b1212')}
                   onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.20)')}>
                   <LogOut style={{ width: '14px', height: '14px' }} />
                 </button>
@@ -478,7 +479,7 @@ export function Sidebar() {
           color: 'rgba(255,255,255,0.35)',
           transition: 'background-color 0.15s ease, left 0.22s cubic-bezier(0.4,0,0.2,1)',
         }}
-        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#b91c22'; e.currentTarget.style.color = '#fff' }}
+        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#6b1212'; e.currentTarget.style.color = '#fff' }}
         onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#1a1a18'; e.currentTarget.style.color = 'rgba(255,255,255,0.35)' }}
       >
         {collapsed

@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'motion/react'
 import {
   TrendingUp, DollarSign, Target, Briefcase, Clock, Award, CheckSquare,
   Users, AlertTriangle, ArrowRight, BarChart2, Activity, Settings2,
-  X, Calendar, Zap, CheckCircle2, Eye, EyeOff, GripVertical,
+  X, Calendar, Zap, CheckCircle2, GripVertical, RefreshCw, Bell,
 } from 'lucide-react'
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -87,7 +87,7 @@ function Card({ title, subtitle, children, action, isDark, noPadding }: {
   const text   = isDark ? '#edeae4' : '#101828'
   const muted  = isDark ? '#6b6760' : '#667085'
   return (
-    <div style={{ backgroundColor: bg, border: `1px solid ${border}`, borderRadius: '12px', overflow: 'hidden', boxShadow: isDark ? 'none' : '0 1px 3px rgba(16,24,40,0.06)' }}>
+    <div style={{ backgroundColor: bg, border: `1px solid ${border}`, borderRadius: '16px', overflow: 'hidden', boxShadow: isDark ? 'none' : '0 1px 4px rgba(16,24,40,0.07)' }}>
       <div style={{ padding: '14px 18px', borderBottom: `1px solid ${border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div>
           <p style={{ fontSize: '13px', fontWeight: 600, color: text, margin: 0, letterSpacing: '-0.01em' }}>{title}</p>
@@ -96,6 +96,172 @@ function Card({ title, subtitle, children, action, isDark, noPadding }: {
         {action}
       </div>
       <div style={noPadding ? {} : { padding: '16px 18px' }}>{children}</div>
+    </div>
+  )
+}
+
+// ─── Renewal Alert ────────────────────────────────────────────────────────────
+
+function RenovacaoAlert({ deals, isDark, navigate }: { deals: any[]; isDark: boolean; navigate: (p: string) => void }) {
+  const text  = isDark ? '#edeae4' : '#101828'
+  const muted = isDark ? '#6b6760' : '#667085'
+  const border = isDark ? 'rgba(255,255,255,0.07)' : '#eaecf0'
+
+  if (deals.length === 0) return (
+    <div style={{ padding: '16px', textAlign: 'center', fontSize: '12px', color: muted }}>
+      Nenhuma renovação nos próximos 60 dias
+    </div>
+  )
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+      {deals.slice(0, 5).map((deal, i) => {
+        const daysLeft = deal.expected_close
+          ? Math.ceil((new Date(deal.expected_close).getTime() - Date.now()) / 86400000)
+          : null
+        const urgency = daysLeft !== null && daysLeft <= 14 ? '#9b1c1c' : daysLeft !== null && daysLeft <= 30 ? '#92400e' : '#1e40af'
+        return (
+          <motion.button
+            key={deal.id}
+            {...motionPresets.listItem(i)}
+            type="button" onClick={() => navigate(`/deal/${deal.id}`)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '12px',
+              padding: '10px 14px', borderRadius: '12px',
+              backgroundColor: `${urgency}0a`, border: `1px solid ${urgency}28`,
+              cursor: 'pointer', textAlign: 'left', width: '100%',
+              transition: 'opacity 0.15s ease',
+            }}
+            whileHover={{ opacity: 0.82 }}
+          >
+            <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: urgency, flexShrink: 0 }} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ fontSize: '13px', fontWeight: 500, color: text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {deal.name ?? deal.title}
+              </p>
+              <p style={{ fontSize: '11px', color: muted }}>{deal.company_name ?? '—'}</p>
+            </div>
+            <div style={{ textAlign: 'right', flexShrink: 0 }}>
+              <p style={{ fontSize: '12px', fontWeight: 600, color: '#15803d', fontFamily: "'Geist Mono', monospace" }}>
+                {fmtBRL(deal.value ?? 0)}
+              </p>
+              <span style={{ fontSize: '10px', fontWeight: 600, color: urgency, backgroundColor: `${urgency}18`, borderRadius: '5px', padding: '2px 6px' }}>
+                {daysLeft !== null ? (daysLeft <= 0 ? 'Hoje!' : `${daysLeft}d`) : '—'}
+              </span>
+            </div>
+          </motion.button>
+        )
+      })}
+    </div>
+  )
+}
+
+// ─── Mudanças Recentes (feed with who + what) ─────────────────────────────────
+
+function MudancasFeed({ deals, isDark, navigate, isAdmin }: { deals: any[]; isDark: boolean; navigate: (p: string) => void; isAdmin: boolean }) {
+  const text  = isDark ? '#edeae4' : '#101828'
+  const muted = isDark ? '#6b6760' : '#667085'
+  const border = isDark ? 'rgba(255,255,255,0.06)' : '#f3f4f6'
+
+  const STAGE_COLORS_MAP: Record<string, { color: string; bg: string; label: string }> = {
+    novo_lead:        { color: '#1e40af', bg: '#1e40af18', label: 'Novo Lead' },
+    qualificado:      { color: '#7c3aed', bg: '#7c3aed18', label: 'Qualificado' },
+    proposta_enviada: { color: '#92400e', bg: '#92400e18', label: 'Proposta' },
+    em_negociacao:    { color: '#b45309', bg: '#b4530918', label: 'Negociação' },
+    won:              { color: '#15803d', bg: '#15803d18', label: 'Ganho ✓' },
+    lost:             { color: '#9b1c1c', bg: '#9b1c1c18', label: 'Perdido' },
+  }
+
+  const sorted = useMemo(() =>
+    [...deals]
+      .sort((a, b) => new Date(b.updated_at ?? b.created_at).getTime() - new Date(a.updated_at ?? a.created_at).getTime())
+      .slice(0, 12),
+    [deals]
+  )
+
+  if (sorted.length === 0) return (
+    <div style={{ padding: '20px', textAlign: 'center', fontSize: '12px', color: muted }}>
+      Sem atividade recente
+    </div>
+  )
+
+  return (
+    <div>
+      {!isAdmin && (
+        <div style={{ padding: '8px 0 12px', fontSize: '11px', color: muted, display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <div style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#1e40af' }} />
+          Mostrando apenas as suas oportunidades
+        </div>
+      )}
+      <div style={{ display: 'flex', flexDirection: 'column' }}>
+        {sorted.map((deal, i) => {
+          const stageKey = deal.stage ?? deal.stage_id ?? 'novo_lead'
+          const cfg = STAGE_COLORS_MAP[stageKey] ?? { color: '#667085', bg: '#66708518', label: stageKey }
+          const ownerInitials = (deal.owner_name ?? deal.owner?.name ?? '?')
+            .split(' ').map((p: string) => p[0]).slice(0, 2).join('').toUpperCase()
+          const ownerColor = deal.owner_avatar_color ?? deal.owner?.avatar_color ?? '#667085'
+          const ownerFirstName = (deal.owner_name ?? deal.owner?.name ?? 'Sem dono').split(' ')[0]
+          return (
+            <motion.button
+              key={deal.id}
+              {...motionPresets.listItem(i)}
+              type="button"
+              onClick={() => navigate(`/deal/${deal.id}`)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '12px',
+                padding: '11px 0',
+                borderBottom: i < sorted.length - 1 ? `1px solid ${border}` : 'none',
+                backgroundColor: 'transparent', border: 'none',
+                cursor: 'pointer', textAlign: 'left', width: '100%',
+                transition: 'opacity 0.15s ease',
+              }}
+              whileHover={{ opacity: 0.75 }}
+            >
+              {/* Owner avatar */}
+              <div style={{
+                width: '30px', height: '30px', borderRadius: '8px',
+                backgroundColor: ownerColor, color: '#fff',
+                fontSize: '10px', fontWeight: 700, flexShrink: 0,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                {ownerInitials}
+              </div>
+
+              {/* Content */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'nowrap' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 500, color: text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '180px' }}>
+                    {deal.name ?? deal.title}
+                  </span>
+                  <span style={{
+                    fontSize: '10px', fontWeight: 600, color: cfg.color,
+                    backgroundColor: cfg.bg, borderRadius: '5px', padding: '2px 7px',
+                    letterSpacing: '0.02em', flexShrink: 0,
+                  }}>
+                    {cfg.label}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '2px' }}>
+                  <span style={{ fontSize: '11px', color: muted }}>{ownerFirstName}</span>
+                  {deal.company_name && <span style={{ fontSize: '11px', color: muted }}>· {deal.company_name}</span>}
+                </div>
+              </div>
+
+              {/* Right: value + time */}
+              <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                {deal.value ? (
+                  <p style={{ fontSize: '12px', fontWeight: 600, color: stageKey === 'won' ? '#15803d' : (isDark ? '#edeae4' : '#101828'), fontFamily: "'Geist Mono', monospace" }}>
+                    {fmtBRL(deal.value)}
+                  </p>
+                ) : <p style={{ fontSize: '12px', color: muted }}>—</p>}
+                <p style={{ fontSize: '10px', color: muted, marginTop: '1px' }}>
+                  {timeAgo(deal.updated_at ?? deal.created_at)}
+                </p>
+              </div>
+            </motion.button>
+          )
+        })}
+      </div>
     </div>
   )
 }
@@ -111,7 +277,7 @@ function WelcomeHero({ name, goalPct, isDark }: { name: string; goalPct: number;
   return (
     <motion.div {...motionPresets.slideUp} style={{
       backgroundColor: bg, border: `1px solid ${isDark ? 'rgba(255,255,255,0.07)' : '#eaecf0'}`,
-      borderRadius: '12px', padding: '18px 22px',
+      borderRadius: '18px', padding: '18px 22px',
       boxShadow: isDark ? 'none' : '0 1px 3px rgba(16,24,40,0.06)',
       display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '24px',
     }}>
@@ -170,7 +336,7 @@ function AtencaoImediata({ deals, isDark, navigate }: { deals: any[]; isDark: bo
             type="button" onClick={() => navigate(`/deal/${deal.id}`)}
             style={{
               display: 'flex', alignItems: 'center', gap: '12px',
-              padding: '12px 14px', borderRadius: '9px',
+              padding: '12px 14px', borderRadius: '12px',
               backgroundColor: uc.bg, border: `1px solid ${uc.border}`,
               cursor: 'pointer', textAlign: 'left', width: '100%',
               transition: 'opacity 0.15s ease',
@@ -332,10 +498,10 @@ function AgendaHoje({ meetings, isDark, navigate }: { meetings: any[]; isDark: b
             key={m.id}
             {...motionPresets.listItem(i)}
             type="button"
-            onClick={() => navigate('/meetings')}
+            onClick={() => navigate('/calendar')}
             style={{
               display: 'flex', alignItems: 'flex-start', gap: '12px',
-              padding: '10px 12px', borderRadius: '8px',
+              padding: '10px 12px', borderRadius: '12px',
               backgroundColor: 'transparent', border: `1px solid ${border}`,
               cursor: 'pointer', textAlign: 'left', width: '100%',
               transition: 'background-color 0.1s ease',
@@ -477,6 +643,8 @@ const SECTIONS_CONFIG = [
   { id: 'loss',         label: 'Por que perdemos?' },
   { id: 'activity',     label: 'Atividade Recente' },
   { id: 'top_deals',    label: 'Top Oportunidades' },
+  { id: 'mudancas',     label: 'Mudanças Recentes' },
+  { id: 'renovacao',    label: 'Alertas de Renovação' },
 ]
 
 const PERSIST_KEY = 'esq_dashboard_sections_v2'
@@ -725,8 +893,39 @@ export function DashboardPage() {
     const pending  = tasks.filter((t) => !t.completed_at).length
     const meta     = settings?.monthly_target ?? 0
     const goalPct  = meta > 0 ? Math.round((revenue / meta) * 100) : 0
-    return { active: active.length, won: won.length, pipeline, revenue, winRate, ticket, overdue, pending, goalPct, total: filteredDeals.length }
-  }, [filteredDeals, tasks, settings])
+
+    // Cycle time: avg days from created_at to updated_at for won deals
+    const wonWithDates = won.filter((d) => d.created_at && d.updated_at)
+    const avgCycleDays = wonWithDates.length > 0
+      ? Math.round(wonWithDates.reduce((s, d) => {
+          return s + (new Date(d.updated_at).getTime() - new Date(d.created_at).getTime()) / 86400000
+        }, 0) / wonWithDates.length)
+      : 0
+
+    // Month progress
+    const now = new Date()
+    const dayOfMonth = now.getDate()
+    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
+    const monthPct = Math.round((dayOfMonth / daysInMonth) * 100)
+
+    // Monthly revenue (current month only)
+    const thisMonth = now.toISOString().slice(0, 7)
+    const thisMonthRevenue = deals
+      .filter((d) => (d.stage === 'won' || d.stage_id === 'closed_won') && (d.updated_at ?? d.created_at)?.slice(0, 7) === thisMonth)
+      .reduce((s, d) => s + (d.value ?? 0), 0)
+
+    // Meetings this month
+    const monthMeetings = meetings.filter((m) => m.scheduled_at?.slice(0, 7) === thisMonth)
+    // Expected meetings: rough estimate (e.g., target from settings or 1 per active deal per 2 weeks)
+    const expectedMeetings = Math.max(monthMeetings.length, Math.ceil(active.length * 0.3))
+
+    return {
+      active: active.length, won: won.length, pipeline, revenue, winRate, ticket,
+      overdue, pending, goalPct, total: filteredDeals.length,
+      avgCycleDays, dayOfMonth, daysInMonth, monthPct,
+      thisMonthRevenue, monthMeetings: monthMeetings.length, expectedMeetings,
+    }
+  }, [filteredDeals, tasks, settings, deals, meetings])
 
   // ── Monthly data ──
   const monthlyData = useMemo(() => {
@@ -801,6 +1000,18 @@ export function DashboardPage() {
       .sort((a, b) => (a.expected_close ?? '').localeCompare(b.expected_close ?? ''))
   }, [deals])
 
+  // ── Admin check ──
+  const isAdmin = profile?.is_admin ?? false
+
+  // ── Renovation alerts (expected_close in next 30-60 days for won deals or near-closing) ──
+  const renewalDeals = useMemo(() => {
+    const in60 = new Date(Date.now() + 60 * 86400000).toISOString()
+    const in7  = new Date(Date.now() + 7  * 86400000).toISOString()
+    return deals
+      .filter((d) => d.expected_close && d.expected_close > in7 && d.expected_close <= in60 && d.stage !== 'lost' && d.stage_id !== 'closed_lost')
+      .sort((a, b) => (a.expected_close ?? '').localeCompare(b.expected_close ?? ''))
+  }, [deals])
+
   // ── Meetings hoje ──
   const todayMeetings = useMemo(() => {
     const today = new Date().toISOString().slice(0, 10)
@@ -819,7 +1030,7 @@ export function DashboardPage() {
     const items: { text: string; sub: string; href: string; color: string }[] = []
     if (kpis.overdue > 0) items.push({ text: `${kpis.overdue} tarefa${kpis.overdue > 1 ? 's' : ''} em atraso`, sub: 'Requer atenção imediata', href: '/tarefas', color: '#9b1c1c' })
     if (urgentDeals.length > 0) items.push({ text: `${urgentDeals.length} deal${urgentDeals.length > 1 ? 's' : ''} vence em 7 dias`, sub: fmtBRL(urgentDeals.reduce((s, d) => s + (d.value ?? 0), 0)) + ' em risco', href: '/pipeline', color: '#92400e' })
-    if (todayMeetings.length > 0) items.push({ text: `${todayMeetings.length} reunião${todayMeetings.length > 1 ? 'ões' : ''} hoje`, sub: `Primeira às ${new Date(todayMeetings[0].scheduled_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`, href: '/meetings', color: '#1e40af' })
+    if (todayMeetings.length > 0) items.push({ text: `${todayMeetings.length} reunião${todayMeetings.length > 1 ? 'ões' : ''} hoje`, sub: `Primeira às ${new Date(todayMeetings[0].scheduled_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`, href: '/calendar', color: '#1e40af' })
     const stale = deals.filter((d) => {
       if (d.stage === 'won' || d.stage_id === 'closed_won' || d.stage === 'lost' || d.stage_id === 'closed_lost') return false
       const lastAct = d.last_activity_at ?? d.updated_at
@@ -899,16 +1110,16 @@ export function DashboardPage() {
               <motion.div key="op" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} transition={{ duration: 0.18 }} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
                 {/* 6 KPIs */}
-                {show('kpis') && (
+                {show('kpis') && (<>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
                     <StatCard icon={<Briefcase size={15} />} color="accent" label="Pipeline Ativo" value={fmtBRL(kpis.pipeline)} delta={`${kpis.active} oportunidades`} deltaType="neutral" index={0} sparklineData={spkPipeline} />
-                    <StatCard icon={<Target size={15} />} color="success" label="Receita Fechada" value={fmtBRL(kpis.revenue)} delta={`${kpis.won} fechados`} deltaType="positive" index={1} sparklineData={spkWon} />
-                    <StatCard icon={<Award size={15} />} color="info" label="Win Rate" value={fmtPct(kpis.winRate)} delta={kpis.winRate >= 30 ? 'Saudável' : 'A melhorar'} deltaType={kpis.winRate >= 30 ? 'positive' : 'negative'} index={2} />
-                    <StatCard icon={<DollarSign size={15} />} color="warning" label="Ticket Médio" value={fmtBRL(kpis.ticket)} delta="por negócio ganho" deltaType="neutral" index={3} />
-                    <StatCard icon={<CheckSquare size={15} />} color={kpis.overdue > 0 ? 'danger' : 'success'} label="Tarefas Pendentes" value={String(kpis.pending)} delta={kpis.overdue > 0 ? `${kpis.overdue} em atraso` : 'Em dia'} deltaType={kpis.overdue > 0 ? 'negative' : 'positive'} index={4} onClick={() => navigate('/tarefas')} />
-                    <StatCard icon={<Activity size={15} />} color="neutral" label="Total Período" value={String(kpis.total)} delta={`${period} selecionado`} deltaType="neutral" index={5} />
+                    <StatCard icon={<Target size={15} />} color="success" label="Receita do Mês" value={fmtBRL(kpis.thisMonthRevenue)} delta={`Meta: ${kpis.goalPct}%`} deltaType={kpis.goalPct >= 100 ? 'positive' : kpis.goalPct >= 70 ? 'neutral' : 'negative'} index={1} sparklineData={spkWon} />
+                    <StatCard icon={<Award size={15} />} color="info" label="Taxa de Conversão" value={fmtPct(kpis.winRate)} delta={kpis.winRate >= 30 ? 'Saudável' : 'A melhorar'} deltaType={kpis.winRate >= 30 ? 'positive' : 'negative'} index={2} />
+                    <StatCard icon={<Clock size={15} />} color="warning" label="Tempo de Ciclo" value={kpis.avgCycleDays > 0 ? `${kpis.avgCycleDays}d` : '—'} delta="média até fechar" deltaType="neutral" index={3} />
+                    <StatCard icon={<Calendar size={15} />} color="neutral" label="Dia do Mês" value={`${kpis.dayOfMonth}/${kpis.daysInMonth}`} delta={`${kpis.monthPct}% do mês`} deltaType={kpis.monthPct > (kpis.goalPct) ? 'negative' : 'positive'} index={4} />
+                    <StatCard icon={<Users size={15} />} color={kpis.monthMeetings >= kpis.expectedMeetings ? 'success' : 'warning'} label="Reuniões do Mês" value={`${kpis.monthMeetings}/${kpis.expectedMeetings}`} delta={kpis.monthMeetings >= kpis.expectedMeetings ? 'Meta atingida' : 'Abaixo do esperado'} deltaType={kpis.monthMeetings >= kpis.expectedMeetings ? 'positive' : 'negative'} index={5} onClick={() => navigate('/calendar')} />
                   </div>
-                )}
+                </>)}
 
                 {/* Pipeline Área + Funil Stacked */}
                 {show('pipeline_area') && (
@@ -1019,12 +1230,36 @@ export function DashboardPage() {
                     )}
                     {show('agenda') && (
                       <Card title="📅 Agenda de Hoje" subtitle={`${todayMeetings.length} reunião${todayMeetings.length !== 1 ? 'ões' : ''}`} isDark={isDark}
-                        action={<button type="button" onClick={() => navigate('/meetings')} style={{ fontSize: '12px', color: brand, background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>Agenda <ArrowRight size={12} /></button>}>
+                        action={<button type="button" onClick={() => navigate('/calendar')} style={{ fontSize: '12px', color: brand, background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>Calendário <ArrowRight size={12} /></button>}>
                         <AgendaHoje meetings={todayMeetings} isDark={isDark} navigate={navigate} />
                       </Card>
                     )}
                   </div>
                 )}
+
+                {/* Mudanças Recentes + Renovações */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: '12px' }}>
+                  <Card
+                    title={isAdmin ? '🔄 Mudanças Recentes — Equipa' : '🔄 Mudanças Recentes — Minhas'}
+                    subtitle={isAdmin ? 'Todos os movimentos do time' : 'Apenas as suas oportunidades'}
+                    isDark={isDark}
+                    noPadding
+                    action={<button type="button" onClick={() => navigate('/atividades')} style={{ fontSize: '12px', color: brand, background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>Ver tudo <ArrowRight size={12} /></button>}
+                  >
+                    <div style={{ padding: '0 18px 16px' }}>
+                      <MudancasFeed deals={deals} isDark={isDark} navigate={navigate} isAdmin={isAdmin} />
+                    </div>
+                  </Card>
+
+                  <Card
+                    title="🔔 Alertas de Renovação"
+                    subtitle={`${renewalDeals.length} vencendo em 60 dias`}
+                    isDark={isDark}
+                    action={renewalDeals.length > 0 ? <button type="button" onClick={() => navigate('/pipeline')} style={{ fontSize: '12px', color: brand, background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>Pipeline <ArrowRight size={12} /></button> : undefined}
+                  >
+                    <RenovacaoAlert deals={renewalDeals} isDark={isDark} navigate={navigate} />
+                  </Card>
+                </div>
 
               </motion.div>
             )}
