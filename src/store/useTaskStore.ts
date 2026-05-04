@@ -85,8 +85,8 @@ export const useTaskStore = create<TaskState>((set) => ({
           owner,
         }).catch((err: unknown) => {
           console.warn('[useTaskStore] Falha ao sincronizar tarefa com calendário:', err)
-          // Regista no deal_events para que apareça no histórico
-          supabase.from('deal_events').insert({
+          // Regista no deal_audit_log para que apareça no histórico
+          supabase.from('deal_audit_log').insert({
             deal_id:    t.deal_id,
             actor_id:   userId,
             event_type: 'field_update',
@@ -111,15 +111,15 @@ export const useTaskStore = create<TaskState>((set) => ({
     set((s) => ({ tasks: s.tasks.map((t) => t.id === id ? { ...t, ...patch } : t) }))
     await supabase.from('tasks').update(dbPatch).eq('id', id)
 
-    // Log task assignment changes to deal_events
+    // Log task assignment changes to deal_audit_log
     if ('deal_id' in patch && prevTask && patch.deal_id !== prevTask.deal_id) {
       const title = (patch as { title?: string }).title ?? prevTask.title
       const evBase = { actor_id: actorId ?? null, field_name: 'task', new_value: { title } }
       if (prevTask.deal_id) {
-        await supabase.from('deal_events').insert({ ...evBase, deal_id: prevTask.deal_id, event_type: 'task_removed', old_value: { title } })
+        await supabase.from('deal_audit_log').insert({ ...evBase, deal_id: prevTask.deal_id, event_type: 'task_removed', old_value: { title } })
       }
       if (patch.deal_id) {
-        await supabase.from('deal_events').insert({ ...evBase, deal_id: patch.deal_id, event_type: 'task_added' })
+        await supabase.from('deal_audit_log').insert({ ...evBase, deal_id: patch.deal_id, event_type: 'task_added' })
       }
     }
   },

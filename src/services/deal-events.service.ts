@@ -3,7 +3,7 @@ import type { DealEvent } from '@/types/deal.types'
 
 export async function fetchDealEvents(dealId: string): Promise<DealEvent[]> {
   const { data, error } = await supabase
-    .from('deal_events')
+    .from('deal_audit_log')
     .select('*')
     .eq('deal_id', dealId)
     .order('created_at', { ascending: false })
