@@ -98,6 +98,7 @@ export function AdminDesempenhoPage() {
     fontFamily: 'inherit',
     textAlign: 'right',
     flexShrink: 0,
+    MozAppearance: 'textfield',
   }
 
   return (
@@ -145,6 +146,7 @@ export function AdminDesempenhoPage() {
                       value={metas[key]}
                       onChange={(e) => handleChange(key, Number(e.target.value))}
                       style={inputStyle}
+                      className="no-spin"
                     />
                     {suffix && <span style={{ fontSize: '11px', color: muted }}>{suffix}</span>}
                   </div>

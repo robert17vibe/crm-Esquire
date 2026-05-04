@@ -578,3 +578,8 @@ textarea.input { height: auto; padding: 10px 12px; resize: vertical; }
   .sidebar-responsive .sidebar-logo-text { display: none !important; }
   .sidebar-responsive .sidebar-nav-item { justify-content: center !important; padding: 0 !important; }
 }
+
+/* Remove number input spinners */
+input.no-spin::-webkit-outer-spin-button,
+input.no-spin::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+input.no-spin[type=number] { -moz-appearance: textfield; }
