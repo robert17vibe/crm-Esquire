@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react'
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { RefreshCw, Target, Settings, X, Check, Zap } from 'lucide-react'
 import {
   ResponsiveContainer, BarChart, Bar, Tooltip as RTooltip,
@@ -234,7 +234,7 @@ export function AdminDesempenhoPage() {
 
   const loadRef = useRef(false)
 
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true)
     const since = cutoff(period)
     const today = new Date().toISOString().slice(0, 10)
@@ -334,9 +334,9 @@ export function AdminDesempenhoPage() {
 
     setOwners(Object.values(ownerMap).sort((a, b) => b.faturamento - a.faturamento))
     setLoading(false)
-  }
+  }, [period])
 
-  useEffect(() => { load() }, [period])
+  useEffect(() => { load() }, [load])
 
   // ── Realtime subscription ─────────────────────────────────────────────────────
   useEffect(() => {
