@@ -279,8 +279,8 @@ type Mode = 'diario' | 'mensal'
 export function PerformancePage() {
   const today = new Date()
 
-  // Mode
-  const [mode, setMode] = useState<Mode>('diario')
+  // Mode — default mensal para mostrar dados do mês inteiro ao abrir
+  const [mode, setMode] = useState<Mode>('mensal')
 
   // Diário state
   const [currentDay, setCurrentDay] = useState(() => isoDate(today))

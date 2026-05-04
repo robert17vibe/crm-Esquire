@@ -94,15 +94,16 @@ export function AdminDesempenhoPage() {
   }
 
   return (
-    <div style={{ minHeight: '100%', backgroundColor: pageBg }}>
+    <div style={{ height: '100%', backgroundColor: pageBg, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
       {/* Header */}
-      <div style={{ backgroundColor: cardBg, borderBottom: `1px solid ${border}`, padding: '16px 24px' }}>
+      <div style={{ backgroundColor: cardBg, borderBottom: `1px solid ${border}`, padding: '14px 20px', flexShrink: 0 }}>
         <p style={{ fontSize: '15px', fontWeight: 700, color: text, letterSpacing: '-0.02em' }}>Desempenho — Configuração</p>
         <p style={{ fontSize: '11px', color: muted, marginTop: '2px' }}>Define as metas que aparecerão na página de desempenho da equipa</p>
       </div>
 
-      <div style={{ padding: '24px', display: 'flex', gap: '20px', alignItems: 'flex-start', maxWidth: '900px' }}>
+      <div style={{ flex: 1, overflow: 'auto', padding: '20px' }}>
+      <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start', maxWidth: '860px' }}>
 
         {/* Metas form */}
         <div style={{ flex: 1, backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '12px', overflow: 'hidden' }}>
@@ -141,7 +142,7 @@ export function AdminDesempenhoPage() {
         </div>
 
         {/* Right: link + info */}
-        <div style={{ width: '280px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '14px' }}>
+        <div style={{ width: '260px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '14px' }}>
 
           {/* Link card */}
           <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '12px', padding: '18px' }}>
@@ -180,6 +181,7 @@ export function AdminDesempenhoPage() {
             ))}
           </div>
         </div>
+      </div>
       </div>
     </div>
   )
