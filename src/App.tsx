@@ -43,6 +43,7 @@ const RelatoriosPage     = lazy(() => import('@/pages/RelatoriosPage').then((m) 
 const AtividadesPage     = lazy(() => import('@/pages/AtividadesPage').then((m) => ({ default: m.AtividadesPage })))
 const PropostasPage          = lazy(() => import('@/pages/PropostasPage').then((m) => ({ default: m.PropostasPage })))
 const ClientRenovacaoPage    = lazy(() => import('@/pages/ClientRenovacaoPage').then((m) => ({ default: m.ClientRenovacaoPage })))
+const TvPerformancePage      = lazy(() => import('@/pages/TvPerformancePage').then((m) => ({ default: m.TvPerformancePage })))
 const AppLayout          = lazy(() => import('@/components/layout/AppLayout').then((m) => ({ default: m.AppLayout })))
 
 export default function App() {
@@ -93,6 +94,7 @@ export default function App() {
       />
       <Route path="/forgot-password"  element={<ForgotPasswordPage />} />
       <Route path="/reset-password"   element={<ResetPasswordPage />} />
+      <Route path="/tv/performance"   element={session ? <TvPerformancePage /> : <Navigate to="/login" replace />} />
       <Route
         element={session ? <AppLayout /> : <Navigate to="/login" replace />}
       >
