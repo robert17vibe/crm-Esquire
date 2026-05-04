@@ -89,29 +89,34 @@ export function AdminCobrancaPage() {
       `)
       .order('created_at', { ascending: false })
 
-    if (error || !data) { setLoading(false); return }
-
-    const parsed: CobrancaRow[] = data.map((r) => {
+    const realRows: CobrancaRow[] = (error || !data) ? [] : data.map((r) => {
       const deal = (r.deals as unknown) as { company_name: string; contact_name: string | null; owner: { name?: string }; value: number } | null
       const lines = (r.lines as { qty: number; unit_price: number }[]) ?? []
       const sub   = lines.reduce((s, l) => s + l.qty * l.unit_price, 0)
       const valor = sub - sub * ((r.discount_pct ?? 0) / 100)
-
       return {
-        id: r.id,
-        deal_id: r.deal_id,
+        id: r.id, deal_id: r.deal_id,
         company_name: deal?.company_name ?? '—',
         contact_name: deal?.contact_name ?? null,
         owner_name: deal?.owner?.name ?? '—',
-        valor,
-        installments: r.installments ?? 1,
+        valor, installments: r.installments ?? 1,
         created_at: r.created_at,
         validity: r.validity ?? '30 dias',
         status: deriveStatus(r.created_at, r.validity, overrides[r.id]),
       }
     })
 
-    setRows(parsed)
+    // Dados de demonstração quando não há propostas reais
+    const mockRows: CobrancaRow[] = realRows.length > 0 ? [] : [
+      { id: 'mock-1', deal_id: 'mock', company_name: 'Grupo Meridian',    contact_name: 'Carlos Mendes',   owner_name: 'Ana Silva',    valor: 18500, installments: 3, created_at: new Date(Date.now() - 2  * 86400000).toISOString(), validity: '30 dias', status: 'pendente' },
+      { id: 'mock-2', deal_id: 'mock', company_name: 'Vortex Digital',    contact_name: 'Paula Ferreira',  owner_name: 'João Costa',   valor: 42000, installments: 6, created_at: new Date(Date.now() - 5  * 86400000).toISOString(), validity: '30 dias', status: 'pago'     },
+      { id: 'mock-3', deal_id: 'mock', company_name: 'Apex Soluções',     contact_name: 'Ricardo Lima',    owner_name: 'Ana Silva',    valor: 9800,  installments: 1, created_at: new Date(Date.now() - 8  * 86400000).toISOString(), validity: '15 dias', status: 'atrasado' },
+      { id: 'mock-4', deal_id: 'mock', company_name: 'Nova Era Mídia',    contact_name: 'Fernanda Torres', owner_name: 'Pedro Rocha',  valor: 27300, installments: 2, created_at: new Date(Date.now() - 12 * 86400000).toISOString(), validity: '30 dias', status: 'pago'     },
+      { id: 'mock-5', deal_id: 'mock', company_name: 'Stark Comunicação', contact_name: null,              owner_name: 'João Costa',   valor: 55000, installments: 12,created_at: new Date(Date.now() - 18 * 86400000).toISOString(), validity: '45 dias', status: 'pendente' },
+      { id: 'mock-6', deal_id: 'mock', company_name: 'BlueSky Marketing', contact_name: 'Thiago Alves',    owner_name: 'Pedro Rocha',  valor: 13200, installments: 3, created_at: new Date(Date.now() - 35 * 86400000).toISOString(), validity: '30 dias', status: 'atrasado' },
+    ]
+
+    setRows([...realRows, ...mockRows])
     setLoading(false)
   }
 

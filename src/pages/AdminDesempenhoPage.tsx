@@ -48,9 +48,10 @@ type Period = '7d' | '30d' | '90d'
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function fmtBRL(v: number) {
-  if (v >= 1_000_000) return `R$${(v / 1_000_000).toFixed(1)}M`
-  if (v >= 1_000) return `R$${(v / 1_000).toFixed(0)}k`
-  return `R$${v.toFixed(0)}`
+  const n = Number(v) || 0
+  if (n >= 1_000_000) return `R$${(n / 1_000_000).toFixed(1)}M`
+  if (n >= 1_000) return `R$${(n / 1_000).toFixed(0)}k`
+  return `R$${n.toFixed(0)}`
 }
 
 function hashColor(s: string) {
@@ -203,7 +204,7 @@ export function AdminDesempenhoPage() {
   const [loading,     setLoading]     = useState(true)
   const [showMetas,   setShowMetas]   = useState(false)
   const [metas,       setMetas]       = useState<Metas>(() => {
-    try { return JSON.parse(localStorage.getItem(LS_METAS) ?? '{}') || DEFAULT_METAS }
+    try { return { ...DEFAULT_METAS, ...JSON.parse(localStorage.getItem(LS_METAS) ?? '{}') } }
     catch { return DEFAULT_METAS }
   })
   const [recentWins,  setRecentWins]  = useState<RecentWin[]>([])
