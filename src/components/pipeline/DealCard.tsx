@@ -6,18 +6,11 @@ import { cn } from '@/lib/utils'
 import { useThemeStore } from '@/store/useThemeStore'
 import { useNotificationStore } from '@/store/useNotificationStore'
 import { useTaskStore } from '@/store/useTaskStore'
-import { useToastStore } from '@/store/useToastStore'
-import { FileText } from 'lucide-react'
-import { getStageColor, type StageId } from '@/constants/pipeline'
+import { CheckSquare, Clock, FileText, Tag } from 'lucide-react'
+import { getStageColor, STAGES, type StageId } from '@/constants/pipeline'
 import { evaluateDealScore, scoreColor, scoreBg } from '@/lib/dealScore'
 import type { Deal } from '@/types/deal.types'
 
-
-function probColor(p: number) {
-  if (p >= 70) return '#22c55e'
-  if (p >= 35) return '#f59e0b'
-  return '#f87171'
-}
 
 interface DealCardProps {
   deal: Deal
@@ -28,295 +21,245 @@ interface DealCardProps {
   highlightNew?: boolean
 }
 
-// ─── Task Quick-Add Popover ───────────────────────────────────────────────────
-
-function TaskQuickAdd({ dealId, isDark, onClose }: { dealId: string; isDark: boolean; onClose: () => void }) {
-  const createTask = useTaskStore((s) => s.create)
-  const addToast   = useToastStore((s) => s.addToast)
-  const [title, setTitle] = useState('')
-  const [saving, setSaving] = useState(false)
-  const inputRef = useRef<HTMLInputElement>(null)
-
-  useEffect(() => { inputRef.current?.focus() }, [])
-
-  function getDate(offset: number) {
-    const d = new Date(); d.setDate(d.getDate() + offset)
-    return d.toISOString().slice(0, 10)
-  }
-
-  async function save(dueDate: string | null) {
-    if (!title.trim() || saving) return
-    setSaving(true)
-    const err = await createTask({ title: title.trim(), deal_id: dealId, due_date: dueDate, priority: 'medium', task_type: 'follow_up' })
-    setSaving(false)
-    if (!err) { addToast('Tarefa criada', 'success'); onClose() }
-    else addToast('Erro ao criar tarefa', 'error')
-  }
-
-  const bg     = isDark ? '#1a1a18' : '#ffffff'
-  const border = isDark ? '#2e2e2c' : '#e4e0da'
-  const text   = isDark ? '#e8e4dc' : '#1a1814'
-  const muted  = isDark ? '#5a5652' : '#8a857d'
-
-  return (
-    <div
-      onClick={(e) => e.stopPropagation()}
-      style={{
-        position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 60, marginTop: '4px',
-        backgroundColor: bg, border: `1px solid ${border}`, borderRadius: '8px',
-        padding: '10px', boxShadow: isDark ? '0 8px 24px rgba(0,0,0,0.5)' : '0 8px 24px rgba(0,0,0,0.12)',
-        display: 'flex', flexDirection: 'column', gap: '8px',
-      }}
-    >
-      <input
-        ref={inputRef}
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        onKeyDown={(e) => { if (e.key === 'Enter') save(getDate(0)); if (e.key === 'Escape') onClose() }}
-        placeholder="O que precisa ser feito?"
-        style={{
-          width: '100%', height: '30px', padding: '0 8px', fontSize: '12px',
-          backgroundColor: isDark ? '#111110' : '#f5f4f0', border: `1px solid ${border}`,
-          borderRadius: '6px', color: text, outline: 'none', boxSizing: 'border-box',
-        }}
-      />
-      <div style={{ display: 'flex', gap: '4px' }}>
-        {[
-          { label: 'Hoje', date: getDate(0) },
-          { label: 'Amanhã', date: getDate(1) },
-          { label: 'Prox sem', date: getDate(7) },
-        ].map(({ label, date }) => (
-          <button key={label} type="button" onClick={() => save(date)} disabled={!title.trim() || saving}
-            style={{
-              flex: 1, height: '26px', fontSize: '10px', fontWeight: 600,
-              backgroundColor: title.trim() ? (isDark ? 'rgba(227,30,36,0.08)' : '#f0f7f3') : (isDark ? '#111110' : '#f5f4f0'),
-              color: title.trim() ? (isDark ? 'rgba(227,30,36,0.50)' : '#e31e24') : muted,
-              border: `1px solid ${title.trim() ? (isDark ? 'rgba(227,30,36,0.15)' : '#a3d9c0') : border}`,
-              borderRadius: '5px', cursor: title.trim() ? 'pointer' : 'not-allowed',
-            }}>{label}</button>
-        ))}
-      </div>
-      <button type="button" onClick={() => onClose()}
-        style={{ alignSelf: 'flex-end', fontSize: '10px', color: muted, background: 'none', border: 'none', cursor: 'pointer' }}>
-        Cancelar
-      </button>
-    </div>
-  )
-}
-
-// ─── DealCard ─────────────────────────────────────────────────────────────────
+// ─── DealCard (Aurea-style) ────────────────────────────────────────────────────
 
 export function DealCard({ deal, isOverlay = false, dimmed = false, showScore = false, highlightNew = false }: DealCardProps) {
   const navigate      = useNavigate()
   const isDark        = useThemeStore((s) => s.isDark)
   const notifications = useNotificationStore((s) => s.notifications)
   const taskCount     = useTaskStore((s) => s.tasks.filter((t) => t.deal_id === deal.id && !t.completed_at).length)
-  const [showQuickAdd, setShowQuickAdd] = useState(false)
+  const [hovered, setHovered] = useState(false)
 
   const hasUnread = notifications.some((n) => n.dealId === deal.id && !n.read)
   const daysSinceCreated = deal.created_at
     ? Math.floor((Date.now() - new Date(deal.created_at).getTime()) / 86_400_000)
     : 999
-  const isNew = daysSinceCreated <= 5 || hasUnread
+  const isNew = daysSinceCreated <= 7 || hasUnread
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: deal.id, disabled: isOverlay })
 
   const wasDraggingRef = useRef(false)
-  useEffect(() => { if (isDragging) wasDraggingRef.current = true }, [isDragging])
-
+  useEffect(() => {
+    if (isDragging) {
+      wasDraggingRef.current = true
+      setHovered(false)
+    }
+  }, [isDragging])
   const isWon     = deal.stage_id === 'closed_won'
   const isLost    = deal.stage_id === 'closed_lost'
   const isSpecial = isWon || isLost
 
   const stageColor  = getStageColor(deal.stage_id)
-  const probability = Math.min(100, Math.max(0, deal.probability ?? 0))
-  const score       = showScore && !isSpecial ? evaluateDealScore(deal) : null
-  const today       = new Date().toISOString().slice(0, 10)
-  // isOverdue kept for future use — suppress with void cast
-  void (!isSpecial && !!deal.next_activity?.due_date && deal.next_activity.due_date < today)
+  const stageLabel  = STAGES.find((s) => s.id === deal.stage_id)?.label ?? deal.stage_id
+  const proposalCtx = (() => {
+    if (!showScore || isSpecial) return {}
+    try {
+      const list: { status: string }[] = JSON.parse(localStorage.getItem(`esq_proposals_v4_${deal.id}`) ?? '[]')
+      return { proposalCount: list.length, hasAcceptedProposal: list.some((p) => p.status === 'accepted') }
+    } catch { return {} }
+  })()
+  const score = showScore && !isSpecial ? evaluateDealScore(deal, {
+    pendingTaskCount: taskCount,
+    ...proposalCtx,
+  }) : null
+  const tagCount = (deal.tags ?? []).length
 
 
-  // ── theme tokens ──
-  const cardBg     = isWon  ? (isDark ? '#0a1f0e' : '#f0faf4')
-                   : isLost ? (isDark ? '#1a0c0c' : '#fdf4f4')
-                   :          'var(--surface-card)'
-  const isHighlighted = highlightNew && isNew
-  const cardBorder = deal.days_in_stage > 30 ? (isDark ? 'rgba(120,113,108,0.3)' : 'rgba(214,211,209,0.8)')
-                   :                          'var(--line)'
-  const textPrimary = 'var(--ink-base)'
-  const textMuted   = 'var(--ink-muted)'
-  const trackBg     = 'var(--surface-raised)'
+  const cardBg = isWon  ? (isDark ? '#0d2318' : '#f0faf4')
+               : isLost ? (isDark ? '#1f0e0e' : '#fdf4f4')
+               :          (isDark ? `${stageColor}1f` : `${stageColor}13`)
+
+  const cardBorderNormal = isSpecial
+    ? (isDark ? '#2a2a28' : '#e0e2e6')
+    : `${stageColor}22`
+  const cardBorderHover  = isSpecial
+    ? (isDark ? '#3a3a38' : '#c5c9d0')
+    : `${stageColor}44`
+  const cardBorderNew    = '#6b1212'
+  const cardBorder       = hovered ? cardBorderHover : (highlightNew && isNew) ? cardBorderNew : cardBorderNormal
+  const cardShadow       = isOverlay
+    ? '0 20px 48px rgba(0,0,0,0.3), 0 6px 16px rgba(0,0,0,0.15)'
+    : hovered ? (isDark ? '0 2px 8px rgba(0,0,0,0.4)' : '0 2px 8px rgba(16,24,40,0.10), 0 1px 3px rgba(16,24,40,0.06)')
+    : '0 1px 2px rgba(16,24,40,0.04)'
+
+  const textPrimary = isDark ? '#e8e4dc' : '#101828'
+  const textSecond  = isDark ? '#a09b95' : '#475467'
+  const textMuted   = isDark ? '#6b6560' : '#98a2b3'
 
   const cardOpacity = isDragging ? 0.2 : dimmed ? 0.15 : isLost ? 0.65 : 1
 
+  // valor da proposta aceite (ou maior proposta) — só para Ganho
+  const proposalValue = (() => {
+    if (!isWon) return null
+    try {
+      const list: { lines: { qty: number; unit_price: number }[]; discountPct: number; status: string }[] =
+        JSON.parse(localStorage.getItem(`esq_proposals_v4_${deal.id}`) ?? '[]')
+      if (!list.length) return null
+      const accepted = list.filter((p) => p.status === 'accepted')
+      const source = accepted.length ? accepted : list
+      return Math.max(...source.map((p) => {
+        const sub = p.lines.reduce((s, l) => s + l.qty * l.unit_price, 0)
+        return sub - sub * ((p.discountPct ?? 0) / 100)
+      }))
+    } catch { return null }
+  })()
+
   const cardStyle: React.CSSProperties = {
-    borderRadius: 'var(--radius-lg)',
+    borderRadius: '12px',
     backgroundColor: cardBg,
     border: `1px solid ${cardBorder}`,
-    ...(isSpecial ? { borderLeft: `3px solid ${stageColor}` } : isHighlighted ? { borderLeft: '3px solid #f59e0b' } : {}),
     overflow: 'hidden',
     display: 'flex',
     flexDirection: 'column',
-    height: '114px',
-    boxShadow: isOverlay ? '0 20px 48px rgba(0,0,0,0.3), 0 6px 16px rgba(0,0,0,0.15)' : 'none',
-    ...(isOverlay
-      ? { transform: 'rotate(1.5deg)', opacity: 1 }
-      : { transform: CSS.Transform.toString(transform), transition, opacity: cardOpacity }),
+    minHeight: '148px',
+    boxShadow: cardShadow,
+    transform: isOverlay ? 'rotate(1.5deg)' : CSS.Transform.toString(transform),
+    transition: isOverlay ? undefined : transition,
+    opacity: cardOpacity,
+    cursor: isOverlay ? 'grabbing' : isDragging ? 'grabbing' : 'grab',
+    position: 'relative',
   }
 
-  const stakeholders = deal.stakeholders?.slice(0, 3) ?? []
-  const extraCount   = (deal.stakeholders?.length ?? 0) - 3
-
   return (
-    <div style={{ position: 'relative', width: '100%' }}>
     <div
       ref={setNodeRef}
       style={cardStyle}
       {...(isOverlay ? {} : { ...attributes, ...listeners })}
+      onMouseEnter={() => { setHovered(true) }}
+      onMouseLeave={() => { setHovered(false) }}
       onClick={isOverlay ? undefined : () => {
         if (wasDraggingRef.current) { wasDraggingRef.current = false; return }
-        if (!showQuickAdd) navigate(`/deal/${deal.id}`)
+        navigate(`/deal/${deal.id}`)
       }}
-      className={cn(
-        'deal-card group/card w-full select-none',
-        !isOverlay && !isDragging && 'cursor-grab active:cursor-grabbing',
-      )}
+      className={cn('group/card w-full select-none')}
     >
-      {/* Stage color top strip */}
-      {!isSpecial && (
-        <div style={{ height: '3px', flexShrink: 0, background: stageColor }} />
-      )}
+      <div style={{ padding: '14px 14px 10px', flex: 1 }}>
 
-      <div style={{ flex: 1, padding: '10px 12px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', overflow: 'hidden' }}>
-
-        {/* Row 1: dias + score */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+        {/* ── Row 1: categoria (stage label) + menu ── */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+          <span style={{
+            fontSize: '10px', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase',
+            color: isSpecial ? (isWon ? '#15803d' : '#9b1c1c') : stageColor,
+          }}>
+            {isWon ? 'Ganho' : isLost ? 'Perdido' : stageLabel}
+          </span>
           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-            {isHighlighted && (
+            {isNew && highlightNew && (
               <span style={{
-                width: '7px', height: '7px', borderRadius: '50%',
-                backgroundColor: '#f59e0b', flexShrink: 0,
-                boxShadow: '0 0 0 2px rgba(245,158,11,0.25)',
+                width: '6px', height: '6px', borderRadius: '50%',
+                backgroundColor: '#6b1212',
+                boxShadow: '0 0 0 2px rgba(107,18,18,0.25)',
+                flexShrink: 0,
               }} />
             )}
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
             {score !== null && (
-              <span style={{ fontSize: '9px', fontWeight: 700, color: scoreColor(score), backgroundColor: scoreBg(score, isDark), borderRadius: 'var(--radius-full)', padding: '1px 6px' }}>{score}</span>
+              <span style={{
+                fontSize: '9px', fontWeight: 700,
+                color: scoreColor(score), backgroundColor: scoreBg(score, isDark),
+                borderRadius: '999px', padding: '1px 6px',
+              }}>{score}</span>
             )}
-            <span style={{ fontSize: '10px', fontWeight: 500, color: deal.days_in_stage > 30 ? '#b45309' : textMuted, fontVariantNumeric: 'tabular-nums' }}>{deal.days_in_stage}d</span>
           </div>
         </div>
 
-        {/* Row 2: empresa + contato · responsável */}
-        <div style={{ margin: '3px 0' }}>
-          <p className="line-clamp-1" style={{
-            fontSize: '13px', fontWeight: 700, color: textPrimary,
-            lineHeight: 1.25, letterSpacing: '-0.02em',
-            textDecoration: isLost ? 'line-through' : 'none',
-            textDecorationColor: textMuted,
-          }}>
-            {deal.company_name || deal.title}
-          </p>
-          <p className="line-clamp-1" style={{
-            fontSize: '11px', fontWeight: 400, color: textMuted,
-            lineHeight: 1.3, marginTop: '3px',
-          }}>
+        {/* ── Row 2: dias em stage — só visível quando zap ativo e não é lead novo ── */}
+        {highlightNew && !isNew && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '6px' }}>
+            <span style={{
+              fontSize: '9px', fontWeight: 500,
+              color: deal.days_in_stage > 30 ? '#a88030' : textMuted,
+              fontVariantNumeric: 'tabular-nums',
+            }}>
+              {deal.days_in_stage}d nesta etapa
+            </span>
+          </div>
+        )}
+
+        {/* ── Row 3: título / empresa ── */}
+        <p className="line-clamp-2" style={{
+          fontSize: '13px', fontWeight: 600, color: textPrimary,
+          lineHeight: 1.35, letterSpacing: '-0.01em',
+          textDecoration: isLost ? 'line-through' : 'none',
+          textDecorationColor: textMuted,
+          marginBottom: '3px',
+        }}>
+          {deal.company_name || deal.title}
+        </p>
+
+        {/* ── Row 4: contato · responsável ── */}
+        {(deal.contact_name || deal.owner?.name) && (
+          <p className="line-clamp-1" style={{ fontSize: '11px', color: textSecond, lineHeight: 1.3, marginBottom: '10px' }}>
             {[deal.contact_name, deal.owner?.name].filter(Boolean).join(' · ')}
           </p>
-        </div>
+        )}
 
-        {/* Row 3: barra prob / valor ganho  +  avatars */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-          {/* lado esquerdo */}
-          {!isSpecial ? (
-            <div style={{ flex: 1, height: '4px', borderRadius: '999px', backgroundColor: trackBg, overflow: 'hidden' }}>
-              <div style={{ height: '100%', width: `${probability}%`, backgroundColor: probability > 0 ? probColor(probability) : 'transparent', borderRadius: '999px', transition: 'width 0.4s ease' }} />
-            </div>
-          ) : isWon && deal.value > 0 ? (
-            <span style={{ flex: 1, fontSize: '11px', fontWeight: 700, color: isDark ? '#6ee7b7' : '#16a34a', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.01em' }}>
-              {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(deal.value)}
-            </span>
-          ) : isLost && deal.loss_reason ? (
-            <span className="truncate" style={{ flex: 1, fontSize: '10px', color: textMuted, fontStyle: 'italic' }}>{deal.loss_reason}</span>
-          ) : (
-            <div style={{ flex: 1 }} />
+
+        {/* ── Footer: valor ganho + meta icons ── */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: 'auto', paddingTop: '6px' }}>
+          {/* valor da proposta — só em Ganho */}
+          {isWon && (
+            proposalValue != null && proposalValue > 0 ? (
+              <span style={{
+                fontSize: '11px', fontWeight: 700, color: '#2a7a4a',
+                fontFamily: "'Geist Mono', monospace", letterSpacing: '-0.01em',
+              }}>
+                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(proposalValue)}
+              </span>
+            ) : (
+              <span style={{ fontSize: '10px', color: '#b45309', fontWeight: 600 }}>Sem proposta</span>
+            )
           )}
 
           {/* meta icons */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: 'auto' }}>
             {taskCount > 0 && (
-              <span style={{ display: 'flex', alignItems: 'center', gap: '2px', fontSize: '9px', color: '#16a34a', fontWeight: 600 }}>
-                <svg width="9" height="9" viewBox="0 0 10 10" fill="none"><path d="M2 5.5L4 7.5L8 3" stroke="#16a34a" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '10px', color: '#16a34a', fontWeight: 600 }}>
+                <CheckSquare size={11} />
                 {taskCount}
               </span>
             )}
             {deal.notes && deal.notes.trim().length > 0 && (
-              <FileText size={9} color={textMuted} />
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', fontSize: '10px', color: textMuted }}>
+                <FileText size={10} />
+              </span>
+            )}
+            {tagCount > 0 && (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', fontSize: '10px', color: textMuted }}>
+                <Tag size={10} />
+                {tagCount}
+              </span>
+            )}
+            {deal.next_activity && (
+              <span style={{
+                display: 'inline-flex', alignItems: 'center', gap: '2px',
+                fontSize: '10px', fontWeight: 500,
+                color: deal.next_activity.due_date < new Date().toISOString().slice(0, 10) ? '#b83535' : '#4d7aa8',
+              }}>
+                <Clock size={10} />
+              </span>
             )}
           </div>
-
-          {/* avatars */}
-          {stakeholders.length > 0 && (
-            <div style={{ display: 'flex', alignItems: 'center' }}>
-              {stakeholders.map((s, i) => (
-                <div key={s.name} title={s.name} style={{
-                  width: '18px', height: '18px', borderRadius: '50%',
-                  backgroundColor: s.color, border: '2px solid var(--surface-card)',
-                  marginLeft: i === 0 ? 0 : '-5px',
-                  fontSize: '6px', fontWeight: 700, color: '#fff',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  zIndex: 3 - i, position: 'relative', flexShrink: 0,
-                }}>{s.initials}</div>
-              ))}
-              {extraCount > 0 && (
-                <div style={{
-                  width: '18px', height: '18px', borderRadius: '50%',
-                  backgroundColor: trackBg, border: '2px solid var(--surface-card)',
-                  marginLeft: '-5px', fontSize: '6px', fontWeight: 600, color: textMuted,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  position: 'relative', flexShrink: 0,
-                }}>+{extraCount}</div>
-              )}
-            </div>
-          )}
         </div>
 
       </div>
 
-      {/* Quick-add task button — top-right corner, hover only */}
-      {!isOverlay && !isSpecial && (
-        <button
-          type="button"
-          onClick={(e) => { e.stopPropagation(); setShowQuickAdd((v) => !v) }}
-          title="Adicionar tarefa rápida"
-          className="group/qadd"
-          style={{
-            position: 'absolute', top: '6px', right: '6px',
-            width: '18px', height: '18px', borderRadius: '4px',
-            backgroundColor: showQuickAdd ? (isDark ? 'rgba(227,30,36,0.15)' : 'rgba(227,30,36,0.10)') : 'transparent',
-            border: `1px solid ${showQuickAdd ? (isDark ? '#e31e24' : '#6ee7b7') : 'transparent'}`,
-            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: showQuickAdd ? '#e31e24' : textMuted,
-            opacity: showQuickAdd ? 1 : 0,
-            transition: 'opacity 0.1s, background-color 0.1s',
-            zIndex: 10,
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.backgroundColor = isDark ? 'rgba(227,30,36,0.15)' : 'rgba(227,30,36,0.10)'; e.currentTarget.style.borderColor = isDark ? '#e31e24' : '#6ee7b7' }}
-          onMouseLeave={(e) => { if (!showQuickAdd) { e.currentTarget.style.opacity = '0'; e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.borderColor = 'transparent' } }}
-        >
-          <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
-            <path d="M5 1v8M1 5h8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" fill="none"/>
-          </svg>
-        </button>
+      {/* ── Probability bar ── */}
+      {!isSpecial && (deal.probability ?? 0) > 0 && (
+        <div style={{ height: '3px', backgroundColor: isDark ? '#1a1a18' : '#f0f0f0', borderRadius: '0 0 12px 12px', overflow: 'hidden' }}>
+          <div style={{
+            height: '100%',
+            width: `${deal.probability}%`,
+            background: deal.probability >= 70
+              ? 'linear-gradient(90deg, #15803d, #22c55e)'
+              : deal.probability >= 40
+              ? 'linear-gradient(90deg, #b45309, #f59e0b)'
+              : 'linear-gradient(90deg, #8b2020, #b83535)',
+            transition: 'width 0.3s ease',
+          }} />
+        </div>
       )}
-    </div>
 
-    {/* Quick-add popover */}
-    {showQuickAdd && (
-      <TaskQuickAdd dealId={deal.id} isDark={isDark} onClose={() => setShowQuickAdd(false)} />
-    )}
     </div>
   )
 }

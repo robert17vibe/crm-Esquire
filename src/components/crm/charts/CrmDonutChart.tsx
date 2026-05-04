@@ -43,7 +43,7 @@ export function CrmDonutChart({
               borderRadius: '8px', fontSize: '12px',
               boxShadow: '0 4px 12px rgba(16,24,40,0.12)',
             }}
-            formatter={(v: number) => [formatTooltip ? formatTooltip(v) : v, '']}
+            formatter={(v) => [formatTooltip ? formatTooltip(Number(v)) : v, '']}
           />
         </PieChart>
       </ResponsiveContainer>

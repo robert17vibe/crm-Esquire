@@ -8,7 +8,7 @@ interface Profile {
   full_name: string
   is_admin: boolean
   avatar_color: string
-  team: string | null
+  team_id: string | null
 }
 
 interface AuthStore {

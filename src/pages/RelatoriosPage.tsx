@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from 'react'
-import { TrendingUp, DollarSign, Target, Award, BarChart2, ArrowUpRight, ArrowDownRight, Clock } from 'lucide-react'
+import { TrendingUp, DollarSign, Target, Award, BarChart2, ArrowUpRight, ArrowDownRight } from 'lucide-react'
 import { useThemeStore } from '@/store/useThemeStore'
 import { useSettingsStore } from '@/store/useSettingsStore'
 import { useVisibleDeals } from '@/hooks/useVisibleDeals'
@@ -195,8 +195,11 @@ export function RelatoriosPage() {
       <div style={{ flexShrink: 0, backgroundColor: card, borderBottom: `1px solid ${border}` }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 24px 0' }}>
           <div>
-            <p style={{ fontSize: '18px', fontWeight: 700, color: text, letterSpacing: '-0.03em' }}>Relatórios</p>
-            <p style={{ fontSize: '12px', color: muted, marginTop: '2px' }}>Análise de performance e resultados</p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+              <BarChart2 size={18} color={text} />
+              <p style={{ fontSize: '20px', fontWeight: 600, color: text, letterSpacing: '-0.03em', margin: 0 }}>Relatórios</p>
+            </div>
+            <p style={{ fontSize: '13px', color: muted, marginTop: '2px' }}>Análise de performance e resultados</p>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#f3f4f6', border: `1px solid ${border}`, borderRadius: '8px', padding: '3px', gap: '2px' }}>
             {(['30d', '90d', '12m'] as const).map((p) => (

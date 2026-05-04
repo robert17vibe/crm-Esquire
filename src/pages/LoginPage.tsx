@@ -89,7 +89,7 @@ export function LoginPage() {
           }}
         >
           <div>
-            <div style={{ height: '3px', backgroundColor: '#e31e24', width: '40px', marginBottom: '18px' }} />
+            <div style={{ height: '3px', backgroundColor: '#6b1212', width: '40px', marginBottom: '18px' }} />
             <p
               style={{
                 fontFamily: '"Playfair Display", Georgia, serif',
@@ -178,7 +178,7 @@ export function LoginPage() {
           }}
         >
           <div style={{ marginBottom: '28px' }}>
-            <p style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#e31e24', margin: 0 }}>
+            <p style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#6b1212', margin: 0 }}>
               Acesso
             </p>
             <p style={{ fontSize: '28px', fontWeight: 700, color: text, margin: '10px 0 0', lineHeight: 1.15 }}>
@@ -216,7 +216,7 @@ export function LoginPage() {
                   transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
                 }}
                 onFocus={(e) => {
-                  e.currentTarget.style.borderColor = '#e31e24'
+                  e.currentTarget.style.borderColor = '#6b1212'
                   e.currentTarget.style.boxShadow = '0 0 0 3px rgba(227,30,36,0.08)'
                 }}
                 onBlur={(e) => {
@@ -263,7 +263,7 @@ export function LoginPage() {
                     transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
                   }}
                   onFocus={(e) => {
-                    e.currentTarget.style.borderColor = '#e31e24'
+                    e.currentTarget.style.borderColor = '#6b1212'
                     e.currentTarget.style.boxShadow = '0 0 0 3px rgba(227,30,36,0.08)'
                   }}
                   onBlur={(e) => {
@@ -320,7 +320,7 @@ export function LoginPage() {
                 height: '44px',
                 borderRadius: '10px',
                 marginTop: '2px',
-                backgroundColor: loading ? (isDark ? '#2a2a28' : '#e0dbd4') : '#e31e24',
+                backgroundColor: loading ? (isDark ? '#2a2a28' : '#e0dbd4') : '#6b1212',
                 color: loading ? muted : '#fff',
                 fontSize: '13px',
                 fontWeight: 700,
@@ -376,7 +376,7 @@ export function LoginPage() {
               }}
               onMouseEnter={(e) => {
                 if (!msLoading && !loading) {
-                  e.currentTarget.style.borderColor = '#e31e24'
+                  e.currentTarget.style.borderColor = '#6b1212'
                   e.currentTarget.style.backgroundColor = isDark ? '#1b1a18' : '#faf7f2'
                 }
               }}

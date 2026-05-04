@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Plus, Trash2, Check, X, UserPlus, UserMinus, Users2,
@@ -37,7 +37,7 @@ const HEALTH_LABEL: Record<HealthStatus, string> = {
   healthy: 'Saudável', warning: 'Atenção', critical: 'Crítico',
 }
 const HEALTH_COLOR: Record<HealthStatus, string> = {
-  healthy: '#e31e24', warning: '#92400e', critical: '#dc2626',
+  healthy: '#6b1212', warning: '#92400e', critical: '#b83535',
 }
 const HEALTH_BG: Record<HealthStatus, string> = {
   healthy: 'rgba(227,30,36,0.10)', warning: '#fef3c7', critical: '#fee2e2',
@@ -154,8 +154,8 @@ function GroupDetailModal({
             {TABS.map(({ key, label }) => (
               <button key={key} type="button" onClick={() => setTab(key)} style={{
                 height: '36px', padding: '0 16px', fontSize: '13px', fontWeight: tab === key ? 700 : 500,
-                color: tab === key ? (isDark ? 'rgba(227,30,36,0.50)' : '#e31e24') : muted,
-                backgroundColor: 'transparent', border: 'none', borderBottom: `2px solid ${tab === key ? (isDark ? 'rgba(227,30,36,0.50)' : '#e31e24') : 'transparent'}`,
+                color: tab === key ? (isDark ? 'rgba(227,30,36,0.50)' : '#6b1212') : muted,
+                backgroundColor: 'transparent', border: 'none', borderBottom: `2px solid ${tab === key ? (isDark ? 'rgba(227,30,36,0.50)' : '#6b1212') : 'transparent'}`,
                 cursor: 'pointer', marginBottom: '-1px', transition: 'all 0.15s',
               }}>{label}</button>
             ))}
@@ -205,7 +205,7 @@ function GroupDetailModal({
                       <button type="button" onClick={() => onToggleMember(owner.id, team.id, true)}
                         title="Remover do time"
                         style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '26px', height: '26px', borderRadius: '6px', backgroundColor: 'transparent', border: 'none', cursor: 'pointer', color: muted }}
-                        onMouseEnter={(e) => { e.currentTarget.style.color = '#dc2626' }}
+                        onMouseEnter={(e) => { e.currentTarget.style.color = '#b83535' }}
                         onMouseLeave={(e) => { e.currentTarget.style.color = muted }}
                       >
                         <UserMinus style={{ width: '13px', height: '13px' }} />
@@ -229,7 +229,7 @@ function GroupDetailModal({
                             backgroundColor: surfBg, border: `1px dashed ${border}`,
                             borderRadius: '8px', cursor: 'pointer', color: text,
                           }}
-                          onMouseEnter={(e) => (e.currentTarget.style.borderColor = isDark ? '#3d7a62' : '#e31e24')}
+                          onMouseEnter={(e) => (e.currentTarget.style.borderColor = isDark ? '#3d7a62' : '#6b1212')}
                           onMouseLeave={(e) => (e.currentTarget.style.borderColor = border)}
                         >
                           <UserPlus style={{ width: '11px', height: '11px', color: muted }} />
@@ -274,7 +274,7 @@ function GroupDetailModal({
                           <span style={{ fontSize: '11px', color: muted }}>{fmtCompact(p)} · {openCount} deals · {fmtPct(wr)} WR</span>
                         </div>
                         <div style={{ height: '6px', borderRadius: '3px', backgroundColor: isDark ? '#1a1a18' : '#e8e4dc', overflow: 'hidden' }}>
-                          <div style={{ height: '100%', width: `${(p / maxPipe) * 100}%`, borderRadius: '3px', background: 'linear-gradient(90deg, #e31e24, #3d7a62)', transition: 'width 0.4s' }} />
+                          <div style={{ height: '100%', width: `${(p / maxPipe) * 100}%`, borderRadius: '3px', background: 'linear-gradient(90deg, #6b1212, #3d7a62)', transition: 'width 0.4s' }} />
                         </div>
                       </div>
                     ))}
@@ -342,7 +342,7 @@ function GroupDetailModal({
                       disabled={!renameDraft.trim() || renameDraft === team.name}
                       style={{
                         height: '36px', padding: '0 16px', fontSize: '13px', fontWeight: 700,
-                        background: renameDraft.trim() && renameDraft !== team.name ? 'linear-gradient(135deg, #e31e24, #3d7a62)' : (isDark ? '#1a1a18' : '#e8e4dc'),
+                        background: renameDraft.trim() && renameDraft !== team.name ? 'linear-gradient(135deg, #6b1212, #3d7a62)' : (isDark ? '#1a1a18' : '#e8e4dc'),
                         color: renameDraft.trim() && renameDraft !== team.name ? '#fff' : muted,
                         border: 'none', borderRadius: '8px', cursor: 'pointer',
                       }}>
@@ -351,14 +351,14 @@ function GroupDetailModal({
                   </div>
                 </div>
                 {/* Danger zone */}
-                <div style={{ padding: '16px', borderRadius: '10px', border: `1px solid #dc2626`, backgroundColor: isDark ? '#1a0a0a' : '#fff5f5' }}>
-                  <p style={{ fontSize: '13px', fontWeight: 700, color: '#dc2626', marginBottom: '6px' }}>Zona de perigo</p>
+                <div style={{ padding: '16px', borderRadius: '10px', border: `1px solid #b83535`, backgroundColor: isDark ? '#1a0a0a' : '#fff5f5' }}>
+                  <p style={{ fontSize: '13px', fontWeight: 700, color: '#b83535', marginBottom: '6px' }}>Zona de perigo</p>
                   <p style={{ fontSize: '12px', color: muted, marginBottom: '12px' }}>Excluir o grupo não remove os membros ou deals. Esta ação não pode ser revertida.</p>
                   {confirmDel ? (
                     <div style={{ display: 'flex', gap: '8px' }}>
                       <button type="button"
                         onClick={() => { onDelete(team.id); onClose() }}
-                        style={{ height: '34px', padding: '0 16px', fontSize: '12px', fontWeight: 700, backgroundColor: '#dc2626', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
+                        style={{ height: '34px', padding: '0 16px', fontSize: '12px', fontWeight: 700, backgroundColor: '#b83535', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
                         Confirmar exclusão
                       </button>
                       <button type="button" onClick={() => setConfirmDel(false)}
@@ -368,7 +368,7 @@ function GroupDetailModal({
                     </div>
                   ) : (
                     <button type="button" onClick={() => setConfirmDel(true)}
-                      style={{ display: 'flex', alignItems: 'center', gap: '6px', height: '34px', padding: '0 14px', fontSize: '12px', fontWeight: 600, backgroundColor: 'transparent', color: '#dc2626', border: `1px solid #dc2626`, borderRadius: '8px', cursor: 'pointer' }}>
+                      style={{ display: 'flex', alignItems: 'center', gap: '6px', height: '34px', padding: '0 14px', fontSize: '12px', fontWeight: 600, backgroundColor: 'transparent', color: '#b83535', border: `1px solid #b83535`, borderRadius: '8px', cursor: 'pointer' }}>
                       <Trash2 style={{ width: '12px', height: '12px' }} />
                       Excluir grupo
                     </button>
@@ -515,6 +515,8 @@ export function TeamsPage() {
   const deals        = useDealStore((s) => s.deals)
   const isDark       = useThemeStore((s) => s.isDark)
 
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+
   const [newName, setNewName]     = useState('')
   const [creating, setCreating]   = useState(false)
   const [showForm, setShowForm]   = useState(false)
@@ -567,141 +569,251 @@ export function TeamsPage() {
 
   const openTeam = openTeamId ? teams.find((t) => t.id === openTeamId) ?? null : null
 
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    const W = canvas.width  = canvas.offsetWidth
+    const H = canvas.height = canvas.offsetHeight
+    const cols = Math.floor(W / 14)
+    const drops = Array.from({ length: cols }, () => Math.random() * -H / 14)
+    const chars = 'アイウエオカキクケコサシスセソタチツテトナニヌネノ01アBCDE#%&'
+    let raf: number
+    function draw() {
+      ctx!.fillStyle = isDark ? 'rgba(13,12,10,0.18)' : 'rgba(245,244,240,0.18)'
+      ctx!.fillRect(0, 0, W, H)
+      ctx!.font = '11px monospace'
+      for (let i = 0; i < drops.length; i++) {
+        const ch = chars[Math.floor(Math.random() * chars.length)]
+        const y = drops[i] * 14
+        const bright = Math.random() > 0.9
+        ctx!.fillStyle = isDark
+          ? (bright ? '#fff7ed' : (Math.random() > 0.5 ? '#f97316' : '#ea580c'))
+          : (bright ? '#7c2d12' : (Math.random() > 0.5 ? '#c2410c' : '#9b2020'))
+        ctx!.fillText(ch, i * 14, y)
+        if (y > H && Math.random() > 0.975) drops[i] = 0
+        drops[i] += 0.4
+      }
+      raf = requestAnimationFrame(draw)
+    }
+    draw()
+    return () => cancelAnimationFrame(raf)
+  }, [isDark])
 
-      {/* Header */}
-      <div style={{ minHeight: '64px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 4px 16px', flexShrink: 0 }}>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
-            <p style={{ fontSize: '20px', fontWeight: 700, color: text, letterSpacing: '-0.02em' }}>Grupos & Squads</p>
-            {/* Health summary badges */}
-            {teams.length > 0 && (
-              <div style={{ display: 'flex', gap: '6px' }}>
-                {(['healthy', 'warning', 'critical'] as HealthStatus[]).map((h) => healthSummary[h] > 0 && (
-                  <span key={h} style={{
-                    fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px',
-                    backgroundColor: HEALTH_BG[h], color: HEALTH_COLOR[h],
-                  }}>{healthSummary[h]} {HEALTH_LABEL[h]}</span>
-                ))}
-              </div>
-            )}
+  return (
+    <div style={{ backgroundColor: isDark ? '#0d0c0a' : '#f9fafb', minHeight: '100%', overflowY: 'auto' }}>
+
+      {/* Header card with matrix rain */}
+      <div style={{
+        position: 'relative', overflow: 'hidden',
+        borderBottom: `1px solid ${border}`,
+        backgroundColor: isDark ? '#0a0a08' : '#ffffff',
+        flexShrink: 0,
+      }}>
+        <canvas ref={canvasRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: isDark ? 0.35 : 0.2, pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', inset: 0, zIndex: 0, background: isDark ? 'linear-gradient(to bottom, transparent 40%, rgba(10,10,8,0.85) 100%)' : 'linear-gradient(to bottom, transparent 40%, rgba(255,255,255,0.88) 100%)', pointerEvents: 'none' }} />
+        <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '28px 32px 20px', display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap', position: 'relative', zIndex: 1 }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
+              <Users2 size={18} color={text} />
+              <p style={{ fontSize: '20px', fontWeight: 600, color: text, letterSpacing: '-0.03em', margin: 0 }}>Grupos & Squads</p>
+              {teams.length > 0 && (
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  {(['healthy', 'warning', 'critical'] as HealthStatus[]).map((h) => healthSummary[h] > 0 && (
+                    <span key={h} style={{
+                      fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '999px',
+                      backgroundColor: HEALTH_BG[h], color: HEALTH_COLOR[h],
+                    }}>{healthSummary[h]} {HEALTH_LABEL[h]}</span>
+                  ))}
+                </div>
+              )}
+            </div>
+            <p style={{ fontSize: '13px', color: muted, margin: 0 }}>
+              {teams.length} {teams.length === 1 ? 'grupo' : 'grupos'} · {totalMembers} {totalMembers === 1 ? 'membro' : 'membros'} na organização
+            </p>
           </div>
-          <p style={{ fontSize: '12px', color: muted }}>
-            {teams.length} {teams.length === 1 ? 'grupo' : 'grupos'} · {totalMembers} {totalMembers === 1 ? 'membro' : 'membros'} na organização
-          </p>
+          <Can action="manage_teams">
+            <button type="button" onClick={() => setShowForm((v) => !v)} style={{
+              display: 'flex', alignItems: 'center', gap: '7px',
+              height: '36px', padding: '0 18px', fontSize: '13px', fontWeight: 700,
+              background: showForm ? (isDark ? '#1a1a18' : '#f0eeea') : '#6b1212',
+              color: showForm ? muted : '#ffffff',
+              border: 'none', borderRadius: '10px', cursor: 'pointer',
+              boxShadow: showForm ? 'none' : '0 2px 8px rgba(107,18,18,0.30)',
+              transition: 'all 0.2s ease',
+            }}>
+              <Plus style={{ width: '15px', height: '15px' }} />
+              Novo grupo
+            </button>
+          </Can>
         </div>
-        <Can action="manage_teams">
-          <button type="button" onClick={() => setShowForm((v) => !v)} style={{
-            display: 'flex', alignItems: 'center', gap: '7px',
-            height: '38px', padding: '0 18px', fontSize: '13px', fontWeight: 700,
-            background: showForm ? (isDark ? '#1a1a18' : '#e8e4dc') : 'linear-gradient(135deg, #e31e24 0%, #3d7a62 100%)',
-            color: showForm ? muted : '#ffffff',
-            border: 'none', borderRadius: '10px', cursor: 'pointer',
-            boxShadow: showForm ? 'none' : '0 2px 8px rgba(44,85,69,0.35)',
-            transition: 'all 0.2s ease',
-          }}>
-            <Plus style={{ width: '15px', height: '15px' }} />
-            Novo grupo
-          </button>
-        </Can>
       </div>
 
-      {/* New group form */}
-      {showForm && (
-        <div style={{
-          marginBottom: '20px', padding: '18px 20px',
-          backgroundColor: isDark ? '#0f0f0d' : '#f9f8f5',
-          border: `1px solid ${border}`, borderRadius: '12px', flexShrink: 0,
-        }}>
-          <p style={{ fontSize: '13px', fontWeight: 700, color: text, marginBottom: '12px' }}>Novo grupo</p>
-          <div style={{ display: 'flex', gap: '8px', maxWidth: '440px' }}>
-            <input
-              autoFocus type="text" value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') handleCreate(); if (e.key === 'Escape') { setShowForm(false); setNewName('') } }}
-              placeholder="Ex: Comercial, Enterprise, Growth..."
-              style={{
-                flex: 1, height: '38px', padding: '0 12px', fontSize: '13px',
-                backgroundColor: inputBg, border: `1px solid ${isDark ? '#3a3834' : '#c4bfb8'}`,
-                borderRadius: '8px', color: text, outline: 'none',
-              }}
-            />
-            <button type="button" onClick={handleCreate} disabled={creating || !newName.trim()} style={{
-              height: '38px', padding: '0 18px', fontSize: '13px', fontWeight: 700,
-              background: newName.trim() ? 'linear-gradient(135deg, #e31e24 0%, #3d7a62 100%)' : (isDark ? '#1a1a18' : '#e8e4dc'),
-              color: newName.trim() ? '#fff' : muted,
-              border: 'none', borderRadius: '8px', cursor: newName.trim() ? 'pointer' : 'not-allowed',
-              boxShadow: newName.trim() ? '0 2px 6px rgba(44,85,69,0.3)' : 'none',
-            }}>
-              {creating ? 'A criar...' : 'Criar grupo'}
-            </button>
-            <button type="button" onClick={() => { setShowForm(false); setNewName('') }} style={{
-              height: '38px', padding: '0 14px', fontSize: '13px',
-              backgroundColor: 'transparent', color: muted,
-              border: `1px solid ${border}`, borderRadius: '8px', cursor: 'pointer',
-            }}>Cancelar</button>
-          </div>
-        </div>
-      )}
+      {/* Page content */}
+      <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '28px 32px 48px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
 
-      {/* Content */}
-      <div style={{ flex: 1, overflowY: 'auto' }}>
-        {teams.length === 0 ? (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: '16px' }}>
-            <div style={{ width: '64px', height: '64px', borderRadius: '16px', background: isDark ? '#1a1a18' : '#f0ede8', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Users2 style={{ width: '28px', height: '28px', color: muted }} />
-            </div>
-            <div style={{ textAlign: 'center' }}>
-              <p style={{ fontSize: '16px', fontWeight: 700, color: text, marginBottom: '6px' }}>Nenhum grupo criado</p>
-              <p style={{ fontSize: '13px', color: muted, lineHeight: 1.6, maxWidth: '300px' }}>
-                Crie grupos para organizar a equipa de vendas e filtrar deals por time
-              </p>
-            </div>
-            <Can action="manage_teams">
-              <button type="button" onClick={() => setShowForm(true)} style={{
-                display: 'flex', alignItems: 'center', gap: '7px',
-                height: '40px', padding: '0 20px', fontSize: '13px', fontWeight: 700,
-                background: 'linear-gradient(135deg, #e31e24 0%, #3d7a62 100%)',
-                color: '#ffffff', border: 'none', borderRadius: '10px', cursor: 'pointer',
-                boxShadow: '0 2px 10px rgba(44,85,69,0.35)',
-              }}>
-                <Plus style={{ width: '15px', height: '15px' }} />
-                Criar primeiro grupo
-              </button>
-            </Can>
-          </div>
-        ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px', alignItems: 'start' }}>
-            {[...teamStats].sort((a, b) => b.pipeline - a.pipeline).map(({ team, pipeline, openCount, wonCount, overdueCount, winRate, health }, idx) => (
-              <GroupCard
-                key={team.id}
-                team={team}
-                owners={owners}
-                isDark={isDark}
-                health={health}
-                pipeline={pipeline}
-                openCount={openCount}
-                wonCount={wonCount}
-                overdueCount={overdueCount}
-                winRate={winRate}
-                rank={idx + 1}
-                onOpen={() => setOpenTeamId(team.id)}
+        {/* New group form */}
+        {showForm && (
+          <div style={{
+            padding: '20px 24px',
+            backgroundColor: isDark ? '#111110' : '#ffffff',
+            border: `1px solid ${border}`, borderRadius: '12px',
+            boxShadow: isDark ? 'none' : '0 1px 4px rgba(16,24,40,0.06)',
+          }}>
+            <p style={{ fontSize: '13px', fontWeight: 700, color: text, marginBottom: '12px' }}>Novo grupo</p>
+            <div style={{ display: 'flex', gap: '8px', maxWidth: '440px' }}>
+              <input
+                autoFocus type="text" value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleCreate(); if (e.key === 'Escape') { setShowForm(false); setNewName('') } }}
+                placeholder="Ex: Comercial, Enterprise, Growth..."
+                style={{
+                  flex: 1, height: '38px', padding: '0 12px', fontSize: '13px',
+                  backgroundColor: isDark ? '#1a1a18' : '#f5f4f0', border: `1px solid ${border}`,
+                  borderRadius: '8px', color: text, outline: 'none',
+                }}
               />
-            ))}
+              <button type="button" onClick={handleCreate} disabled={creating || !newName.trim()} style={{
+                height: '38px', padding: '0 18px', fontSize: '13px', fontWeight: 700,
+                backgroundColor: newName.trim() ? '#6b1212' : (isDark ? '#1a1a18' : '#e8e4dc'),
+                color: newName.trim() ? '#fff' : muted,
+                border: 'none', borderRadius: '8px', cursor: newName.trim() ? 'pointer' : 'not-allowed',
+                boxShadow: newName.trim() ? '0 2px 6px rgba(107,18,18,0.25)' : 'none',
+              }}>
+                {creating ? 'A criar...' : 'Criar grupo'}
+              </button>
+            </div>
           </div>
         )}
+
+        {/* Teams grid */}
+        {teamStats.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '60px 20px', color: muted, fontSize: '13px' }}>
+            Nenhum grupo criado ainda.
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '16px' }}>
+            {teamStats.map(({ team, pipeline, openCount, wonCount, winRate, health, overdueCount }) => {
+              const members = owners.filter((o) => o.team_id === team.id)
+              return (
+                <div
+                  key={team.id}
+                  style={{
+                    backgroundColor: isDark ? '#111110' : '#ffffff',
+                    border: `1px solid ${border}`,
+                    borderRadius: '14px', padding: '20px',
+                    boxShadow: isDark ? 'none' : '0 1px 4px rgba(16,24,40,0.06)',
+                    cursor: 'pointer', transition: 'box-shadow 0.15s ease, border-color 0.15s ease',
+                  }}
+                  onClick={() => setOpenTeamId(team.id)}
+                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#6b1212'; e.currentTarget.style.boxShadow = isDark ? '0 0 0 1px #6b1212' : '0 4px 12px rgba(107,18,18,0.12)' }}
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = border; e.currentTarget.style.boxShadow = isDark ? 'none' : '0 1px 4px rgba(16,24,40,0.06)' }}
+                >
+                  {/* Team header */}
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '14px' }}>
+                    <div>
+                      <p style={{ fontSize: '15px', fontWeight: 700, color: text, margin: 0 }}>{team.name}</p>
+                      <p style={{ fontSize: '12px', color: muted, marginTop: '2px' }}>{members.length} {members.length === 1 ? 'membro' : 'membros'}</p>
+                    </div>
+                    <span style={{
+                      fontSize: '10px', fontWeight: 700, padding: '3px 10px', borderRadius: '999px',
+                      backgroundColor: HEALTH_BG[health], color: HEALTH_COLOR[health],
+                    }}>{HEALTH_LABEL[health]}</span>
+                  </div>
+
+                  {/* Stats row */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '14px' }}>
+                    {[
+                      { label: 'Pipeline', value: fmtCompact(pipeline) },
+                      { label: 'Ganhos', value: wonCount.toString() },
+                      { label: 'Win Rate', value: fmtPct(winRate) },
+                    ].map((s) => (
+                      <div key={s.label} style={{ textAlign: 'center', padding: '8px 4px', backgroundColor: isDark ? '#0d0c0a' : '#f9fafb', borderRadius: '8px' }}>
+                        <p style={{ fontSize: '13px', fontWeight: 700, color: text, margin: 0 }}>{s.value}</p>
+                        <p style={{ fontSize: '10px', color: muted, margin: 0 }}>{s.label}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Members avatars */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', gap: '4px' }}>
+                      {members.slice(0, 5).map((m) => (
+                        <div key={m.id} style={{ width: '24px', height: '24px', borderRadius: '6px', backgroundColor: m.avatar_color ?? '#667085', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '8px', fontWeight: 700, color: '#fff', flexShrink: 0 }}>
+                          {m.initials}
+                        </div>
+                      ))}
+                      {members.length > 5 && (
+                        <div style={{ width: '24px', height: '24px', borderRadius: '6px', backgroundColor: isDark ? '#1a1a18' : '#e8e4dc', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '8px', fontWeight: 700, color: muted }}>
+                          +{members.length - 5}
+                        </div>
+                      )}
+                    </div>
+                    {overdueCount > 0 && (
+                      <span style={{ fontSize: '10px', fontWeight: 600, color: '#b83535' }}>{overdueCount} em atraso</span>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        {/* Unassigned members */}
+        {(() => {
+          const unassigned = owners.filter((o) => !teams.some((t) => t.id === o.team_id))
+          if (unassigned.length === 0) return null
+          return (
+            <div style={{ backgroundColor: isDark ? '#111110' : '#ffffff', border: `1px solid ${border}`, borderRadius: '12px', overflow: 'hidden', boxShadow: isDark ? 'none' : '0 1px 4px rgba(16,24,40,0.06)' }}>
+              <div style={{ padding: '12px 20px', borderBottom: `1px solid ${border}`, backgroundColor: isDark ? '#0d0c0a' : '#f9fafb' }}>
+                <p style={{ fontSize: '11px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', margin: 0 }}>Sem grupo · {unassigned.length}</p>
+              </div>
+              {unassigned.map((o, i) => (
+                <div key={o.id} style={{
+                  display: 'flex', alignItems: 'center', gap: '12px',
+                  padding: '12px 20px',
+                  borderBottom: i < unassigned.length - 1 ? `1px solid ${border}` : 'none',
+                  backgroundColor: 'transparent',
+                  transition: 'background-color 0.1s ease',
+                }}
+                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = isDark ? '#0d0c0a' : '#f9fafb' }}
+                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent' }}
+                >
+                  <div style={{ width: '32px', height: '32px', borderRadius: '8px', backgroundColor: o.avatar_color ?? '#667085', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700, color: '#fff', flexShrink: 0 }}>
+                    {(o.name ?? '?').split(' ').map((p: string) => p[0]).slice(0, 2).join('').toUpperCase()}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ fontSize: '13px', fontWeight: 600, color: text, margin: 0 }}>{o.name}</p>
+                    {o.email && <p style={{ fontSize: '11px', color: muted, margin: 0 }}>{o.email}</p>}
+                  </div>
+                  {teams.length > 0 && (
+                    <select
+                      defaultValue=""
+                      onChange={(e) => { if (e.target.value) handleToggleMember(o.id, e.target.value, false) }}
+                      onClick={(e) => e.stopPropagation()}
+                      style={{ height: '30px', padding: '0 8px', fontSize: '11px', color: muted, backgroundColor: isDark ? '#1a1a18' : '#f0eeea', border: `1px solid ${border}`, borderRadius: '6px', cursor: 'pointer', outline: 'none' }}
+                    >
+                      <option value="" disabled>Atribuir grupo...</option>
+                      {teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                    </select>
+                  )}
+                </div>
+              ))}
+            </div>
+          )
+        })()}
       </div>
 
-      {/* Detail modal */}
+      {/* Group detail modal */}
       {openTeam && (
         <GroupDetailModal
           team={openTeam}
           owners={owners}
           isDark={isDark}
           onClose={() => setOpenTeamId(null)}
-          onRename={renameTeamFn}
-          onDelete={deleteTeam}
+          onRename={(id, name) => renameTeamFn(id, name)}
+          onDelete={(id) => { deleteTeam(id); setOpenTeamId(null) }}
           onToggleMember={handleToggleMember}
         />
       )}

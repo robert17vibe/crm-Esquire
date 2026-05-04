@@ -1,192 +1,63 @@
 import * as Dialog from '@radix-ui/react-dialog'
-import { useEffect, useState, useMemo } from 'react'
-import { useForm, Controller } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { X, ChevronDown, Loader2 } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { X, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { STAGES } from '@/constants/pipeline'
-import { newLeadSchema, type NewLeadFormValues } from '@/lib/schemas/deal.schema'
 import { useDealStore } from '@/store/useDealStore'
-import { useOwnerStore } from '@/store/useOwnerStore'
 import { useAuthStore } from '@/store/useAuthStore'
 import { useToastStore } from '@/store/useToastStore'
 import type { Deal } from '@/types/deal.types'
 
-// ─── Design tokens — warm neutral, alinhado com design system ─────────────────
+// ─── Design tokens ────────────────────────────────────────────────────────────
 
 const T = {
-  // Bordas: --line-rgb
   border:      'border border-[#e0dbd4] dark:border-[#242422]',
-  // Fundo dos inputs: --surface-base
   inputBg:     'bg-[#f5f4f0] dark:bg-[#111110]',
-  // Cor do texto dos inputs: --ink-base
   inputText:   'text-[#1a1814] dark:text-[#e8e4dc]',
-  // Placeholder: --ink-faint
   placeholder: 'placeholder-[#c4bfb8] dark:placeholder-[#3a3834]',
-  // Focus: --brand
-  focusBorder: 'focus:border-[#e31e24] dark:focus:border-[#e31e24] focus:ring-2 focus:ring-[#e31e24]/15 dark:focus:ring-[#e31e24]/15',
-  // Erro
-  errBorder:   'border-[#ef4444] focus:border-[#ef4444] focus:ring-[#ef4444]/15',
-  // Labels: --ink-muted
+  focusBorder: 'focus:border-[#6b1212] dark:focus:border-[#6b1212] focus:ring-2 focus:ring-[#6b1212]/15',
   labelColor:  'text-[#8a857d] dark:text-[#6b6560]',
-  // Separador: --line-rgb
   separator:   'bg-[#e0dbd4] dark:bg-[#242422]',
 } as const
 
-// ─── Field label ──────────────────────────────────────────────────────────────
+const inputCls = cn(
+  'w-full outline-none transition-all duration-150',
+  T.inputText, T.inputBg, T.border, T.placeholder, T.focusBorder,
+)
+
+const inputStyle: React.CSSProperties = {
+  height: '38px', borderRadius: '8px',
+  fontSize: '13px', fontWeight: 500,
+  paddingLeft: '12px', paddingRight: '12px',
+}
 
 function FLabel({ htmlFor, children, required }: {
   htmlFor: string; children: React.ReactNode; required?: boolean
 }) {
   return (
-    <label htmlFor={htmlFor} className={cn('block', T.labelColor)} style={{ fontSize: '11px', fontWeight: 600, marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+    <label htmlFor={htmlFor} className={cn('block', T.labelColor)}
+      style={{ fontSize: '11px', fontWeight: 600, marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
       {children}
-      {required && <span style={{ color: '#ef4444', marginLeft: '2px' }}>*</span>}
+      {required && <span style={{ color: '#b83535', marginLeft: '2px' }}>*</span>}
     </label>
   )
 }
 
-// ─── Field error ──────────────────────────────────────────────────────────────
-
-function FError({ msg }: { msg?: string }) {
-  if (!msg) return null
-  return <p style={{ fontSize: '11px', color: '#ef4444', marginTop: '4px' }}>{msg}</p>
-}
-
-// ─── Text input ───────────────────────────────────────────────────────────────
-
-type InputProps = React.InputHTMLAttributes<HTMLInputElement> & { hasError?: boolean }
-
-function Input({ hasError, className, style, ...rest }: InputProps) {
+function Row({ children }: { children: React.ReactNode }) {
   return (
-    <input
-      className={cn(
-        'w-full outline-none transition-all duration-150',
-        T.inputText, T.inputBg, T.border, T.placeholder,
-        hasError ? T.errBorder : T.focusBorder,
-        className,
-      )}
-      style={{
-        height: '38px',
-        borderRadius: '8px',
-        fontSize: '13px',
-        fontWeight: 500,
-        paddingLeft: '12px',
-        paddingRight: '12px',
-        ...style,
-      }}
-      {...rest}
-    />
-  )
-}
-
-// ─── Select ───────────────────────────────────────────────────────────────────
-
-type SelectProps = React.SelectHTMLAttributes<HTMLSelectElement> & { hasError?: boolean }
-
-function Select({ hasError, className, style, children, ...rest }: SelectProps) {
-  return (
-    <div className="relative">
-      <select
-        className={cn(
-          'w-full outline-none appearance-none transition-all duration-150 cursor-pointer',
-          T.inputText, T.inputBg, T.border,
-          hasError ? T.errBorder : T.focusBorder,
-          className,
-        )}
-        style={{
-          height: '38px',
-          borderRadius: '8px',
-          fontSize: '13px',
-          fontWeight: 500,
-          paddingLeft: '12px',
-          paddingRight: '36px',
-          ...style,
-        }}
-        {...rest}
-      >
-        {children}
-      </select>
-      <ChevronDown
-        className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[#8a857d] dark:text-[#6b6560]"
-        style={{ width: '13px', height: '13px' }}
-      />
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '12px' }}>
+      {children}
     </div>
   )
 }
-
-// ─── Currency input ───────────────────────────────────────────────────────────
-
-function formatBRL(raw: number | undefined) {
-  if (!raw && raw !== 0) return ''
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(raw)
-}
-
-function parseBRL(display: string): number {
-  const digits = display.replace(/\D/g, '')
-  return digits === '' ? 0 : parseInt(digits, 10)
-}
-
-function CurrencyInput({
-  value,
-  onChange,
-  hasError,
-  id,
-}: {
-  value?: number
-  onChange: (v: number) => void
-  hasError?: boolean
-  id: string
-}) {
-  const [display, setDisplay] = useState(value ? formatBRL(value) : '')
-
-  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const raw = parseBRL(e.target.value)
-    setDisplay(raw === 0 ? '' : formatBRL(raw))
-    onChange(raw)
-  }
-
-  return (
-    <input
-      id={id}
-      type="text"
-      inputMode="numeric"
-      placeholder="R$ 0"
-      value={display}
-      onChange={handleChange}
-      className={cn(
-        'w-full outline-none transition-all duration-150',
-        T.inputText, T.inputBg, T.border, T.placeholder,
-        hasError ? T.errBorder : T.focusBorder,
-      )}
-      style={{
-        height: '38px', borderRadius: '8px', fontSize: '13px',
-        fontWeight: 500, paddingLeft: '12px', paddingRight: '12px',
-        fontFamily: 'JetBrains Mono, monospace', fontVariantNumeric: 'tabular-nums',
-      }}
-    />
-  )
-}
-
-// ─── Section header ───────────────────────────────────────────────────────────
 
 function SectionHead({ title, first }: { title: string; first?: boolean }) {
   return (
     <div style={{ paddingTop: first ? '4px' : '20px', paddingBottom: '12px' }}>
-      <p className="text-[#8a857d] dark:text-[#6b6560] uppercase" style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.1em', marginBottom: '10px' }}>
+      <p className={T.labelColor} style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '10px' }}>
         {title}
       </p>
       <div className={T.separator} style={{ height: '1px' }} />
-    </div>
-  )
-}
-
-// ─── 2-col row ────────────────────────────────────────────────────────────────
-
-function Row({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="grid grid-cols-2" style={{ gap: '14px', marginBottom: '12px' }}>
-      {children}
     </div>
   )
 }
@@ -199,308 +70,243 @@ interface Props {
   onCreated: (deal: Deal) => void
 }
 
+const EMPTY = {
+  contact_name: '',
+  company_name: '',
+  contact_email: '',
+  contact_phone: '',
+  contact_title: '',
+  company_sector: '',
+  company_size: '',
+  lead_source: '',
+  stage_id: 'leads',
+  notes: '',
+}
+
 export function NewLeadModal({ open, onClose, onCreated }: Props) {
-  const createDeal          = useDealStore((s) => s.createDeal)
-  const deals               = useDealStore((s) => s.deals)
-  const owners              = useOwnerStore((s) => s.owners)
-  const addToast            = useToastStore((s) => s.addToast)
-  const profile             = useAuthStore((s) => s.profile)
+  const createDeal = useDealStore((s) => s.createDeal)
+  const addToast   = useToastStore((s) => s.addToast)
+  const profile    = useAuthStore((s) => s.profile)
 
-  const activeDealsByOwner = useMemo(() => {
-    const m: Record<string, number> = {}
-    deals.forEach((d) => {
-      if (!['closed_won', 'closed_lost'].includes(d.stage_id)) m[d.owner_id] = (m[d.owner_id] ?? 0) + 1
-    })
-    return m
-  }, [deals])
+  const [fields, setFields]       = useState(EMPTY)
+  const [nameError, setNameError] = useState('')
+  const [submitting, setSubmitting] = useState(false)
 
-  const {
-    register,
-    handleSubmit,
-    reset,
-    setValue,
-    control,
-    formState: { errors, isSubmitting },
-  } = useForm<NewLeadFormValues>({
-    resolver: zodResolver(newLeadSchema),
-    mode: 'onBlur',
-    defaultValues: { stage_id: 'leads', owner_id: '', value: 0 },
-  })
-
+  // reset quando abre
   useEffect(() => {
-    if (!owners.length) return
-    const leastBusyOwner = owners.reduce((least, current) =>
-      (activeDealsByOwner[current.id] ?? 0) < (activeDealsByOwner[least.id] ?? 0) ? current : least,
-    owners[0])
-    const selfOwner = profile?.id ? owners.find((o) => o.id === profile.id) : undefined
-    setValue('owner_id', selfOwner?.id ?? leastBusyOwner.id, { shouldValidate: true })
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [owners, activeDealsByOwner, profile?.id])
+    if (open) { setFields(EMPTY); setNameError('') }
+  }, [open])
 
-  function handleClose() { reset(); onClose() }
+  function set(key: keyof typeof EMPTY) {
+    return (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+      setFields((prev) => ({ ...prev, [key]: e.target.value }))
+      if (key === 'contact_name' && nameError) setNameError('')
+    }
+  }
 
-  async function onSubmit(values: NewLeadFormValues) {
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+
+    const name = fields.contact_name.trim()
+    if (!name) {
+      setNameError('Nome completo obrigatório')
+      return
+    }
+
+    setSubmitting(true)
     try {
-      const deal = await createDeal(values)
+      const deal = await createDeal({
+        contact_name:  name,
+        company_name:  fields.company_name.trim() || undefined,
+        contact_email: fields.contact_email.trim() || undefined,
+        contact_phone: fields.contact_phone.trim() || undefined,
+        contact_title: fields.contact_title.trim() || undefined,
+        company_sector: fields.company_sector.trim() || undefined,
+        company_size:  (fields.company_size as '1-50' | '51-200' | '201-1000' | '1000+') || undefined,
+        lead_source:   (fields.lead_source as 'Indicação' | 'Inbound' | 'Outbound' | 'Evento') || undefined,
+        stage_id:      fields.stage_id as Deal['stage_id'],
+        notes:         fields.notes.trim() || undefined,
+        value:         0,
+        owner_id:      profile?.id ?? '',
+      })
       onCreated(deal)
-      reset()
-      const isMinimal = !values.company_name && !values.contact_email && !values.value
-      if (isMinimal) {
-        addToast('Lead criado! Complete as informações para melhores resultados.', 'info', 5000)
-      } else {
-        addToast('Lead criado com sucesso!', 'success')
-      }
-    } catch {
-      addToast('Erro ao criar lead — verifique os dados e tente novamente', 'error')
+      onClose()
+      addToast(`Lead "${name}" criado com sucesso!`, 'success')
+    } catch (err) {
+      const msg = (err as { message?: string })?.message ?? 'Erro desconhecido'
+      addToast(`Erro ao criar lead: ${msg}`, 'error')
+    } finally {
+      setSubmitting(false)
     }
   }
 
   return (
-    <Dialog.Root open={open} onOpenChange={(v) => { if (!v) handleClose() }}>
+    <Dialog.Root open={open} onOpenChange={(v) => { if (!v) onClose() }}>
       <Dialog.Portal>
-
-        {/* Overlay */}
         <Dialog.Overlay className="fixed inset-0 z-50 bg-black/50 dark:bg-black/70" />
-
-        {/* Modal */}
         <Dialog.Content
           className={cn(
             'fixed z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2',
             'max-w-[calc(100vw-32px)] max-h-[90vh]',
-            // surface-card
             'bg-[#ffffff] dark:bg-[#161614]',
-            T.border,
-            'flex flex-col',
+            T.border, 'flex flex-col',
             'data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95',
             'data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95',
             'duration-150',
           )}
-          style={{
-            width: '580px',
-            borderRadius: '16px',
-            boxShadow: '0 24px 64px rgba(0,0,0,0.2)',
-          }}
+          style={{ width: '580px', borderRadius: '16px', boxShadow: '0 24px 64px rgba(0,0,0,0.2)' }}
         >
-
           {/* Header */}
           <div className="flex items-start justify-between shrink-0" style={{ padding: '24px 28px 18px' }}>
             <div>
-              <Dialog.Title
-                className="text-[#1a1814] dark:text-[#e8e4dc]"
-                style={{ fontSize: '16px', fontWeight: 700, lineHeight: 1.2 }}
-              >
+              <Dialog.Title className="text-[#1a1814] dark:text-[#e8e4dc]"
+                style={{ fontSize: '16px', fontWeight: 700, lineHeight: 1.2 }}>
                 Novo Lead
               </Dialog.Title>
-              <Dialog.Description
-                className="text-[#8a857d] dark:text-[#6b6560]"
-                style={{ fontSize: '12px', marginTop: '3px' }}
-              >
+              <Dialog.Description className="text-[#8a857d] dark:text-[#6b6560]"
+                style={{ fontSize: '12px', marginTop: '3px' }}>
                 Só o nome é obrigatório — complete o resto depois
               </Dialog.Description>
             </div>
-
             <Dialog.Close asChild>
-              <button
-                type="button"
-                aria-label="Fechar"
+              <button type="button" aria-label="Fechar"
                 className="flex items-center justify-center rounded-[6px] transition-colors duration-150 text-[#8a857d] dark:text-[#6b6560] hover:text-[#1a1814] dark:hover:text-[#e8e4dc] hover:bg-[#f5f4f0] dark:hover:bg-[#1a1a18]"
-                style={{ width: '28px', height: '28px', flexShrink: 0, marginTop: '-2px', marginRight: '-4px' }}
-              >
+                style={{ width: '28px', height: '28px', flexShrink: 0, marginTop: '-2px', marginRight: '-4px' }}>
                 <X style={{ width: '15px', height: '15px' }} />
               </button>
             </Dialog.Close>
           </div>
 
-          {/* Header separator */}
           <div className={cn(T.separator, 'shrink-0')} style={{ height: '1px' }} />
 
-          {/* Form body (scrollable) */}
-          <form
-            id="new-lead-form"
-            onSubmit={handleSubmit(onSubmit)}
-            className="flex-1 overflow-y-auto"
-            style={{ padding: '0 28px 4px' }}
-          >
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto" style={{ padding: '0 28px 4px' }}>
 
-            {/* SEÇÃO 1 — Contato */}
             <SectionHead title="Contato" first />
 
             <Row>
               <div>
-                <FLabel htmlFor="contact_name" required>Nome completo</FLabel>
-                <Input id="contact_name" type="text" placeholder="João Silva" hasError={!!errors.contact_name} {...register('contact_name')} />
-                <FError msg={errors.contact_name?.message} />
-              </div>
-              <div>
-                <FLabel htmlFor="company_name">Empresa</FLabel>
-                <Input id="company_name" type="text" placeholder="Acme Corp (opcional)" {...register('company_name')} />
-              </div>
-            </Row>
-
-            <Row>
-              <div>
-                <FLabel htmlFor="contact_email">Email</FLabel>
-                <Input id="contact_email" type="email" placeholder="joao@empresa.com" hasError={!!errors.contact_email} {...register('contact_email')} />
-                <FError msg={errors.contact_email?.message} />
-              </div>
-              <div>
-                <FLabel htmlFor="contact_phone">Telefone</FLabel>
-                <Input id="contact_phone" type="tel" placeholder="+55 11 99999-9999" {...register('contact_phone')} />
-              </div>
-            </Row>
-
-            <Row>
-              <div>
-                <FLabel htmlFor="contact_title">Cargo</FLabel>
-                <Input id="contact_title" type="text" placeholder="CTO" {...register('contact_title')} />
-              </div>
-              <div>
-                <FLabel htmlFor="contact_linkedin">LinkedIn</FLabel>
-                <Input id="contact_linkedin" type="url" placeholder="https://linkedin.com/in/..." hasError={!!errors.contact_linkedin} {...register('contact_linkedin')} />
-                <FError msg={errors.contact_linkedin?.message} />
-              </div>
-            </Row>
-
-            {/* SEÇÃO 2 — Empresa & Lead */}
-            <SectionHead title="Empresa & Lead" />
-
-            <Row>
-              <div>
-                <FLabel htmlFor="company_sector">Setor</FLabel>
-                <Input id="company_sector" type="text" placeholder="Fintech, SaaS…" {...register('company_sector')} />
-              </div>
-              <div>
-                <FLabel htmlFor="company_size">Tamanho da empresa</FLabel>
-                <Select id="company_size" {...register('company_size')}>
-                  <option value="">Selecione</option>
-                  <option value="1-50">1–50 funcionários</option>
-                  <option value="51-200">51–200 funcionários</option>
-                  <option value="201-1000">201–1.000 funcionários</option>
-                  <option value="1000+">1.000+ funcionários</option>
-                </Select>
-              </div>
-            </Row>
-
-            <Row>
-              <div>
-                <FLabel htmlFor="value">Valor estimado (R$)</FLabel>
-                <Controller
-                  name="value"
-                  control={control}
-                  render={({ field }) => (
-                    <CurrencyInput
-                      id="value"
-                      value={field.value}
-                      onChange={field.onChange}
-                      hasError={!!errors.value}
-                    />
-                  )}
+                <FLabel htmlFor="nl_contact_name" required>Nome completo</FLabel>
+                <input
+                  id="nl_contact_name"
+                  type="text"
+                  placeholder="João Silva"
+                  value={fields.contact_name}
+                  onChange={set('contact_name')}
+                  autoFocus
+                  className={cn(inputCls, nameError ? 'border-[#b83535] focus:border-[#b83535] focus:ring-[#b83535]/15' : '')}
+                  style={inputStyle}
                 />
-                <FError msg={errors.value?.message} />
+                {nameError && <p style={{ fontSize: '11px', color: '#b83535', marginTop: '4px' }}>{nameError}</p>}
               </div>
               <div>
-                <FLabel htmlFor="probability">Probabilidade (%)</FLabel>
-                <Input
-                  id="probability" type="number" min="0" max="100" placeholder="25"
-                  style={{ fontFamily: 'JetBrains Mono, monospace', fontVariantNumeric: 'tabular-nums' }}
-                  {...register('probability')}
-                />
+                <FLabel htmlFor="nl_company_name">Empresa</FLabel>
+                <input id="nl_company_name" type="text" placeholder="Acme Corp (opcional)"
+                  value={fields.company_name} onChange={set('company_name')}
+                  className={inputCls} style={inputStyle} />
               </div>
             </Row>
 
             <Row>
               <div>
-                <FLabel htmlFor="segment">Segmento</FLabel>
-                <Select id="segment" {...register('segment')}>
-                  <option value="">Selecione</option>
-                  <option value="B2B">B2B</option>
-                  <option value="B2C">B2C</option>
-                  <option value="B2G">B2G</option>
-                </Select>
+                <FLabel htmlFor="nl_contact_email">Email</FLabel>
+                <input id="nl_contact_email" type="text" placeholder="joao@empresa.com"
+                  value={fields.contact_email} onChange={set('contact_email')}
+                  className={inputCls} style={inputStyle} />
               </div>
               <div>
-                <FLabel htmlFor="lead_source">Origem do lead</FLabel>
-                <Select id="lead_source" {...register('lead_source')}>
-                  <option value="">Selecione</option>
-                  <option value="Indicação">Indicação</option>
-                  <option value="Inbound">Inbound</option>
-                  <option value="Outbound">Outbound</option>
-                  <option value="Evento">Evento</option>
-                </Select>
+                <FLabel htmlFor="nl_contact_phone">Telefone</FLabel>
+                <input id="nl_contact_phone" type="text" placeholder="+55 11 99999-9999"
+                  value={fields.contact_phone} onChange={set('contact_phone')}
+                  className={inputCls} style={inputStyle} />
+              </div>
+            </Row>
+
+            <Row>
+              <div>
+                <FLabel htmlFor="nl_contact_title">Cargo</FLabel>
+                <input id="nl_contact_title" type="text" placeholder="CTO"
+                  value={fields.contact_title} onChange={set('contact_title')}
+                  className={inputCls} style={inputStyle} />
+              </div>
+              <div>
+                <FLabel htmlFor="nl_company_sector">Setor</FLabel>
+                <input id="nl_company_sector" type="text" placeholder="Fintech, SaaS…"
+                  value={fields.company_sector} onChange={set('company_sector')}
+                  className={inputCls} style={inputStyle} />
+              </div>
+            </Row>
+
+            <SectionHead title="Negócio" />
+
+            <Row>
+              <div>
+                <FLabel htmlFor="nl_lead_source">Origem</FLabel>
+                <div className="relative">
+                  <select id="nl_lead_source" value={fields.lead_source} onChange={set('lead_source')}
+                    className={cn(inputCls, 'appearance-none cursor-pointer')}
+                    style={{ ...inputStyle, paddingRight: '32px' }}>
+                    <option value="">Selecione</option>
+                    <option value="Indicação">Indicação</option>
+                    <option value="Inbound">Inbound</option>
+                    <option value="Outbound">Outbound</option>
+                    <option value="Evento">Evento</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <FLabel htmlFor="nl_company_size">Tamanho da empresa</FLabel>
+                <div className="relative">
+                  <select id="nl_company_size" value={fields.company_size} onChange={set('company_size')}
+                    className={cn(inputCls, 'appearance-none cursor-pointer')}
+                    style={{ ...inputStyle, paddingRight: '32px' }}>
+                    <option value="">Selecione</option>
+                    <option value="1-50">1–50</option>
+                    <option value="51-200">51–200</option>
+                    <option value="201-1000">201–1.000</option>
+                    <option value="1000+">1.000+</option>
+                  </select>
+                </div>
               </div>
             </Row>
 
             <div style={{ marginBottom: '12px' }}>
-              <FLabel htmlFor="stage_id" required>Estágio inicial</FLabel>
-              <Select id="stage_id" hasError={!!errors.stage_id} {...register('stage_id')}>
-                {STAGES.map((s) => (
-                  <option key={s.id} value={s.id}>{s.label}</option>
-                ))}
-              </Select>
-              <FError msg={errors.stage_id?.message} />
+              <FLabel htmlFor="nl_stage_id">Etapa inicial</FLabel>
+              <div className="relative">
+                <select id="nl_stage_id" value={fields.stage_id} onChange={set('stage_id')}
+                  className={cn(inputCls, 'appearance-none cursor-pointer')}
+                  style={{ ...inputStyle, paddingRight: '32px' }}>
+                  {STAGES.filter((s) => !s.is_closed).map((s) => (
+                    <option key={s.id} value={s.id}>{s.label}</option>
+                  ))}
+                </select>
+              </div>
             </div>
 
-            {/* SEÇÃO 3 — Observação */}
-            <SectionHead title="Observação inicial" />
-
             <div style={{ marginBottom: '20px' }}>
-              <textarea
-                id="notes"
-                rows={3}
+              <FLabel htmlFor="nl_notes">Observação inicial</FLabel>
+              <textarea id="nl_notes" rows={3}
                 placeholder="Contexto do lead, quem indicou, próximos passos…"
-                className={cn(
-                  'w-full outline-none resize-none transition-all duration-150',
-                  T.inputText, T.inputBg, T.border, T.placeholder, T.focusBorder,
-                )}
-                style={{ borderRadius: '8px', fontSize: '13px', fontWeight: 500, padding: '10px 12px', lineHeight: 1.6 }}
-                {...register('notes')}
-              />
+                value={fields.notes} onChange={set('notes')}
+                className={cn(inputCls, 'resize-none')}
+                style={{ borderRadius: '8px', fontSize: '13px', fontWeight: 500, padding: '10px 12px', lineHeight: 1.6, height: 'auto' }} />
             </div>
           </form>
 
-          {/* Footer separator */}
           <div className={cn(T.separator, 'shrink-0')} style={{ height: '1px' }} />
 
           {/* Footer */}
           <div className="flex items-center justify-end shrink-0" style={{ padding: '14px 28px 20px', gap: '8px' }}>
-
-            {/* Cancelar */}
-            <button
-              type="button"
-              onClick={handleClose}
-              className={cn(
-                'transition-colors duration-150',
-                T.border,
-                'text-[#8a857d] dark:text-[#6b6560]',
-                'hover:bg-[#f5f4f0] dark:hover:bg-[#1a1a18]',
-              )}
-              style={{
-                height: '38px', borderRadius: '8px', padding: '0 20px',
-                fontSize: '13px', fontWeight: 600,
-                background: 'transparent', cursor: 'pointer',
-              }}
-            >
+            <button type="button" onClick={onClose}
+              className={cn('transition-colors duration-150', T.border, 'text-[#8a857d] dark:text-[#6b6560]', 'hover:bg-[#f5f4f0] dark:hover:bg-[#1a1a18]')}
+              style={{ height: '38px', borderRadius: '8px', padding: '0 20px', fontSize: '13px', fontWeight: 600, background: 'transparent', cursor: 'pointer' }}>
               Cancelar
             </button>
-
-            {/* Criar Lead — fundo --ink-base, texto --surface-base */}
-            <button
-              type="submit"
-              form="new-lead-form"
-              disabled={isSubmitting}
+            <button type="submit" form="" onClick={handleSubmit} disabled={submitting}
               className="flex items-center gap-2 transition-opacity duration-150 disabled:opacity-60 disabled:cursor-not-allowed"
-              style={{
-                height: '38px', borderRadius: '8px', padding: '0 24px',
-                fontSize: '13px', fontWeight: 700,
-                // light: #1a1814 on #f5f4f0 / dark: #e8e4dc on #0d0c0a
-                backgroundColor: 'var(--ink-base)',
-                color: 'var(--surface-base)',
-                border: 'none',
-                cursor: isSubmitting ? 'not-allowed' : 'pointer',
-              }}
-            >
-              {isSubmitting && <Loader2 style={{ width: '13px', height: '13px' }} className="animate-spin" />}
-              {isSubmitting ? 'Criando...' : 'Criar Lead'}
+              style={{ height: '38px', borderRadius: '8px', padding: '0 24px', fontSize: '13px', fontWeight: 700, backgroundColor: 'var(--ink-base)', color: 'var(--surface-base)', border: 'none', cursor: submitting ? 'not-allowed' : 'pointer' }}>
+              {submitting && <Loader2 style={{ width: '13px', height: '13px' }} className="animate-spin" />}
+              {submitting ? 'Criando...' : 'Criar Lead'}
             </button>
           </div>
         </Dialog.Content>

@@ -2,70 +2,101 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ─── Design tokens — Restrained Luxury ─────────────────────────────────────
-   Geist Sans · Geist Mono · warm neutrals · carmesim contido · sidebar preta
-   Inspiração: Bloomberg, Carta, Linear — ferramentas de decisores de alto valor
+/* ─── Design tokens — Esquire Brasil ────────────────────────────────────────
+   Paleta: Carmesim (brand) · Índigo suave · Âmbar · Violeta · Azul ardósia
+   Superfícies quentes, não frias. Maturidade editorial. Sem néons.
    ─────────────────────────────────────────────────────────────────────────── */
 :root {
-  /* ── Surfaces (light) ────────────────────────────────────────────────── */
-  --surface-base:    #f9fafb;
+  /* ── Surfaces (light) — neutros quentes, não azulados ───────────────── */
+  --surface-base:    #f8f7f5;
   --surface-card:    #ffffff;
-  --surface-raised:  #f3f4f6;
+  --surface-raised:  #f2f0ed;
   --surface-overlay: #ffffff;
   --surface-input:   #ffffff;
-  --surface-inset:   #e5e7eb;
-  --surface-col:     #edf0f4;
-  --surface-col-over:#e2e6ec;
+  --surface-inset:   #e8e5e0;
+  --surface-col:     #edeae6;
+  --surface-col-over:#e4e0db;
   --surface-sidebar: #0c0c0a;
-  --surface-hover:   #f3f4f6;
+  --surface-hover:   #f0ede9;
 
   /* ── Text hierarchy ──────────────────────────────────────────────────── */
-  --ink-base:    #101828;
-  --ink-sub:     #344054;
-  --ink-muted:   #667085;
-  --ink-faint:   #98a2b3;
-  --ink-placeholder: #c4bfb8;
+  --ink-base:        #18160f;
+  --ink-sub:         #3a3228;
+  --ink-muted:       #7a7268;
+  --ink-faint:       #a89f94;
+  --ink-placeholder: #c8c0b4;
 
-  /* ── Brand — Bordô escuro (Esquire premium) ─────────────────────────── */
+  /* ── Brand — Carmesim Bordeaux (Esquire) ────────────────────────────── */
   --brand:         #6b1212;
   --brand-hover:   #520e0e;
+  --brand-mid:     #8b1515;
   --brand-light:   rgba(107,18,18,0.07);
-  --brand-muted:   rgba(107,18,18,0.14);
+  --brand-muted:   rgba(107,18,18,0.13);
   --brand-glow:    rgba(107,18,18,0.08);
 
-  /* ── Aurea token aliases (compatibilidade com novos componentes) ─────── */
-  --canvas:        #f9fafb;
-  --surface:       #ffffff;
-  --subtle:        #f3f4f6;
-  --inset:         #eaecf0;
-  --text-primary:  #101828;
-  --text-secondary:#475467;
-  --text-tertiary: #98a2b3;
+  /* ── Paleta de acento — derivada do pipeline ────────────────────────── */
+  /* Índigo suave (Entrada) */
+  --p-indigo:      #7678b0;
+  --p-indigo-soft: rgba(118,120,176,0.10);
+  /* Azul ardósia (Prospecção / Fechamento) */
+  --p-slate:       #4d8fa8;
+  --p-slate-soft:  rgba(77,143,168,0.10);
+  /* Âmbar (Qualificação) */
+  --p-amber:       #a88030;
+  --p-amber-soft:  rgba(168,128,48,0.10);
+  /* Violeta (Proposta) */
+  --p-violet:      #8878b8;
+  --p-violet-soft: rgba(136,120,184,0.10);
+  /* Verde (Ganho — único verde no produto) */
+  --p-green:       #2a9a5a;
+  --p-green-soft:  rgba(42,154,90,0.10);
+  /* Vermelho funcional (Perdido / alertas) */
+  --p-red:         #b83535;
+  --p-red-soft:    rgba(184,53,53,0.10);
+
+  /* ── Semânticas funcionais ───────────────────────────────────────────── */
+  --color-success:      #2a9a5a;
+  --color-success-soft: rgba(42,154,90,0.09);
+  --color-warning:      #a88030;
+  --color-warning-soft: rgba(168,128,48,0.09);
+  --color-danger:       #b83535;
+  --color-danger-soft:  rgba(184,53,53,0.09);
+  --color-info:         #4d7aa8;
+  --color-info-soft:    rgba(77,122,168,0.09);
+
+  /* aliases de compat */
   --accent-color:  #6b1212;
-  --accent-soft:   rgba(107,18,18,0.08);
-  --success:       #15803d;
-  --success-soft:  rgba(21,128,61,0.08);
-  --warning:       #92400e;
-  --warning-soft:  rgba(146,64,14,0.08);
-  --danger:        #9b1c1c;
-  --danger-soft:   rgba(155,28,28,0.08);
-  --info:          #1e40af;
-  --info-soft:     rgba(30,64,175,0.08);
+  --accent-soft:   rgba(107,18,18,0.07);
+  --canvas:        #f8f7f5;
+  --surface:       #ffffff;
+  --subtle:        #f2f0ed;
+  --inset:         #e8e5e0;
+  --text-primary:  #18160f;
+  --text-secondary:#4a4238;
+  --text-tertiary: #a89f94;
+  --success:       #2a9a5a;
+  --success-soft:  rgba(42,154,90,0.09);
+  --warning:       #a88030;
+  --warning-soft:  rgba(168,128,48,0.09);
+  --danger:        #b83535;
+  --danger-soft:   rgba(184,53,53,0.09);
+  --info:          #4d7aa8;
+  --info-soft:     rgba(77,122,168,0.09);
 
   /* ── Borders ─────────────────────────────────────────────────────────── */
-  --line:         #eaecf0;
-  --line-strong:  #d0d5dd;
-  --line-focus:   rgba(185,28,34,0.50);
+  --line:         #e4e0da;
+  --line-strong:  #ccc8c0;
+  --line-focus:   rgba(107,18,18,0.40);
 
-  /* ── Shadows — multicamada, nunca coloridas ──────────────────────────── */
-  --shadow-xs:   0 1px 2px rgba(16,24,40,0.04);
-  --shadow-sm:   0 1px 3px rgba(16,24,40,0.06), 0 1px 2px rgba(16,24,40,0.04);
-  --shadow-md:   0 4px 8px rgba(16,24,40,0.07), 0 2px 4px rgba(16,24,40,0.04);
-  --shadow-lg:   0 12px 16px rgba(16,24,40,0.07), 0 4px 6px rgba(16,24,40,0.04);
-  --shadow-xl:   0 20px 24px rgba(16,24,40,0.07), 0 8px 8px rgba(16,24,40,0.04);
-  --shadow-card: 0 1px 3px rgba(16,24,40,0.06), 0 1px 2px rgba(16,24,40,0.04);
+  /* ── Shadows — neutras, nunca coloridas ─────────────────────────────── */
+  --shadow-xs:   0 1px 2px rgba(20,16,10,0.04);
+  --shadow-sm:   0 1px 3px rgba(20,16,10,0.06), 0 1px 2px rgba(20,16,10,0.04);
+  --shadow-md:   0 4px 8px rgba(20,16,10,0.07), 0 2px 4px rgba(20,16,10,0.04);
+  --shadow-lg:   0 12px 16px rgba(20,16,10,0.07), 0 4px 6px rgba(20,16,10,0.04);
+  --shadow-xl:   0 20px 24px rgba(20,16,10,0.07), 0 8px 8px rgba(20,16,10,0.04);
+  --shadow-card: 0 1px 3px rgba(20,16,10,0.06), 0 1px 2px rgba(20,16,10,0.04);
   --shadow-hover: var(--shadow-md);
-  --shadow-overlay: 0 20px 48px rgba(16,24,40,0.14), 0 8px 16px rgba(16,24,40,0.08);
+  --shadow-overlay: 0 20px 48px rgba(20,16,10,0.14), 0 8px 16px rgba(20,16,10,0.08);
 
   /* ── Radii ────────────────────────────────────────────────────────────── */
   --radius-xs:   4px;
@@ -82,25 +113,8 @@
   --space-page:  24px;
   --space-gap:   16px;
 
-  /* ── Pipeline stages — monocromático por profundidade ───────────────── */
-  --stage-prospect:   #94a3b8;
-  --stage-qualify:    #64748b;
-  --stage-proposal:   #475569;
-  --stage-negotiate:  #334155;
-  --stage-close:      #1e293b;
-
-  /* ── Semânticas funcionais (usadas com parcimónia) ───────────────────── */
-  --color-success:      #15803d;
-  --color-success-soft: rgba(21,128,61,0.08);
-  --color-warning:      #b45309;
-  --color-warning-soft: rgba(180,83,9,0.08);
-  --color-danger:       #b91c1c;
-  --color-danger-soft:  rgba(185,28,28,0.08);
-  --color-info:         #1d4ed8;
-  --color-info-soft:    rgba(29,78,216,0.08);
-
   /* ── Misc ────────────────────────────────────────────────────────────── */
-  --progress-bg: #e5e2dc;
+  --progress-bg: #e4e0da;
 
   /* ── Motion ──────────────────────────────────────────────────────────── */
   --ease-swift:  cubic-bezier(0.16, 1, 0.3, 1);
@@ -111,59 +125,85 @@
   --dur-slow:    300ms;
 
   /* ── shadcn/ui compat ────────────────────────────────────────────────── */
-  --background:           249 250 251;
-  --foreground:           16 24 40;
+  --background:           248 247 245;
+  --foreground:           24 22 15;
   --card:                 255 255 255;
-  --card-foreground:      16 24 40;
+  --card-foreground:      24 22 15;
   --popover:              255 255 255;
-  --popover-foreground:   16 24 40;
+  --popover-foreground:   24 22 15;
   --primary:              107 18 18;
   --primary-foreground:   255 255 255;
-  --secondary:            243 244 246;
-  --secondary-foreground: 16 24 40;
-  --muted:                229 231 235;
-  --muted-foreground:     102 112 133;
-  --accent:               243 244 246;
-  --accent-foreground:    16 24 40;
-  --destructive:          185 28 28;
+  --secondary:            242 240 237;
+  --secondary-foreground: 24 22 15;
+  --muted:                232 229 224;
+  --muted-foreground:     122 114 104;
+  --accent:               242 240 237;
+  --accent-foreground:    24 22 15;
+  --destructive:          184 53 53;
   --destructive-foreground: 255 255 255;
-  --border:               234 236 240;
-  --input:                234 236 240;
+  --border:               228 224 218;
+  --input:                228 224 218;
   --ring:                 107 18 18;
 }
 
 .dark {
   /* ── Surfaces (dark) ─────────────────────────────────────────────────── */
-  --surface-base:    #0a0a08;
-  --surface-card:    #111110;
-  --surface-raised:  #191917;
-  --surface-overlay: #1e1e1c;
-  --surface-input:   #0d0d0b;
-  --surface-inset:   #141412;
-  --surface-col:     #151513;
-  --surface-col-over:#1c1c1a;
-  --surface-sidebar: #070706;
-  --surface-hover:   #191917;
+  --surface-base:    #0e0d0b;
+  --surface-card:    #161512;
+  --surface-raised:  #1c1a17;
+  --surface-overlay: #211f1b;
+  --surface-input:   #111009;
+  --surface-inset:   #181610;
+  --surface-col:     #181614;
+  --surface-col-over:#1f1d1a;
+  --surface-sidebar: #080706;
+  --surface-hover:   #1c1a17;
 
   /* ── Text (dark) ─────────────────────────────────────────────────────── */
-  --ink-base:    #edeae4;
-  --ink-sub:     #c4bfb8;
-  --ink-muted:   #6b6760;
-  --ink-faint:   #3a3734;
-  --ink-placeholder: #2e2c29;
+  --ink-base:        #ede8e0;
+  --ink-sub:         #c8c0b0;
+  --ink-muted:       #706858;
+  --ink-faint:       #3c3830;
+  --ink-placeholder: #302c24;
 
   /* ── Brand (dark) ────────────────────────────────────────────────────── */
   --brand:         #9b2020;
   --brand-hover:   #7a1818;
+  --brand-mid:     #b52525;
   --brand-light:   rgba(155,32,32,0.12);
   --brand-muted:   rgba(155,32,32,0.20);
   --brand-glow:    rgba(155,32,32,0.10);
-  --canvas:        #0a0a08;
-  --surface:       #111110;
-  --subtle:        #191917;
-  --text-primary:  #edeae4;
-  --text-secondary:#a09890;
-  --text-tertiary: #6b6760;
+
+  /* ── Paleta de acento (dark) ─────────────────────────────────────────── */
+  --p-indigo:      #8890c8;
+  --p-indigo-soft: rgba(136,144,200,0.12);
+  --p-slate:       #6aaac0;
+  --p-slate-soft:  rgba(106,170,192,0.12);
+  --p-amber:       #c09840;
+  --p-amber-soft:  rgba(192,152,64,0.12);
+  --p-violet:      #a090d0;
+  --p-violet-soft: rgba(160,144,208,0.12);
+  --p-green:       #3ab870;
+  --p-green-soft:  rgba(58,184,112,0.12);
+  --p-red:         #c84848;
+  --p-red-soft:    rgba(200,72,72,0.12);
+
+  /* ── Semânticas funcionais (dark) ───────────────────────────────────── */
+  --color-success:      #3ab870;
+  --color-success-soft: rgba(58,184,112,0.12);
+  --color-warning:      #c09840;
+  --color-warning-soft: rgba(192,152,64,0.12);
+  --color-danger:       #c84848;
+  --color-danger-soft:  rgba(200,72,72,0.12);
+  --color-info:         #6090c0;
+  --color-info-soft:    rgba(96,144,192,0.12);
+
+  --canvas:        #0e0d0b;
+  --surface:       #161512;
+  --subtle:        #1c1a17;
+  --text-primary:  #ede8e0;
+  --text-secondary:#a89880;
+  --text-tertiary: #706858;
   --accent-soft:   rgba(155,32,32,0.12);
 
   /* ── Borders ─────────────────────────────────────────────────────────── */
@@ -182,19 +222,15 @@
   --shadow-overlay: var(--shadow-xl);
 
   /* ── Misc ────────────────────────────────────────────────────────────── */
-  --progress-bg: #1e1e1c;
-  --color-success-soft: rgba(21,128,61,0.12);
-  --color-warning-soft: rgba(180,83,9,0.12);
-  --color-danger-soft:  rgba(185,28,28,0.12);
-  --color-info-soft:    rgba(29,78,216,0.12);
+  --progress-bg: #211f1b;
 
   /* ── shadcn/ui compat ────────────────────────────────────────────────── */
-  --background:           10 10 8;
-  --foreground:           237 234 228;
-  --card:                 17 17 16;
-  --card-foreground:      237 234 228;
-  --popover:              25 25 23;
-  --popover-foreground:   237 234 228;
+  --background:           14 13 11;
+  --foreground:           237 232 224;
+  --card:                 22 21 18;
+  --card-foreground:      237 232 224;
+  --popover:              28 26 23;
+  --popover-foreground:   237 232 224;
   --border:               255 255 255 / 0.07;
   --input:                255 255 255 / 0.07;
   --ring:                 196 32 40;
@@ -500,6 +536,39 @@ textarea.input { height: auto; padding: 10px 12px; resize: vertical; }
 *::-webkit-scrollbar-track { background: transparent; }
 *::-webkit-scrollbar-thumb { background-color: rgba(0,0,0,0.08); border-radius: 99px; }
 .dark *::-webkit-scrollbar-thumb { background-color: rgba(255,255,255,0.06); }
+
+/* ─── View mode transition ───────────────────────────────────────────────── */
+@keyframes view-enter {
+  0%   { opacity: 0; transform: translateY(6px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+@keyframes view-btn-flash {
+  0%   { box-shadow: 0 0 0 0 rgba(107,18,18,0); }
+  35%  { box-shadow: 0 0 0 3px rgba(107,18,18,0.35); }
+  100% { box-shadow: 0 0 0 3px rgba(107,18,18,0); }
+}
+.view-enter { animation: view-enter 0.22s ease forwards; }
+.view-btn-active { animation: view-btn-flash 0.45s ease forwards; }
+
+/* ─── Zap button animations ──────────────────────────────────────────────── */
+@keyframes zap-shock {
+  0%   { transform: scale(1) rotate(0deg); }
+  20%  { transform: scale(1.18) rotate(-8deg); }
+  40%  { transform: scale(0.95) rotate(6deg); }
+  60%  { transform: scale(1.1) rotate(-4deg); }
+  80%  { transform: scale(0.98) rotate(2deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+@keyframes zap-flicker {
+  0%, 100% { opacity: 1; }
+  25%       { opacity: 0.55; }
+  50%       { opacity: 1; }
+  75%       { opacity: 0.7; }
+}
+.zap-shock { animation: zap-shock 0.4s ease forwards; }
+.zap-pulse .zap-icon-active {
+  animation: zap-flicker 1.8s ease-in-out infinite;
+}
 
 /* ─── Responsive sidebar ──────────────────────────────────────────────────── */
 @media (max-width: 899px) {

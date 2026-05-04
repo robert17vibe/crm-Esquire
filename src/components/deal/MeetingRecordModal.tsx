@@ -169,7 +169,7 @@ export function MeetingRecordModal({ dealId, onClose, onSaved }: Props) {
             Cancelar
           </button>
           <button type="button" onClick={handleSave} disabled={saving}
-            style={{ height: '34px', padding: '0 20px', borderRadius: '6px', border: 'none', backgroundColor: '#e31e24', fontSize: '12px', fontWeight: 700, color: '#fff', cursor: 'pointer', opacity: saving ? 0.6 : 1 }}>
+            style={{ height: '34px', padding: '0 20px', borderRadius: '6px', border: 'none', backgroundColor: '#6b1212', fontSize: '12px', fontWeight: 700, color: '#fff', cursor: 'pointer', opacity: saving ? 0.6 : 1 }}>
             {saving ? 'A guardar...' : 'Guardar Reunião'}
           </button>
         </div>

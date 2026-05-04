@@ -23,17 +23,12 @@ export async function insertDeal(
   return data as Deal
 }
 
-export async function patchDeal(id: string, patch: Partial<Deal>): Promise<Deal> {
-  const { data, error } = await supabase
+export async function patchDeal(id: string, patch: Partial<Deal>): Promise<void> {
+  const { error } = await supabase
     .from('deals')
     .update(patch)
     .eq('id', id)
-    .select()
-    .maybeSingle()
   if (error) throw error
-  // If data is null, the update was blocked by RLS — throw descriptive error
-  if (!data) throw new Error(`RLS bloqueou update do deal ${id} — verifique is_admin ou owner_id`)
-  return data as Deal
 }
 
 export async function removeDeal(id: string): Promise<void> {

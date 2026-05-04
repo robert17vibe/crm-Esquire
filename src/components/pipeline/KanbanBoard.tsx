@@ -34,6 +34,7 @@ interface KanbanBoardProps {
   onLossReasonConfirmed?: (dealId: string, reason: string) => void
   showScore?: boolean
   highlightNew?: boolean
+  sortMode?: 'manual' | 'score'
   dimmedIds?: Set<string>
   onAddDeal?: (stageId: StageId) => void
 }
@@ -53,6 +54,45 @@ function findContainerId(grouped: GroupedDeals, id: UniqueIdentifier): StageId |
   return undefined
 }
 
+function NoProposalModal({ onClose }: { onClose: () => void }) {
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 9999,
+      backgroundColor: 'rgba(0,0,0,0.55)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+    }}>
+      <div style={{
+        backgroundColor: '#fff', borderRadius: '14px',
+        padding: '28px 32px', maxWidth: '380px', width: '90%',
+        boxShadow: '0 24px 64px rgba(0,0,0,0.18)',
+        display: 'flex', flexDirection: 'column', gap: '12px',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{ width: '36px', height: '36px', borderRadius: '10px', backgroundColor: '#fef3c7', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <span style={{ fontSize: '18px' }}>⚠️</span>
+          </div>
+          <div>
+            <p style={{ fontSize: '14px', fontWeight: 700, color: '#1a1814', margin: 0 }}>Sem proposta criada</p>
+            <p style={{ fontSize: '12px', color: '#8a857d', margin: 0, marginTop: '2px' }}>Não é possível marcar como Ganho</p>
+          </div>
+        </div>
+        <p style={{ fontSize: '13px', color: '#475467', lineHeight: 1.6, margin: 0 }}>
+          Para fechar um negócio como <strong>Ganho</strong>, é necessário ter pelo menos uma proposta comercial registrada. Crie a proposta na aba <em>Propostas</em> do lead e tente novamente.
+        </p>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '4px' }}>
+          <button type="button" onClick={onClose} style={{
+            height: '36px', padding: '0 20px', borderRadius: '8px',
+            backgroundColor: '#6b1212', color: '#fff',
+            border: 'none', fontSize: '13px', fontWeight: 600, cursor: 'pointer',
+          }}>
+            Entendido — reverter
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export function KanbanBoard({
   initialDeals,
   pendingNewDeal,
@@ -65,12 +105,14 @@ export function KanbanBoard({
   onLossReasonConfirmed,
   showScore,
   highlightNew,
+  sortMode,
   dimmedIds,
   onAddDeal,
 }: KanbanBoardProps) {
   const [grouped, setGrouped] = useState<GroupedDeals>(() => groupByStage(initialDeals))
   const [activeId, setActiveId] = useState<string | null>(null)
   const [pendingLossMove, setPendingLossMove] = useState<{ dealId: string; fromStage: StageId } | null>(null)
+  const [pendingWonBlock, setPendingWonBlock] = useState<{ dealId: string; fromStage: StageId } | null>(null)
   const consumedNewRef = useRef<string | null>(null)
   const consumedUpdatedRef = useRef<string | null>(null)
   const groupedRef = useRef(grouped)
@@ -122,6 +164,27 @@ export function KanbanBoard({
   const activeDeal = activeId
     ? Object.values(grouped).flat().find((d) => d.id === activeId)
     : null
+
+  // ── Proposal check ───────────────────────────────────────────────────────
+  function hasProposal(dealId: string): boolean {
+    try {
+      const data = JSON.parse(localStorage.getItem(`esq_proposals_v4_${dealId}`) ?? '[]')
+      return Array.isArray(data) && data.length > 0
+    } catch { return false }
+  }
+
+  function revertFromWon(dealId: string, fromStage: StageId) {
+    setGrouped((prev) => {
+      const deal = prev['closed_won'].find((d) => d.id === dealId)
+      if (!deal) return prev
+      return {
+        ...prev,
+        closed_won: prev['closed_won'].filter((d) => d.id !== dealId),
+        [fromStage]: [{ ...deal, stage_id: fromStage }, ...prev[fromStage]],
+      }
+    })
+    setPendingWonBlock(null)
+  }
 
   // ── Loss reason modal handlers ────────────────────────────────────────────
 
@@ -219,6 +282,8 @@ export function KanbanBoard({
       })
       if (targetStage === 'closed_lost') {
         setPendingLossMove({ dealId: aId, fromStage: startStage! })
+      } else if (targetStage === 'closed_won' && !hasProposal(aId)) {
+        setPendingWonBlock({ dealId: aId, fromStage: startStage! })
       } else {
         onStageChange?.(aId, targetStage)
       }
@@ -229,6 +294,8 @@ export function KanbanBoard({
     if (startStage && currentStage && startStage !== currentStage) {
       if (currentStage === 'closed_lost') {
         setPendingLossMove({ dealId: aId, fromStage: startStage })
+      } else if (currentStage === 'closed_won' && !hasProposal(aId)) {
+        setPendingWonBlock({ dealId: aId, fromStage: startStage })
       } else {
         onStageChange?.(aId, currentStage)
       }
@@ -272,21 +339,27 @@ export function KanbanBoard({
       return
     }
 
+    let fromStage: StageId | undefined
+    for (const [sid, deals] of Object.entries(groupedRef.current)) {
+      if (deals.some((d) => d.id === dealId)) { fromStage = sid as StageId; break }
+    }
+    if (!fromStage || fromStage === targetStage) return
+
     setGrouped((prev) => {
-      let from: StageId | undefined
-      for (const [sid, deals] of Object.entries(prev)) {
-        if (deals.some((d) => d.id === dealId)) { from = sid as StageId; break }
-      }
-      if (!from || from === targetStage) return prev
-      const deal = prev[from].find((d) => d.id === dealId)
+      const deal = prev[fromStage!].find((d) => d.id === dealId)
       if (!deal) return prev
       return {
         ...prev,
-        [from]:        prev[from].filter((d) => d.id !== dealId),
+        [fromStage!]:  prev[fromStage!].filter((d) => d.id !== dealId),
         [targetStage]: [{ ...deal, stage_id: targetStage }, ...prev[targetStage]],
       }
     })
-    onStageChange?.(dealId, targetStage)
+
+    if (targetStage === 'closed_won' && !hasProposal(dealId)) {
+      setPendingWonBlock({ dealId, fromStage })
+    } else {
+      onStageChange?.(dealId, targetStage)
+    }
   }, [onStageChange])
 
 
@@ -305,7 +378,7 @@ export function KanbanBoard({
         onDragOver={onDragOver}
         onDragEnd={onDragEnd}
       >
-        <div className="kanban-board-scroll flex h-full gap-[14px] overflow-x-auto pb-4 pt-0.5" style={{ paddingLeft: '2px', paddingRight: '24px' }}>
+        <div className="kanban-board-scroll flex h-full gap-[14px] overflow-x-auto pb-4" style={{ paddingLeft: '16px', paddingRight: '24px', paddingTop: '16px' }}>
           {STAGES.map((stage) => (
             <StageColumn
               key={stage.id}
@@ -314,6 +387,7 @@ export function KanbanBoard({
               onMoveDeal={onMoveDeal}
               showScore={showScore}
               highlightNew={highlightNew}
+              sortMode={sortMode}
               dimmedIds={dimmedIds}
               onAddDeal={onAddDeal}
             />
@@ -335,6 +409,12 @@ export function KanbanBoard({
           dealTitle={pendingLossDeal.title}
           onConfirm={handleLossConfirm}
           onCancel={handleLossCancel}
+        />
+      )}
+
+      {pendingWonBlock && (
+        <NoProposalModal
+          onClose={() => revertFromWon(pendingWonBlock.dealId, pendingWonBlock.fromStage)}
         />
       )}
     </>

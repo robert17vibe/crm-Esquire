@@ -63,7 +63,7 @@ export function CrmAreaChart({
             boxShadow: '0 4px 12px rgba(16,24,40,0.12)',
             color: isDark ? '#edeae4' : '#101828',
           }}
-          formatter={(v: number) => [formatTooltip ? formatTooltip(v) : v, '']}
+          formatter={(v) => [formatTooltip ? formatTooltip(Number(v)) : v, '']}
           labelStyle={{ color: isDark ? '#98a2b3' : '#667085', marginBottom: '4px' }}
         />
         <Area

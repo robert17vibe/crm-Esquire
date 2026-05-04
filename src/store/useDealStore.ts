@@ -150,8 +150,9 @@ export const useDealStore = create<DealStore>((set, get) => {
 
   createDeal: async (values) => {
     const { data: { user } } = await supabase.auth.getUser()
-    const resolvedOwnerId = values.owner_id || user?.id || MOCK_OWNERS[0].id
-    const owner = useOwnerStore.getState().getById(resolvedOwnerId) ?? MOCK_OWNERS[0]
+    const resolvedOwnerId = user?.id || values.owner_id || MOCK_OWNERS[0].id
+    const foundOwner = useOwnerStore.getState().getById(resolvedOwnerId)
+    const owner = foundOwner ?? { ...MOCK_OWNERS[0], id: resolvedOwnerId }
     const now = new Date().toISOString()
     const optimistic: Deal = {
       id: `opt-${Date.now()}`,
@@ -163,7 +164,7 @@ export const useDealStore = create<DealStore>((set, get) => {
       probability: values.probability ?? DEFAULT_PROBABILITIES[values.stage_id] ?? 10,
       days_in_stage: 0,
       notes: values.notes,
-      owner_id: owner.id,
+      owner_id: resolvedOwnerId,
       owner,
       contact_name: values.contact_name,
       contact_title: values.contact_title,
@@ -185,9 +186,27 @@ export const useDealStore = create<DealStore>((set, get) => {
     persistDeals(optimisticList)
 
     try {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { id: _id, company_id: _cid, days_in_stage: _ds, deleted_at: _da, stage_changed_at: _sca, ...payload } = optimistic
-      const confirmed = await insertDeal(payload)
+      const dbPayload = {
+        title:            optimistic.title,
+        stage_id:         optimistic.stage_id,
+        value:            optimistic.value,
+        currency:         optimistic.currency,
+        probability:      optimistic.probability,
+        notes:            optimistic.notes || null,
+        owner_id:         optimistic.owner_id,
+        owner:            optimistic.owner,
+        contact_name:     optimistic.contact_name || null,
+        contact_title:    optimistic.contact_title || null,
+        contact_email:    optimistic.contact_email || null,
+        contact_phone:    optimistic.contact_phone || null,
+        contact_linkedin: optimistic.contact_linkedin || null,
+        company_name:     optimistic.company_name,
+        company_sector:   optimistic.company_sector || null,
+        company_size:     optimistic.company_size || null,
+        lead_source:      optimistic.lead_source || null,
+        tags:             optimistic.tags ?? null,
+      }
+      const confirmed = await insertDeal(dbPayload as Parameters<typeof insertDeal>[0])
       const next = get().deals.map((d) => (d.id === optimistic.id ? confirmed : d))
       setDeals(next)
       persistDeals(next)

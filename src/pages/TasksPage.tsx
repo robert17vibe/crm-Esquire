@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   CheckSquare, Plus, X, Clock, AlertTriangle, Calendar,
-  ArrowRight, Check, Trash2, Phone, Mail, Video, Users, MoreHorizontal, Pencil,
+  ArrowRight, Check, Trash2, Phone, Mail, Video, Users, MoreHorizontal, Pencil, TrendingUp,
 } from 'lucide-react'
 import { useTaskStore } from '@/store/useTaskStore'
 import { useThemeStore } from '@/store/useThemeStore'
@@ -10,6 +10,7 @@ import { useVisibleDeals } from '@/hooks/useVisibleDeals'
 import { useImpersonationStore } from '@/store/useImpersonationStore'
 import { useOwnerStore } from '@/store/useOwnerStore'
 import type { Task, TaskPriority, TaskType } from '@/types/task.types'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -22,9 +23,9 @@ function fmtDate(iso: string) {
 }
 
 const PRIORITY_CFG: Record<TaskPriority, { label: string; color: string; bg: string }> = {
-  high:   { label: 'Alta',   color: '#dc2626', bg: '#fee2e2' },
-  medium: { label: 'Média',  color: '#78716c', bg: '#f5f4f0' },
-  low:    { label: 'Baixa',  color: '#4a7c8a', bg: '#e0f2fe' },
+  high:   { label: 'Alta',   color: '#b83535', bg: '#b8353512' },
+  medium: { label: 'Média',  color: '#a88030', bg: '#a8803012' },
+  low:    { label: 'Baixa',  color: '#4d7aa8', bg: '#4d7aa812' },
 }
 
 const TYPE_ICONS: Record<TaskType, React.ComponentType<{ style?: React.CSSProperties }>> = {
@@ -43,11 +44,11 @@ type TypeFilter = 'all' | TaskType
 // ─── Task row ─────────────────────────────────────────────────────────────────
 
 function TaskRow({
-  task, isDark, border, text, muted, cardBg, hoverBg,
+  task, isDark, border, text, muted,
   onComplete, onUncomplete, onRemove, onNavigate, onEdit,
 }: {
   task: Task
-  isDark: boolean; border: string; text: string; muted: string; cardBg: string; hoverBg: string
+  isDark: boolean; border: string; text: string; muted: string
   onComplete: () => void
   onUncomplete: () => void
   onRemove: () => void
@@ -59,15 +60,25 @@ function TaskRow({
   const pCfg     = PRIORITY_CFG[task.priority]
   const TypeIcon = TYPE_ICONS[task.task_type]
 
+  const isOverdue = !isDone && task.due_date && task.due_date < todayStr()
+  const isToday   = !isDone && task.due_date === todayStr()
+
+  const cardBg = isDark
+    ? (isDone ? '#111110' : '#1a1a18')
+    : (isDone ? '#f0eeea' : '#faf8f4')
+
   return (
     <div
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
-        display: 'flex', alignItems: 'center', gap: '10px',
-        padding: '10px 16px', borderBottom: `1px solid ${border}`,
-        backgroundColor: hovered ? hoverBg : cardBg,
-        transition: 'background-color 0.1s ease',
+        display: 'flex', alignItems: 'flex-start', gap: '12px',
+        padding: '12px 14px',
+        borderRadius: '10px',
+        backgroundColor: hovered ? (isDark ? '#1e1e1c' : '#f7f5f0') : cardBg,
+        border: `1px solid ${hovered ? (isDark ? '#3a3a38' : '#d0ccc6') : border}`,
+        transition: 'background-color 0.1s ease, border-color 0.1s ease',
+        opacity: isDone ? 0.6 : 1,
       }}
     >
       {/* Checkbox */}
@@ -75,10 +86,11 @@ function TaskRow({
         type="button"
         onClick={isDone ? onUncomplete : onComplete}
         style={{
-          width: '18px', height: '18px', borderRadius: '4px', flexShrink: 0,
-          border: `2px solid ${isDone ? '#e31e24' : border}`,
-          backgroundColor: isDone ? '#e31e24' : 'transparent',
+          width: '18px', height: '18px', borderRadius: '5px', flexShrink: 0, marginTop: '1px',
+          border: `2px solid ${isDone ? '#6b1212' : (isOverdue ? '#b83535' : border)}`,
+          backgroundColor: isDone ? '#6b1212' : 'transparent',
           cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          transition: 'border-color 0.15s ease',
         }}
       >
         {isDone && <Check style={{ width: '10px', height: '10px', color: '#fff' }} />}
@@ -86,82 +98,87 @@ function TaskRow({
 
       {/* Type icon */}
       <div style={{
-        width: '26px', height: '26px', borderRadius: '6px', flexShrink: 0,
-        backgroundColor: isDark ? '#1e1e1c' : '#f0eeea',
+        width: '28px', height: '28px', borderRadius: '8px', flexShrink: 0,
+        backgroundColor: isDark ? '#252523' : '#f0eeea',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}>
-        <TypeIcon style={{ width: '12px', height: '12px', color: muted }} />
+        <TypeIcon style={{ width: '13px', height: '13px', color: isOverdue ? '#b83535' : muted }} />
       </div>
 
       {/* Content */}
       <div style={{ flex: 1, minWidth: 0 }}>
         <p style={{
-          fontSize: '13px', fontWeight: 500, color: isDone ? muted : text,
+          fontSize: '13px', fontWeight: isDone ? 400 : 600, color: isDone ? muted : text,
           textDecoration: isDone ? 'line-through' : 'none',
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          lineHeight: 1.3,
         }}>
           {task.title}
         </p>
-        {task.deal_title && (
-          <button
-            type="button"
-            onClick={onNavigate}
-            style={{
-              fontSize: '11px', color: muted, background: 'none', border: 'none',
-              cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: '3px',
-              marginTop: '1px',
-            }}
-          >
-            {task.deal_title}
-            <ArrowRight style={{ width: '9px', height: '9px' }} />
-          </button>
-        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px', flexWrap: 'wrap' }}>
+          {/* Priority badge */}
+          <span style={{
+            fontSize: '9px', fontWeight: 700, letterSpacing: '0.06em',
+            color: pCfg.color,
+            backgroundColor: isDark ? `${pCfg.color}20` : pCfg.bg,
+            border: `1px solid ${pCfg.color}30`,
+            borderRadius: '5px', padding: '2px 7px',
+            textTransform: 'uppercase', flexShrink: 0,
+          }}>
+            {pCfg.label}
+          </span>
+
+          {/* Due date */}
+          {task.due_date && (
+            <span style={{
+              fontSize: '10px', flexShrink: 0,
+              color: isOverdue ? '#b83535' : isToday ? '#a88030' : muted,
+              fontWeight: isOverdue || isToday ? 600 : 400,
+              fontVariantNumeric: 'tabular-nums',
+            }}>
+              {isOverdue ? `Atrasado · ${fmtDate(task.due_date)}` : fmtDate(task.due_date)}
+            </span>
+          )}
+
+          {/* Deal link */}
+          {task.deal_title && (
+            <button
+              type="button"
+              onClick={onNavigate}
+              style={{
+                fontSize: '10px', color: muted, background: 'none', border: 'none',
+                cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: '3px',
+              }}
+            >
+              {task.deal_title}
+              <ArrowRight style={{ width: '9px', height: '9px' }} />
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Priority */}
-      <span style={{
-        fontSize: '9px', fontWeight: 700, letterSpacing: '0.06em',
-        color: pCfg.color,
-        backgroundColor: isDark ? `${pCfg.color}18` : pCfg.bg,
-        borderRadius: '4px', padding: '2px 6px', flexShrink: 0,
-        textTransform: 'uppercase',
-      }}>
-        {pCfg.label}
-      </span>
-
-      {/* Due date */}
-      {task.due_date && (
-        <span style={{
-          fontSize: '11px', color: muted, flexShrink: 0,
-          fontVariantNumeric: 'tabular-nums',
-        }}>
-          {fmtDate(task.due_date)}
-        </span>
-      )}
-
-      {/* Edit / Delete */}
+      {/* Actions (on hover) */}
       {hovered && (
-        <>
+        <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
           <button
             type="button"
             onClick={onEdit}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', color: muted, flexShrink: 0 }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = '#e31e24')}
-            onMouseLeave={(e) => (e.currentTarget.style.color = muted)}
-            title="Editar tarefa"
+            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', color: muted, borderRadius: '5px' }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = '#6b1212'; e.currentTarget.style.backgroundColor = isDark ? '#2a1a1a' : '#fdf2f2' }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = muted; e.currentTarget.style.backgroundColor = 'transparent' }}
           >
             <Pencil style={{ width: '12px', height: '12px' }} />
           </button>
           <button
             type="button"
             onClick={onRemove}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', color: muted, flexShrink: 0 }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = '#dc2626')}
-            onMouseLeave={(e) => (e.currentTarget.style.color = muted)}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', color: muted, borderRadius: '5px' }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = '#b83535'; e.currentTarget.style.backgroundColor = isDark ? '#2a1a1a' : '#fdf2f2' }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = muted; e.currentTarget.style.backgroundColor = 'transparent' }}
           >
             <Trash2 style={{ width: '12px', height: '12px' }} />
           </button>
-        </>
+        </div>
       )}
     </div>
   )
@@ -174,15 +191,13 @@ function GroupHeader({ label, count, icon: Icon, color, border }: {
   color: string; border: string
 }) {
   return (
-    <div style={{
-      display: 'flex', alignItems: 'center', gap: '8px',
-      padding: '10px 16px 6px', borderBottom: `1px solid ${border}`,
-    }}>
-      <Icon style={{ width: '12px', height: '12px', color }} />
+    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', paddingBottom: '2px' }}>
+      <Icon style={{ width: '11px', height: '11px', color }} />
       <span style={{ fontSize: '10px', fontWeight: 700, color, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
         {label}
       </span>
-      <span style={{ fontSize: '10px', color, opacity: 0.6 }}>({count})</span>
+      <span style={{ fontSize: '10px', fontWeight: 500, color: border, backgroundColor: `${color}14`, borderRadius: '4px', padding: '0px 6px' }}>{count}</span>
+      <div style={{ flex: 1, height: '1px', backgroundColor: border }} />
     </div>
   )
 }
@@ -252,9 +267,9 @@ function AddTaskForm({
             onClick={() => setDueDate(dueDate === value ? '' : value)}
             style={{
               height: '26px', padding: '0 10px', borderRadius: '5px', fontSize: '11px', fontWeight: 500,
-              backgroundColor: dueDate === value ? '#e31e24' : 'transparent',
+              backgroundColor: dueDate === value ? '#6b1212' : 'transparent',
               color: dueDate === value ? '#fff' : muted,
-              border: `1px solid ${dueDate === value ? '#e31e24' : border}`,
+              border: `1px solid ${dueDate === value ? '#6b1212' : border}`,
               cursor: 'pointer',
             }}
           >
@@ -271,16 +286,16 @@ function AddTaskForm({
 
       <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '12px' }}>
         <select value={priority} onChange={(e) => setPriority(e.target.value as TaskPriority)} style={selectStyle}>
-          <option value="high">🔴 Alta</option>
-          <option value="medium">🟡 Média</option>
-          <option value="low">🔵 Baixa</option>
+          <option value="high">Alta</option>
+          <option value="medium">Média</option>
+          <option value="low">Baixa</option>
         </select>
         <select value={taskType} onChange={(e) => setTaskType(e.target.value as TaskType)} style={selectStyle}>
-          <option value="call">📞 Ligação</option>
-          <option value="email">✉️ Email</option>
-          <option value="meeting">📹 Reunião</option>
-          <option value="follow_up">👥 Follow-up</option>
-          <option value="other">📋 Outro</option>
+          <option value="call">Ligação</option>
+          <option value="email">Email</option>
+          <option value="meeting">Reunião</option>
+          <option value="follow_up">Follow-up</option>
+          <option value="other">Outro</option>
         </select>
         {deals.length > 0 && (
           <select value={dealId} onChange={(e) => setDealId(e.target.value)} style={{ ...selectStyle, maxWidth: '180px' }}>
@@ -299,7 +314,7 @@ function AddTaskForm({
           disabled={!title.trim() || saving}
           style={{
             height: '30px', padding: '0 14px', borderRadius: '6px',
-            backgroundColor: '#e31e24', color: '#fff', border: 'none',
+            backgroundColor: '#6b1212', color: '#fff', border: 'none',
             fontSize: '12px', fontWeight: 600, cursor: title.trim() && !saving ? 'pointer' : 'not-allowed',
             opacity: title.trim() && !saving ? 1 : 0.6,
           }}
@@ -387,19 +402,19 @@ function EditTaskDrawer({ task, deals, owners, isDark, border, text, muted, inpu
           <div>
             <label style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: muted, display: 'block', marginBottom: '6px' }}>Prioridade</label>
             <select value={priority} onChange={(e) => setPriority(e.target.value as TaskPriority)} style={selectStyle}>
-              <option value="high">🔴 Alta</option>
-              <option value="medium">🟡 Média</option>
-              <option value="low">🔵 Baixa</option>
+              <option value="high">Alta</option>
+              <option value="medium">Média</option>
+              <option value="low">Baixa</option>
             </select>
           </div>
           <div>
             <label style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: muted, display: 'block', marginBottom: '6px' }}>Tipo</label>
             <select value={taskType} onChange={(e) => setTaskType(e.target.value as TaskType)} style={selectStyle}>
-              <option value="call">📞 Ligação</option>
-              <option value="email">✉️ Email</option>
-              <option value="meeting">📹 Reunião</option>
-              <option value="follow_up">👥 Follow-up</option>
-              <option value="other">📋 Outro</option>
+              <option value="call">Ligação</option>
+              <option value="email">Email</option>
+              <option value="meeting">Reunião</option>
+              <option value="follow_up">Follow-up</option>
+              <option value="other">Outro</option>
             </select>
           </div>
           {owners.length > 0 && (
@@ -435,7 +450,7 @@ function EditTaskDrawer({ task, deals, owners, isDark, border, text, muted, inpu
             disabled={!title.trim() || saving}
             style={{
               flex: 1, height: '36px', borderRadius: '6px', border: 'none',
-              backgroundColor: '#e31e24', color: '#fff', fontSize: '12px', fontWeight: 700,
+              backgroundColor: '#6b1212', color: '#fff', fontSize: '12px', fontWeight: 700,
               cursor: title.trim() && !saving ? 'pointer' : 'not-allowed',
               opacity: title.trim() && !saving ? 1 : 0.5,
             }}
@@ -476,6 +491,7 @@ export function TasksPage() {
 
   const [showForm, setShowForm]         = useState(false)
   const [editTask, setEditTask]         = useState<Task | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const [filter, setFilter]             = useState<TaskFilter>('pending')
   const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>('all')
   const [typeFilter, setTypeFilter]     = useState<TypeFilter>('all')
@@ -485,8 +501,6 @@ export function TasksPage() {
   const border  = isDark ? '#242422' : '#e4e0da'
   const text    = isDark ? '#e8e4dc' : '#1a1814'
   const muted   = isDark ? '#6b6560' : '#8a857d'
-  const cardBg  = isDark ? '#161614' : '#ffffff'
-  const hoverBg = isDark ? '#1c1c1a' : '#f8f7f4'
   const inputBg = isDark ? '#111110' : '#f5f4f0'
   const pageBg  = isDark ? '#0d0c0a' : '#f5f4f0'
 
@@ -527,23 +541,52 @@ export function TasksPage() {
       ? [{ key: 'done', label: 'Concluídas', color: muted, icon: Check }]
       : filter === 'all'
         ? [
-            { key: 'overdue', label: 'Atrasadas',      color: '#dc2626',  icon: AlertTriangle },
-            { key: 'today',   label: 'Hoje',           color: '#b45309',  icon: Clock         },
-            { key: 'week',    label: 'Esta semana',    color: '#e31e24',  icon: Calendar      },
+            { key: 'overdue', label: 'Atrasadas',      color: '#b83535',  icon: AlertTriangle },
+            { key: 'today',   label: 'Hoje',           color: '#a88030',  icon: Clock         },
+            { key: 'week',    label: 'Esta semana',    color: '#6b1212',  icon: Calendar      },
             { key: 'future',  label: 'Futuras',        color: muted,      icon: Calendar      },
             { key: 'no_date', label: 'Sem prazo',      color: muted,      icon: CheckSquare   },
             { key: 'done',    label: 'Concluídas',     color: muted,      icon: Check         },
           ]
         : [
-            { key: 'overdue', label: 'Atrasadas',      color: '#dc2626',  icon: AlertTriangle },
-            { key: 'today',   label: 'Hoje',           color: '#b45309',  icon: Clock         },
-            { key: 'week',    label: 'Esta semana',    color: '#e31e24',  icon: Calendar      },
+            { key: 'overdue', label: 'Atrasadas',      color: '#b83535',  icon: AlertTriangle },
+            { key: 'today',   label: 'Hoje',           color: '#a88030',  icon: Clock         },
+            { key: 'week',    label: 'Esta semana',    color: '#6b1212',  icon: Calendar      },
             { key: 'future',  label: 'Futuras',        color: muted,      icon: Calendar      },
             { key: 'no_date', label: 'Sem prazo',      color: muted,      icon: CheckSquare   },
           ]
 
+  const TYPE_PILL: { value: TypeFilter; label: string; Icon: React.ComponentType<{ style?: React.CSSProperties }> }[] = [
+    { value: 'call',      label: 'Ligação',   Icon: Phone    },
+    { value: 'email',     label: 'Email',     Icon: Mail     },
+    { value: 'meeting',   label: 'Reunião',   Icon: Video    },
+    { value: 'follow_up', label: 'Follow-up', Icon: Users    },
+    { value: 'other',     label: 'Outro',     Icon: MoreHorizontal },
+  ]
+
+  const PRIORITY_PILL: { value: PriorityFilter; label: string; color: string }[] = [
+    { value: 'high',   label: 'Alta',  color: '#b83535' },
+    { value: 'medium', label: 'Média', color: '#a88030' },
+    { value: 'low',    label: 'Baixa', color: '#4d7aa8' },
+  ]
+
+  function Pill({ active, color, onClick, children }: { active: boolean; color?: string; onClick: () => void; children: React.ReactNode }) {
+    const activeColor = color ?? '#6b1212'
+    return (
+      <button type="button" onClick={onClick} style={{
+        display: 'inline-flex', alignItems: 'center', gap: '5px',
+        height: '28px', padding: '0 10px', borderRadius: '999px',
+        fontSize: '11px', fontWeight: 600, cursor: 'pointer',
+        border: `1px solid ${active ? activeColor : border}`,
+        backgroundColor: active ? `${activeColor}14` : 'transparent',
+        color: active ? activeColor : muted,
+        transition: 'all 0.12s ease',
+      }}>{children}</button>
+    )
+  }
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: pageBg }}>
+    <div style={{ backgroundColor: pageBg, minHeight: '100%', overflowY: 'auto' }}>
       {editTask && (
         <EditTaskDrawer
           task={editTask}
@@ -555,162 +598,143 @@ export function TasksPage() {
         />
       )}
 
-      {/* Header */}
-      <div style={{
-        height: '56px', minHeight: '56px', display: 'flex', alignItems: 'center',
-        justifyContent: 'space-between', padding: '0 20px',
-        borderBottom: `1px solid ${border}`, flexShrink: 0,
-        backgroundColor: isDark ? '#0d0c0a' : '#f5f4f0',
-      }}>
-        <div>
-          <p style={{ fontSize: '13px', fontWeight: 700, color: text, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Tarefas</p>
-          <p style={{ fontSize: '10px', color: muted, marginTop: '2px' }}>
-            {overdueCount > 0
-              ? `${overdueCount} atrasada${overdueCount > 1 ? 's' : ''} · ${pendingCount} total`
-              : `${pendingCount} pendente${pendingCount !== 1 ? 's' : ''}`}
-          </p>
-        </div>
+      <div style={{ maxWidth: '900px', margin: '0 auto', padding: '32px 24px' }}>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-          {/* Priority filter */}
-          <select
-            value={priorityFilter}
-            onChange={(e) => setPriorityFilter(e.target.value as PriorityFilter)}
-            style={{
-              height: '30px', padding: '0 8px', fontSize: '11px', fontWeight: 500,
-              backgroundColor: inputBg, border: `1px solid ${border}`,
-              borderRadius: '4px', color: priorityFilter !== 'all' ? PRIORITY_CFG[priorityFilter as TaskPriority]?.color : muted,
-              outline: 'none', cursor: 'pointer',
-            }}
-          >
-            <option value="all">Prioridade</option>
-            <option value="high">🔴 Alta</option>
-            <option value="medium">🟡 Média</option>
-            <option value="low">🔵 Baixa</option>
-          </select>
-
-          {/* Type filter */}
-          <select
-            value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value as TypeFilter)}
-            style={{
-              height: '30px', padding: '0 8px', fontSize: '11px', fontWeight: 500,
-              backgroundColor: inputBg, border: `1px solid ${border}`,
-              borderRadius: '4px', color: typeFilter !== 'all' ? '#e31e24' : muted,
-              outline: 'none', cursor: 'pointer',
-            }}
-          >
-            <option value="all">Tipo</option>
-            <option value="call">📞 Ligação</option>
-            <option value="email">✉️ Email</option>
-            <option value="meeting">📹 Reunião</option>
-            <option value="follow_up">👥 Follow-up</option>
-            <option value="other">📋 Outro</option>
-          </select>
-
-          {/* Filter tabs */}
-          <div style={{ display: 'flex', borderBottom: `1px solid ${border}`, gap: '0' }}>
-            {([
-              { key: 'pending' as TaskFilter, label: 'Pendentes' },
-              { key: 'done'    as TaskFilter, label: 'Concluídas' },
-              { key: 'all'     as TaskFilter, label: 'Todos' },
-            ]).map(({ key, label }) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => setFilter(key)}
-                style={{
-                  height: '30px', padding: '0 12px', fontSize: '10px', fontWeight: 700,
-                  letterSpacing: '0.06em', textTransform: 'uppercase',
-                  backgroundColor: 'transparent',
-                  color: filter === key ? '#e31e24' : muted,
-                  border: 'none',
-                  borderBottom: filter === key ? '2px solid #e31e24' : '2px solid transparent',
-                  cursor: 'pointer', marginBottom: '-1px',
-                }}
-              >
-                {label}
-              </button>
-            ))}
+        {/* Page title */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '28px' }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
+              <CheckSquare size={18} color={text} />
+              <h1 style={{ fontSize: '20px', fontWeight: 600, color: text, letterSpacing: '-0.03em', margin: 0 }}>Tarefas</h1>
+            </div>
+            <p style={{ fontSize: '13px', color: muted, margin: 0 }}>
+              {overdueCount > 0
+                ? `${overdueCount} atrasada${overdueCount > 1 ? 's' : ''} · ${pendingCount} pendente${pendingCount !== 1 ? 's' : ''}`
+                : `${pendingCount} pendente${pendingCount !== 1 ? 's' : ''} no pipeline`}
+            </p>
           </div>
-
-          <button
-            type="button"
-            onClick={() => setShowForm((v) => !v)}
-            style={{
-              height: '30px', padding: '0 12px', borderRadius: '4px',
-              backgroundColor: showForm ? 'transparent' : '#e31e24',
-              color: showForm ? muted : '#fff',
-              border: `1px solid ${showForm ? border : '#e31e24'}`,
-              fontSize: '10px', fontWeight: 700, cursor: 'pointer',
-              textTransform: 'uppercase', letterSpacing: '0.08em',
-              display: 'flex', alignItems: 'center', gap: '5px',
-            }}
-          >
-            {showForm ? <><X style={{ width: '10px', height: '10px' }} />Cancelar</> : <><Plus style={{ width: '11px', height: '11px' }} />Nova tarefa</>}
+          <button type="button" onClick={() => setShowForm((v) => !v)} style={{
+            height: '36px', padding: '0 18px', borderRadius: '8px',
+            backgroundColor: showForm ? 'transparent' : '#6b1212',
+            color: showForm ? muted : '#fff',
+            border: `1px solid ${showForm ? border : '#6b1212'}`,
+            fontSize: '12px', fontWeight: 700, cursor: 'pointer',
+            display: 'flex', alignItems: 'center', gap: '6px',
+          }}>
+            {showForm ? <><X style={{ width: '11px', height: '11px' }} />Cancelar</> : <><Plus style={{ width: '12px', height: '12px' }} />Nova tarefa</>}
           </button>
         </div>
-      </div>
 
-      {/* Body */}
-      <div style={{ flex: 1, overflowY: 'auto' }}>
-        <div style={{ maxWidth: '720px', margin: '0 auto' }}>
+        {/* KPI cards */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '24px' }}>
+          {[
+            { label: 'Atrasadas', value: grouped.overdue.length, sub: 'requerem atenção',    color: '#b83535', Icon: AlertTriangle },
+            { label: 'Hoje',      value: grouped.today.length,   sub: 'para hoje',           color: '#a88030', Icon: Clock         },
+            { label: 'Pendentes', value: pendingCount,           sub: 'no total',            color: '#6b1212', Icon: CheckSquare   },
+            { label: 'Concluídas',value: grouped.done.length,    sub: 'finalizadas',         color: '#15803d', Icon: TrendingUp    },
+          ].map((s) => (
+            <div key={s.label} style={{
+              backgroundColor: isDark ? '#161614' : '#ffffff',
+              border: `1px solid ${border}`,
+              borderRadius: '10px', padding: '16px',
+              boxShadow: isDark ? 'none' : '0 1px 3px rgba(16,24,40,0.06)',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                <s.Icon size={14} color={s.color} />
+                <span style={{ fontSize: '11px', fontWeight: 500, color: muted }}>{s.label}</span>
+              </div>
+              <div style={{ fontSize: '24px', fontWeight: 600, color: s.value > 0 && s.label === 'Atrasadas' ? '#b83535' : text, fontFamily: "'Geist Mono', monospace", letterSpacing: '-0.04em' }}>
+                {s.value}
+              </div>
+              <div style={{ fontSize: '11px', color: muted, marginTop: '2px' }}>{s.sub}</div>
+            </div>
+          ))}
+        </div>
 
-          {/* Add form */}
-          {showForm && (
+        {/* Filter bar */}
+        <div style={{
+          backgroundColor: isDark ? '#161614' : '#ffffff',
+          border: `1px solid ${border}`, borderRadius: '10px',
+          padding: '12px 16px', marginBottom: '20px',
+          display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap',
+          boxShadow: isDark ? 'none' : '0 1px 3px rgba(16,24,40,0.06)',
+        }}>
+          {/* Status */}
+          {(['pending', 'done', 'all'] as TaskFilter[]).map((k) => {
+            const labels: Record<TaskFilter, string> = { pending: 'Pendentes', done: 'Concluídas', all: 'Todos' }
+            return <Pill key={k} active={filter === k} onClick={() => setFilter(k)}>{labels[k]}</Pill>
+          })}
+
+          <div style={{ width: '1px', height: '16px', backgroundColor: border }} />
+
+          {/* Priority */}
+          {PRIORITY_PILL.map(({ value, label, color }) => (
+            <Pill key={value} active={priorityFilter === value} color={color} onClick={() => setPriorityFilter(priorityFilter === value ? 'all' : value)}>
+              <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: color, flexShrink: 0 }} />
+              {label}
+            </Pill>
+          ))}
+
+          <div style={{ width: '1px', height: '16px', backgroundColor: border }} />
+
+          {/* Type */}
+          {TYPE_PILL.map(({ value, label, Icon }) => (
+            <Pill key={value} active={typeFilter === value} onClick={() => setTypeFilter(typeFilter === value ? 'all' : value)}>
+              <Icon style={{ width: '11px', height: '11px' }} />
+              {label}
+            </Pill>
+          ))}
+        </div>
+
+        {/* Add form */}
+        {showForm && (
+          <div style={{ marginBottom: '16px' }}>
             <AddTaskForm
               deals={dealOptions}
-              isDark={isDark}
-              border={border}
-              text={text}
-              muted={muted}
-              inputBg={inputBg}
-              onAdd={async (t) => { await create(t); }}
+              isDark={isDark} border={border} text={text} muted={muted} inputBg={inputBg}
+              onAdd={async (t) => { await create(t) }}
               onClose={() => setShowForm(false)}
             />
-          )}
+          </div>
+        )}
 
-          {loading && tasks.length === 0 ? (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '200px' }}>
-              <p style={{ fontSize: '12px', color: muted }}>A carregar tarefas...</p>
-            </div>
-          ) : pendingCount === 0 && filter === 'pending' ? (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '200px', gap: '8px' }}>
-              <CheckSquare style={{ width: '28px', height: '28px', color: border }} />
-              <p style={{ fontSize: '13px', fontWeight: 600, color: muted }}>Nenhuma tarefa pendente</p>
-              <p style={{ fontSize: '12px', color: isDark ? '#3a3834' : '#c4bfb8' }}>Clica em "Nova tarefa" para começar</p>
-            </div>
-          ) : (
-            <div style={{ backgroundColor: cardBg, borderRadius: '8px', margin: '16px', overflow: 'hidden', border: `1px solid ${border}` }}>
-              {visibleGroups.map(({ key, label, color, icon }) => {
-                const items = grouped[key] as Task[]
-                if (items.length === 0) return null
-                return (
-                  <div key={key}>
-                    <GroupHeader label={label} count={items.length} icon={icon} color={color} border={border} />
+        {/* Task list */}
+        {loading && tasks.length === 0 ? (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '200px' }}>
+            <p style={{ fontSize: '12px', color: muted }}>A carregar tarefas...</p>
+          </div>
+        ) : pendingCount === 0 && filter === 'pending' ? (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '200px', gap: '8px' }}>
+            <CheckSquare style={{ width: '28px', height: '28px', color: border }} />
+            <p style={{ fontSize: '13px', fontWeight: 600, color: muted }}>Nenhuma tarefa pendente</p>
+            <p style={{ fontSize: '12px', color: isDark ? '#3a3834' : '#c4bfb8' }}>Clica em "Nova tarefa" para começar</p>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            {visibleGroups.map(({ key, label, color, icon }) => {
+              const items = grouped[key] as Task[]
+              if (items.length === 0) return null
+              return (
+                <div key={key}>
+                  <GroupHeader label={label} count={items.length} icon={icon} color={color} border={border} />
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '10px' }}>
                     {items.map((task) => (
                       <TaskRow
-                        key={task.id}
-                        task={task}
-                        isDark={isDark}
-                        border={border}
-                        text={text}
-                        muted={muted}
-                        cardBg={cardBg}
-                        hoverBg={hoverBg}
+                        key={task.id} task={task}
+                        isDark={isDark} border={border} text={text} muted={muted}
                         onComplete={() => complete(task.id)}
                         onUncomplete={() => uncomplete(task.id)}
-                        onRemove={() => remove(task.id)}
+                        onRemove={() => setConfirmDelete(task.id)}
                         onNavigate={task.deal_id ? () => navigate(`/deal/${task.deal_id}`) : undefined}
                         onEdit={() => setEditTask(task)}
                       />
                     ))}
                   </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
       </div>
     </div>
   )

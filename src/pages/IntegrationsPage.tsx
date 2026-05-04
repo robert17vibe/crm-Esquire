@@ -7,7 +7,7 @@ const EVENT_LABELS: Record<WebhookEvent, string> = {
   'deal.deleted': 'Lead removido',
 }
 
-const accent = '#e31e24'
+const accent = '#6b1212'
 
 export function IntegrationsPage() {
   const [tab, setTab] = useState<'webhooks' | 'api'>('webhooks')

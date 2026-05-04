@@ -12,6 +12,8 @@ import { useWebhookStore } from '@/store/useWebhookStore'
 import { useOperationalAlerts } from '@/hooks/useOperationalAlerts'
 import { useImpersonationStore } from '@/store/useImpersonationStore'
 import { useNotificationStore } from '@/store/useNotificationStore'
+import { useTaskStore } from '@/store/useTaskStore'
+import { useTeamNotificationStore } from '@/store/useTeamNotificationStore'
 
 const CommandPalette = lazy(() => import('@/components/ui/CommandPalette').then((m) => ({ default: m.CommandPalette })))
 const NewLeadModal = lazy(() => import('@/components/pipeline/NewLeadModal').then((m) => ({ default: m.NewLeadModal })))
@@ -31,15 +33,23 @@ export function AppLayout() {
   const subscribeOwners       = useOwnerStore((s) => s.subscribeRealtime)
   const initTeams             = useTeamStore((s) => s.initialize)
   const initWebhooks          = useWebhookStore((s) => s.initialize)
+  const subscribeTasksRealtime  = useTaskStore((s) => s.subscribeRealtime)
+  const fetchTeamNotifs         = useTeamNotificationStore((s) => s.fetch)
+  const subscribeTeamNotifs     = useTeamNotificationStore((s) => s.subscribeRealtime)
 
   useEffect(() => {
     initOwners()
     initDeals()
+    void fetchTeamNotifs()
     const unsubDeals       = subscribeDeals()
     const unsubOwners      = subscribeOwners()
+    const unsubTasks       = subscribeTasksRealtime()
+    const unsubTeamNotifs  = subscribeTeamNotifs()
     return () => {
       unsubDeals()
       unsubOwners()
+      unsubTasks()
+      unsubTeamNotifs()
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -150,7 +160,7 @@ export function AppLayout() {
             <NewLeadModal
               open={globalNewDeal}
               onClose={() => setGlobalNewDeal(false)}
-              onCreated={() => setGlobalNewDeal(false)}
+              onCreated={(_deal) => setGlobalNewDeal(false)}
             />
           </>
         )}

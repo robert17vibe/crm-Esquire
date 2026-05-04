@@ -13,13 +13,13 @@ import type { DealMeeting } from '@/types/deal.types'
 // â”€â”€â”€ Checklist â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const CHECKLIST = [
-  { id: 'apresentacao',  text: 'Fez apresentaÃ§Ã£o da empresa/produto',     weight: 1.5 },
+  { id: 'apresentacao',  text: 'Fez apresentação da empresa/produto',     weight: 1.5 },
   { id: 'dor',           text: 'Identificou dor/necessidade principal',    weight: 2.0 },
   { id: 'decisor',       text: 'Falou com decisor ou influenciador chave', weight: 2.0 },
-  { id: 'orcamento',     text: 'Validou orÃ§amento disponÃ­vel',             weight: 1.5 },
-  { id: 'timeline',      text: 'Definiu timeline de decisÃ£o',              weight: 1.0 },
+  { id: 'orcamento',     text: 'Validou orçamento disponível',             weight: 1.5 },
+  { id: 'timeline',      text: 'Definiu timeline de decisão',              weight: 1.0 },
   { id: 'concorrentes',  text: 'Identificou concorrentes avaliados',       weight: 1.0 },
-  { id: 'proximo_passo', text: 'Agendou prÃ³ximo passo concreto',           weight: 1.0 },
+  { id: 'proximo_passo', text: 'Agendou próximo passo concreto',           weight: 1.0 },
 ]
 
 const TOTAL_WEIGHT = CHECKLIST.reduce((s, i) => s + i.weight, 0)
@@ -80,7 +80,7 @@ function MeetingRecordModal({ onClose, onSaved, isDark }: { onClose: () => void;
   }
 
   const score      = computeScore(checked)
-  const scoreColor = score >= 7 ? '#16a34a' : score >= 4 ? '#d97706' : '#dc2626'
+  const scoreColor = score >= 7 ? '#2a9a5a' : score >= 4 ? '#a88030' : '#b83535'
   const done       = checked.size
 
   return (
@@ -95,12 +95,12 @@ function MeetingRecordModal({ onClose, onSaved, isDark }: { onClose: () => void;
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 20px', borderBottom: `1px solid ${border}` }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{ width: '32px', height: '32px', borderRadius: '8px', backgroundColor: '#e31e2414', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Mic style={{ width: '15px', height: '15px', color: '#e31e24' }} />
+            <div style={{ width: '32px', height: '32px', borderRadius: '8px', backgroundColor: '#6b121214', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Mic style={{ width: '15px', height: '15px', color: '#6b1212' }} />
             </div>
             <div>
-              <p style={{ fontSize: '13px', fontWeight: 700, color: text }}>Registar ReuniÃ£o</p>
-              <p style={{ fontSize: '10px', color: muted }}>AvaliaÃ§Ã£o manual pÃ³s-reuniÃ£o</p>
+              <p style={{ fontSize: '13px', fontWeight: 700, color: text }}>Registar Reunião</p>
+              <p style={{ fontSize: '10px', color: muted }}>Avaliação manual pós-reunião</p>
             </div>
           </div>
           <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: muted, padding: '4px' }}>
@@ -115,18 +115,18 @@ function MeetingRecordModal({ onClose, onSaved, isDark }: { onClose: () => void;
             <select
               value={dealId}
               onChange={(e) => { setDealId(e.target.value); setError('') }}
-              style={{ width: '100%', height: '36px', padding: '0 10px', fontSize: '13px', backgroundColor: inputBg, border: `1px solid ${error && !dealId ? '#dc2626' : border}`, borderRadius: '6px', color: dealId ? text : muted, outline: 'none' }}
+              style={{ width: '100%', height: '36px', padding: '0 10px', fontSize: '13px', backgroundColor: inputBg, border: `1px solid ${error && !dealId ? '#b83535' : border}`, borderRadius: '6px', color: dealId ? text : muted, outline: 'none' }}
             >
               <option value="">Seleciona um lead...</option>
               {activeDeals.map((d) => (
-                <option key={d.id} value={d.id}>{d.title}{d.company_name ? ` â€” ${d.company_name}` : ''}</option>
+                <option key={d.id} value={d.id}>{d.title}{d.company_name ? ` – ${d.company_name}` : ''}</option>
               ))}
             </select>
           </div>
 
           {/* Data */}
           <div>
-            <label style={{ fontSize: '10px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: '6px' }}>Data da ReuniÃ£o</label>
+            <label style={{ fontSize: '10px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: '6px' }}>Data da Reunião</label>
             <input
               type="datetime-local"
               value={meetingDate}
@@ -137,7 +137,7 @@ function MeetingRecordModal({ onClose, onSaved, isDark }: { onClose: () => void;
 
           {/* Score badge */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderRadius: '8px', backgroundColor: isDark ? '#111110' : '#f8f7f4', border: `1px solid ${border}` }}>
-            <span style={{ fontSize: '11px', fontWeight: 600, color: muted }}>{done}/{CHECKLIST.length} itens concluÃ­dos</span>
+            <span style={{ fontSize: '11px', fontWeight: 600, color: muted }}>{done}/{CHECKLIST.length} itens concluídos</span>
             <span style={{ fontSize: '15px', fontWeight: 800, color: scoreColor, letterSpacing: '-0.02em' }}>{score.toFixed(1)} <span style={{ fontSize: '10px', fontWeight: 500 }}>/ 10</span></span>
           </div>
 
@@ -150,14 +150,14 @@ function MeetingRecordModal({ onClose, onSaved, isDark }: { onClose: () => void;
                   key={item.id}
                   type="button"
                   onClick={() => toggle(item.id)}
-                  style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '8px', border: `1px solid ${isChecked ? '#16a34a40' : border}`, backgroundColor: isChecked ? (isDark ? '#14532d18' : '#f0fdf4') : inputBg, cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s ease' }}
+                  style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '8px', border: `1px solid ${isChecked ? '#2a9a5a40' : border}`, backgroundColor: isChecked ? (isDark ? '#14532d18' : '#f0fdf4') : inputBg, cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s ease' }}
                 >
                   {isChecked
-                    ? <CheckSquare style={{ width: '15px', height: '15px', color: '#16a34a', flexShrink: 0 }} />
+                    ? <CheckSquare style={{ width: '15px', height: '15px', color: '#2a9a5a', flexShrink: 0 }} />
                     : <Square style={{ width: '15px', height: '15px', color: muted, flexShrink: 0 }} />
                   }
                   <span style={{ flex: 1, fontSize: '12px', fontWeight: 500, color: isChecked ? (isDark ? '#86efac' : '#15803d') : text }}>{item.text}</span>
-                  <span style={{ fontSize: '9px', fontWeight: 700, color: muted, backgroundColor: isDark ? '#ffffff10' : '#00000008', borderRadius: '3px', padding: '2px 5px', flexShrink: 0 }}>Ã—{item.weight}</span>
+                  <span style={{ fontSize: '9px', fontWeight: 700, color: muted, backgroundColor: isDark ? '#ffffff10' : '#00000008', borderRadius: '3px', padding: '2px 5px', flexShrink: 0 }}>×{item.weight}</span>
                 </button>
               )
             })}
@@ -169,15 +169,15 @@ function MeetingRecordModal({ onClose, onSaved, isDark }: { onClose: () => void;
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="ObservaÃ§Ãµes, prÃ³ximos passos, contexto..."
+              placeholder="Observações, próximos passos, contexto..."
               rows={3}
               style={{ width: '100%', padding: '10px', fontSize: '12px', backgroundColor: inputBg, border: `1px solid ${border}`, borderRadius: '6px', color: text, outline: 'none', resize: 'vertical', fontFamily: 'inherit', lineHeight: 1.5, boxSizing: 'border-box' }}
             />
           </div>
 
-          {error && <p style={{ fontSize: '11px', color: '#dc2626', fontWeight: 500 }}>{error}</p>}
+          {error && <p style={{ fontSize: '11px', color: '#b83535', fontWeight: 500 }}>{error}</p>}
 
-          {/* AÃ§Ãµes */}
+          {/* Ações */}
           <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', paddingTop: '4px' }}>
             <button type="button" onClick={onClose} style={{ height: '36px', padding: '0 16px', borderRadius: '6px', border: `1px solid ${border}`, backgroundColor: 'transparent', color: text, fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>
               Cancelar
@@ -186,7 +186,7 @@ function MeetingRecordModal({ onClose, onSaved, isDark }: { onClose: () => void;
               type="button"
               onClick={handleSave}
               disabled={saving}
-              style={{ height: '36px', padding: '0 20px', borderRadius: '6px', border: 'none', backgroundColor: '#e31e24', color: '#fff', fontSize: '12px', fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1 }}
+              style={{ height: '36px', padding: '0 20px', borderRadius: '6px', border: 'none', backgroundColor: '#6b1212', color: '#fff', fontSize: '12px', fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1 }}
             >
               {saving ? 'A guardar...' : 'Guardar Registo'}
             </button>
@@ -221,7 +221,7 @@ function TranscriptBlock({ text, isDark }: { text: string; isDark: boolean }) {
       borderRadius: '4px', padding: '12px 14px', marginTop: '10px',
     }}>
       <p style={{ fontSize: '9px', fontWeight: 700, color: isDark ? '#4a4a48' : '#a09890', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '8px' }}>
-        TranscriÃ§Ã£o â€” Plaud Note
+        Transcrição – Plaud Note
       </p>
       <p style={{ fontSize: '12px', color, lineHeight: 1.65, fontStyle: 'italic' }}>
         "{text}"
@@ -258,11 +258,11 @@ function MeetingCard({ meeting, isDark }: { meeting: DealMeeting; isDark: boolea
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
           <div style={{
             width: '36px', height: '36px', borderRadius: '8px', flexShrink: 0,
-            backgroundColor: meeting.plaud_note_id ? '#e31e2414' : tagBg,
-            border: `1px solid ${meeting.plaud_note_id ? '#e31e2430' : border}`,
+            backgroundColor: meeting.plaud_note_id ? '#6b121214' : tagBg,
+            border: `1px solid ${meeting.plaud_note_id ? '#6b121230' : border}`,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
-            <Mic style={{ width: '16px', height: '16px', color: meeting.plaud_note_id ? '#e31e24' : muted }} />
+            <Mic style={{ width: '16px', height: '16px', color: meeting.plaud_note_id ? '#6b1212' : muted }} />
           </div>
 
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -270,8 +270,8 @@ function MeetingCard({ meeting, isDark }: { meeting: DealMeeting; isDark: boolea
               <p style={{ fontSize: '13px', fontWeight: 700, color: text }}>{meeting.title}</p>
               {meeting.plaud_note_id && (
                 <span style={{
-                  fontSize: '9px', fontWeight: 700, color: '#e31e24',
-                  backgroundColor: '#e31e2414', border: '1px solid #e31e2430',
+                  fontSize: '9px', fontWeight: 700, color: '#6b1212',
+                  backgroundColor: '#6b121214', border: '1px solid #6b121230',
                   borderRadius: '3px', padding: '1px 6px', letterSpacing: '0.06em', textTransform: 'uppercase',
                 }}>
                   Plaud Note
@@ -281,7 +281,7 @@ function MeetingCard({ meeting, isDark }: { meeting: DealMeeting; isDark: boolea
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '4px', flexWrap: 'wrap' }}>
               <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: muted }}>
                 <Clock style={{ width: '10px', height: '10px' }} />
-                {fmtDateTime(meeting.scheduled_at)} Â· {meeting.duration_minutes}min
+                {fmtDateTime(meeting.scheduled_at)} · {meeting.duration_minutes}min
               </span>
               <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: muted }}>
                 <Users style={{ width: '10px', height: '10px' }} />
@@ -293,7 +293,7 @@ function MeetingCard({ meeting, isDark }: { meeting: DealMeeting; isDark: boolea
                   onClick={(e) => { e.stopPropagation(); navigate(`/deal/${deal.id}`) }}
                   style={{
                     display: 'flex', alignItems: 'center', gap: '3px',
-                    fontSize: '11px', fontWeight: 600, color: '#e31e24',
+                    fontSize: '11px', fontWeight: 600, color: '#6b1212',
                     background: 'none', border: 'none', cursor: 'pointer', padding: 0,
                   }}
                 >
@@ -337,7 +337,7 @@ function MeetingCard({ meeting, isDark }: { meeting: DealMeeting; isDark: boolea
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                   {meeting.key_points.map((pt, i) => (
                     <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '7px' }}>
-                      <span style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#e31e24', flexShrink: 0, marginTop: '6px' }} />
+                      <span style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#6b1212', flexShrink: 0, marginTop: '6px' }} />
                       <p style={{ fontSize: '12px', color: text, lineHeight: 1.5 }}>{pt}</p>
                     </div>
                   ))}
@@ -346,11 +346,11 @@ function MeetingCard({ meeting, isDark }: { meeting: DealMeeting; isDark: boolea
             )}
             {meeting.action_items && meeting.action_items.length > 0 && (
               <div>
-                <p style={{ fontSize: '10px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '8px' }}>PrÃ³ximas AÃ§Ãµes</p>
+                <p style={{ fontSize: '10px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '8px' }}>Próximas Ações</p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                   {meeting.action_items.map((item, i) => (
                     <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '7px' }}>
-                      <CheckSquare style={{ width: '11px', height: '11px', color: '#2d9e6b', flexShrink: 0, marginTop: '2px' }} />
+                      <CheckSquare style={{ width: '11px', height: '11px', color: '#2a9a5a', flexShrink: 0, marginTop: '2px' }} />
                       <p style={{ fontSize: '12px', color: text, lineHeight: 1.5 }}>{item}</p>
                     </div>
                   ))}
@@ -377,10 +377,10 @@ function MeetingCard({ meeting, isDark }: { meeting: DealMeeting; isDark: boolea
               <button
                 type="button"
                 onClick={() => setShowTranscript((v) => !v)}
-                style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', fontWeight: 600, color: '#e31e24', background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginTop: '4px' }}
+                style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', fontWeight: 600, color: '#6b1212', background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginTop: '4px' }}
               >
                 <Mic style={{ width: '11px', height: '11px' }} />
-                {showTranscript ? 'Ocultar transcriÃ§Ã£o' : 'Ver transcriÃ§Ã£o Plaud'}
+                {showTranscript ? 'Ocultar transcrição' : 'Ver transcrição Plaud'}
               </button>
               {showTranscript && <TranscriptBlock text={meeting.transcript_excerpt} isDark={isDark} />}
             </div>
@@ -410,79 +410,123 @@ export function MeetingsPage() {
       })
     : allMeetings
 
-  const border = isDark ? '#242422' : '#e4e0da'
-  const text   = isDark ? '#e8e4dc' : '#1a1814'
-  const muted  = isDark ? '#6b6560' : '#8a857d'
+  const border   = isDark ? '#242422' : '#eaecf0'
+  const text     = isDark ? '#e8e4dc' : '#101828'
+  const muted    = isDark ? '#6b6560' : '#667085'
+  const cardBg   = isDark ? '#161614' : '#ffffff'
+  const pageBg   = isDark ? '#0d0c0a' : '#f9fafb'
+  const subtleBg = isDark ? '#111110' : '#f3f4f6'
 
   const withPlaud = meetings.filter((m) => m.plaud_note_id).length
   const sorted    = [...meetings].sort((a, b) => b.scheduled_at.localeCompare(a.scheduled_at))
 
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+  const todayStr = new Date().toISOString().slice(0, 10)
+  const todayCount = meetings.filter((m) => m.scheduled_at?.slice(0, 10) === todayStr).length
+  const avgScore = meetings.length > 0
+    ? Math.round(meetings.reduce((s, m) => s + ((m as DealMeeting & { score?: number }).score ?? 0), 0) / meetings.length * 10) / 10
+    : 0
 
-      {/* Header */}
-      <div style={{
-        height: '56px', minHeight: '56px', display: 'flex', alignItems: 'center',
-        justifyContent: 'space-between', padding: '0 20px',
-        borderBottom: `1px solid ${border}`, flexShrink: 0,
-      }}>
-        <div>
-          <p style={{ fontSize: '13px', fontWeight: 700, color: text, letterSpacing: '0.08em', textTransform: 'uppercase' }}>ReuniÃµes</p>
-          <p style={{ fontSize: '10px', color: muted, marginTop: '2px' }}>
-            {meetings.length} reuniÃµes Â· {withPlaud} com transcriÃ§Ã£o Plaud
-          </p>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          {withPlaud > 0 && (
-            <span style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', fontWeight: 600, color: '#e31e24', backgroundColor: '#e31e2414', border: '1px solid #e31e2430', borderRadius: '6px', padding: '5px 10px' }}>
-              <Mic style={{ width: '12px', height: '12px' }} />
-              {withPlaud} Plaud
-            </span>
-          )}
+  return (
+    <div style={{ backgroundColor: pageBg, minHeight: '100%', overflowY: 'auto', padding: '32px' }}>
+      <div style={{ maxWidth: '900px', margin: '0 auto' }}>
+
+        {/* Header */}
+        <div style={{ marginBottom: '28px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
+              <Mic size={18} color={text} />
+              <h1 style={{ fontSize: '20px', fontWeight: 600, color: text, letterSpacing: '-0.03em', margin: 0 }}>Reuniões</h1>
+            </div>
+            <p style={{ fontSize: '13px', color: muted, margin: 0 }}>
+              Registo e análise de reuniões comerciais
+            </p>
+          </div>
           <button
             type="button"
             onClick={() => setShowRecord(true)}
-            style={{ display: 'flex', alignItems: 'center', gap: '6px', height: '34px', padding: '0 14px', borderRadius: '6px', border: 'none', backgroundColor: '#e31e24', color: '#fff', fontSize: '11px', fontWeight: 700, letterSpacing: '0.04em', cursor: 'pointer' }}
+            style={{ display: 'flex', alignItems: 'center', gap: '6px', height: '36px', padding: '0 16px', borderRadius: '8px', border: 'none', backgroundColor: '#6b1212', color: '#fff', fontSize: '12px', fontWeight: 700, letterSpacing: '0.03em', cursor: 'pointer', flexShrink: 0 }}
             onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.85')}
             onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
           >
             <Plus style={{ width: '13px', height: '13px' }} />
-            Registar ReuniÃ£o
+            Registar Reunião
           </button>
         </div>
-      </div>
 
-      {/* List */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        {meetingsLoading || !meetingsInitialized ? (
-          <PageLoadingState
-            title="Carregando reuniões"
-            description="Estamos reunindo os registros e as transcrições disponíveis."
-          />
-        ) : sorted.length === 0 ? (
-          <PageEmptyState
-            icon={<Mic style={{ width: '28px', height: '28px', color: '#e31e24' }} />}
-            title="Nenhuma reunião registrada"
-            description="Registre a primeira reunião para começar a acompanhar resumos, participantes e próximos passos."
-            action={
-              <button
-                type="button"
-                onClick={() => setShowRecord(true)}
-                style={{ fontSize: '12px', fontWeight: 600, color: '#e31e24', background: 'none', border: 'none', cursor: 'pointer', marginTop: '4px' }}
-              >
-                Registrar reunião
-              </button>
-            }
-          />
-        ) : (
-          <>
-            <p style={{ fontSize: '10px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '4px' }}>
-              Recentes â€” {fmtDate(new Date().toISOString())}
-            </p>
-            {sorted.map((m) => (
-              <MeetingCard key={m.id} meeting={m} isDark={isDark} />
-            ))}
-          </>
+        {/* KPI cards */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '24px' }}>
+          {[
+            { label: 'Total Reuniões', value: meetings.length, sub: 'registadas',          icon: <Mic size={14} />,         color: '#6b1212' },
+            { label: 'Hoje',           value: todayCount,       sub: 'agendadas hoje',       icon: <Clock size={14} />,       color: '#a88030' },
+            { label: 'Com Plaud',      value: withPlaud,        sub: 'com transcrição',      icon: <Users size={14} />,       color: '#4d7aa8' },
+            { label: 'Score Médio',    value: avgScore > 0 ? `${avgScore}` : '—', sub: 'qualidade da reunião', icon: <CheckSquare size={14} />, color: '#15803d' },
+          ].map((s) => (
+            <div key={s.label} style={{
+              backgroundColor: cardBg, border: `1px solid ${border}`,
+              borderRadius: '10px', padding: '16px',
+              boxShadow: isDark ? 'none' : '0 1px 3px rgba(16,24,40,0.06)',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                <span style={{ color: s.color }}>{s.icon}</span>
+                <span style={{ fontSize: '11px', fontWeight: 500, color: muted }}>{s.label}</span>
+              </div>
+              <div style={{ fontSize: '22px', fontWeight: 600, color: text, fontFamily: "'Geist Mono', monospace", letterSpacing: '-0.04em' }}>
+                {s.value}
+              </div>
+              <div style={{ fontSize: '11px', color: muted, marginTop: '2px' }}>{s.sub}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* List */}
+        <div style={{
+          backgroundColor: cardBg, border: `1px solid ${border}`,
+          borderRadius: '10px', overflow: 'hidden',
+          boxShadow: isDark ? 'none' : '0 1px 3px rgba(16,24,40,0.06)',
+        }}>
+          {meetingsLoading || !meetingsInitialized ? (
+            <PageLoadingState
+              title="Carregando reuniões"
+              description="Estamos reunindo os registros e as transcrições disponíveis."
+            />
+          ) : sorted.length === 0 ? (
+            <PageEmptyState
+              icon={<Mic style={{ width: '28px', height: '28px', color: '#6b1212' }} />}
+              title="Nenhuma reunião registrada"
+              description="Registre a primeira reunião para começar a acompanhar resumos, participantes e próximos passos."
+              action={
+                <button
+                  type="button"
+                  onClick={() => setShowRecord(true)}
+                  style={{ fontSize: '12px', fontWeight: 600, color: '#6b1212', background: 'none', border: 'none', cursor: 'pointer', marginTop: '4px' }}
+                >
+                  Registrar reunião
+                </button>
+              }
+            />
+          ) : (
+            <>
+              <div style={{
+                padding: '10px 20px', borderBottom: `1px solid ${border}`,
+                backgroundColor: subtleBg,
+              }}>
+                <span style={{ fontSize: '11px', fontWeight: 600, color: muted, letterSpacing: '0.03em', textTransform: 'uppercase' }}>
+                  Recentes · {fmtDate(new Date().toISOString())}
+                </span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                {sorted.map((m) => (
+                  <MeetingCard key={m.id} meeting={m} isDark={isDark} />
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+
+        {sorted.length > 0 && (
+          <div style={{ marginTop: '12px', textAlign: 'center', fontSize: '12px', color: muted }}>
+            {sorted.length} reunião{sorted.length !== 1 ? 'ões' : ''} no total
+          </div>
         )}
       </div>
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { GitFork, RefreshCw, CheckSquare, Square, Users, Clock, Search, Shuffle, ArrowLeftRight, X, UserMinus } from 'lucide-react'
 import { useOwnerStore } from '@/store/useOwnerStore'
 import { useAuthStore } from '@/store/useAuthStore'
@@ -54,7 +54,7 @@ function WorkloadCard({ owner, count, selected, onSelect, isDark }: {
           ? (isDark ? 'rgba(227,30,36,0.08)' : 'rgba(227,30,36,0.05)')
           : (hovered ? (isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)') : 'transparent'),
         transition: 'background-color 0.15s ease',
-        borderLeft: `3px solid ${selected ? '#e31e24' : 'transparent'}`,
+        borderLeft: `3px solid ${selected ? '#6b1212' : 'transparent'}`,
       }}
     >
       {/* Avatar */}
@@ -81,7 +81,7 @@ function WorkloadCard({ owner, count, selected, onSelect, isDark }: {
 
       {/* Contagem */}
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', flexShrink: 0 }}>
-        <span style={{ fontSize: '16px', fontWeight: 800, color: selected ? '#e31e24' : textColor, lineHeight: 1 }}>
+        <span style={{ fontSize: '16px', fontWeight: 800, color: selected ? '#6b1212' : textColor, lineHeight: 1 }}>
           {count}
         </span>
         <span style={{ fontSize: '8px', fontWeight: 700, color: mutedColor, textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: '2px' }}>
@@ -145,7 +145,7 @@ function ActionBar({ selectedCount, owners, workload, targetOwner, onTargetChang
 
       {/* Selecionados badge */}
       {hasSelection && (
-        <span style={{ fontSize: '11px', fontWeight: 700, color: '#e31e24', backgroundColor: isDark ? 'rgba(227,30,36,0.12)' : 'rgba(227,30,36,0.08)', padding: '4px 10px', borderRadius: '6px', flexShrink: 0 }}>
+        <span style={{ fontSize: '11px', fontWeight: 700, color: '#6b1212', backgroundColor: isDark ? 'rgba(227,30,36,0.12)' : 'rgba(227,30,36,0.08)', padding: '4px 10px', borderRadius: '6px', flexShrink: 0 }}>
           {selectedCount} selecionado{selectedCount !== 1 ? 's' : ''}
         </span>
       )}
@@ -177,7 +177,7 @@ function ActionBar({ selectedCount, owners, workload, targetOwner, onTargetChang
             display: 'flex', alignItems: 'center', gap: '6px',
             height: '32px', padding: '0 12px', borderRadius: '6px', fontSize: '11px', fontWeight: 700,
             cursor: targetOwner && hasSelection && !distributing ? 'pointer' : 'not-allowed',
-            backgroundColor: '#e31e24', color: '#fff', border: 'none',
+            backgroundColor: '#6b1212', color: '#fff', border: 'none',
             opacity: targetOwner && hasSelection && !distributing ? 1 : 0.4,
           }}
         >
@@ -215,6 +215,8 @@ export function AdminDistribuirLeadsPage() {
   const isDark  = useThemeStore((s) => s.isDark)
   const profile = useAuthStore((s) => s.profile)
   const owners  = useOwnerStore((s) => s.owners)
+
+  const canvasRef = useRef<HTMLCanvasElement>(null)
 
   const bg      = isDark ? '#0d0c0a' : '#f5f4f0'
   const card    = isDark ? '#111110' : '#ffffff'
@@ -258,6 +260,38 @@ export function AdminDistribuirLeadsPage() {
   }, [])
 
   useEffect(() => { load() }, [load])
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    const W = canvas.width  = canvas.offsetWidth
+    const H = canvas.height = canvas.offsetHeight
+    const cols = Math.floor(W / 14)
+    const drops = Array.from({ length: cols }, () => Math.random() * -H / 14)
+    const chars = 'アイウエオカキクケコサシスセソタチツテトナニヌネノ01アBCDE#%&'
+    let raf: number
+    function draw() {
+      ctx!.fillStyle = isDark ? 'rgba(13,12,10,0.18)' : 'rgba(245,244,240,0.18)'
+      ctx!.fillRect(0, 0, W, H)
+      ctx!.font = '11px monospace'
+      for (let i = 0; i < drops.length; i++) {
+        const ch = chars[Math.floor(Math.random() * chars.length)]
+        const y = drops[i] * 14
+        const bright = Math.random() > 0.9
+        ctx!.fillStyle = isDark
+          ? (bright ? '#fff7ed' : (Math.random() > 0.5 ? '#f97316' : '#ea580c'))
+          : (bright ? '#7c2d12' : (Math.random() > 0.5 ? '#c2410c' : '#9b2020'))
+        ctx!.fillText(ch, i * 14, y)
+        if (y > H && Math.random() > 0.975) drops[i] = 0
+        drops[i] += 0.4
+      }
+      raf = requestAnimationFrame(draw)
+    }
+    draw()
+    return () => cancelAnimationFrame(raf)
+  }, [isDark])
 
   // Reset selection when tab changes
   useEffect(() => { setSelected(new Set()); setSearch(''); setTargetOwner('') }, [tab])
@@ -367,36 +401,30 @@ export function AdminDistribuirLeadsPage() {
     <div style={{ backgroundColor: bg, minHeight: '100%', padding: '32px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
 
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
-        <div>
-          <h1 style={{ fontSize: '20px', fontWeight: 800, color: text, letterSpacing: '-0.02em', margin: 0 }}>Distribuir Leads</h1>
-          <p style={{ fontSize: '12px', color: muted, marginTop: '4px' }}>
-            {unassigned.length} sem proprietário · {allDeals.length} total
-          </p>
-        </div>
-        <div style={{ display: 'flex', gap: '8px' }}>
-          {unassigned.length > 0 && (
-            <button
-              type="button"
-              disabled={distributing}
-              onClick={handleDistributeAllUnassigned}
-              style={{
-                display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px',
-                borderRadius: '6px', border: `1px solid ${border}`, backgroundColor: card,
-                color: '#2563eb', fontSize: '11px', fontWeight: 700, cursor: 'pointer',
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#2563eb' }}
-              onMouseLeave={(e) => { e.currentTarget.style.borderColor = border }}
-            >
-              <Shuffle style={{ width: '12px', height: '12px' }} />
-              Distribuir todos igualmente
-            </button>
-          )}
+      <div style={{
+        position: 'relative', overflow: 'hidden', borderRadius: '12px',
+        padding: '28px 28px 20px', marginBottom: '0',
+        backgroundColor: isDark ? '#0a0a08' : '#ffffff',
+        border: `1px solid ${border}`,
+        boxShadow: isDark ? 'none' : '0 1px 4px rgba(16,24,40,0.06)',
+      }}>
+        <canvas ref={canvasRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: isDark ? 0.35 : 0.2, pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', inset: 0, zIndex: 0, background: isDark ? 'linear-gradient(to bottom, transparent 40%, rgba(10,10,8,0.85) 100%)' : 'linear-gradient(to bottom, transparent 40%, rgba(255,255,255,0.88) 100%)', pointerEvents: 'none' }} />
+        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', position: 'relative', zIndex: 1 }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
+              <GitFork size={18} color={text} />
+              <h1 style={{ fontSize: '20px', fontWeight: 600, color: text, letterSpacing: '-0.03em', margin: 0 }}>Distribuir Leads</h1>
+            </div>
+            <p style={{ fontSize: '13px', color: muted, margin: 0 }}>
+              {unassigned.length} sem proprietário · {allDeals.length} total
+            </p>
+          </div>
           <button
             type="button"
             onClick={load}
-            style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '6px', border: `1px solid ${border}`, backgroundColor: card, color: muted, fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}
-            onMouseEnter={(e) => { e.currentTarget.style.color = text; e.currentTarget.style.borderColor = text }}
+            style={{ display: 'flex', alignItems: 'center', gap: '6px', height: '34px', padding: '0 14px', borderRadius: '8px', border: `1px solid ${border}`, backgroundColor: isDark ? '#1a1a18' : '#f5f4f0', color: muted, fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = text; e.currentTarget.style.borderColor = isDark ? '#3a3a38' : '#c4bfb8' }}
             onMouseLeave={(e) => { e.currentTarget.style.color = muted; e.currentTarget.style.borderColor = border }}
           >
             <RefreshCw style={{ width: '12px', height: '12px' }} />
@@ -467,8 +495,8 @@ export function AdminDistribuirLeadsPage() {
               padding: '8px 16px', fontSize: '11px', fontWeight: 700,
               letterSpacing: '0.06em', cursor: 'pointer',
               border: 'none', backgroundColor: 'transparent',
-              color: tab === key ? '#e31e24' : muted,
-              borderBottom: `2px solid ${tab === key ? '#e31e24' : 'transparent'}`,
+              color: tab === key ? '#6b1212' : muted,
+              borderBottom: `2px solid ${tab === key ? '#6b1212' : 'transparent'}`,
               marginBottom: '-1px', transition: 'color 0.12s ease',
             }}
           >
@@ -477,7 +505,7 @@ export function AdminDistribuirLeadsPage() {
             {count > 0 && (
               <span style={{
                 fontSize: '8px', fontWeight: 800,
-                backgroundColor: tab === key ? '#e31e24' : (isDark ? 'rgba(255,255,255,0.12)' : '#eaecf0'),
+                backgroundColor: tab === key ? '#6b1212' : (isDark ? 'rgba(255,255,255,0.12)' : '#eaecf0'),
                 color: tab === key ? '#fff' : muted,
                 borderRadius: '3px', padding: '1px 5px',
               }}>
@@ -489,7 +517,7 @@ export function AdminDistribuirLeadsPage() {
       </div>
 
       {err && (
-        <div style={{ padding: '10px 14px', borderRadius: '6px', backgroundColor: 'rgba(220,38,38,0.10)', border: '1px solid rgba(220,38,38,0.25)', fontSize: '12px', color: '#dc2626' }}>
+        <div style={{ padding: '10px 14px', borderRadius: '6px', backgroundColor: 'rgba(184,53,53,0.10)', border: '1px solid rgba(184,53,53,0.25)', fontSize: '12px', color: '#b83535' }}>
           {err}
         </div>
       )}
@@ -533,7 +561,7 @@ export function AdminDistribuirLeadsPage() {
                 {/* Table header — fixed */}
                 <div style={{ display: 'grid', gridTemplateColumns: COL, padding: '0 16px', height: '36px', alignItems: 'center', borderBottom: `1px solid ${border}`, backgroundColor: isDark ? '#0d0c0a' : '#fafaf9', flexShrink: 0 }}>
                   <button type="button" onClick={toggleAll} style={{ background: 'none', border: 'none', cursor: 'pointer', color: muted, display: 'flex', alignItems: 'center', padding: 0 }}>
-                    {allSelected ? <CheckSquare style={{ width: '13px', height: '13px', color: '#e31e24' }} /> : <Square style={{ width: '13px', height: '13px' }} />}
+                    {allSelected ? <CheckSquare style={{ width: '13px', height: '13px', color: '#6b1212' }} /> : <Square style={{ width: '13px', height: '13px' }} />}
                   </button>
                   {headers.map((h, i) => (
                     <span key={i} style={{ fontSize: '8px', fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: muted }}>{h}</span>
@@ -568,7 +596,7 @@ export function AdminDistribuirLeadsPage() {
                           onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.backgroundColor = 'transparent' }}
                         >
                           <div style={{ display: 'flex', alignItems: 'center' }}>
-                            {isSelected ? <CheckSquare style={{ width: '13px', height: '13px', color: '#e31e24' }} /> : <Square style={{ width: '13px', height: '13px', color: muted }} />}
+                            {isSelected ? <CheckSquare style={{ width: '13px', height: '13px', color: '#6b1212' }} /> : <Square style={{ width: '13px', height: '13px', color: muted }} />}
                           </div>
                           <div style={{ minWidth: 0 }}>
                             <p style={{ fontSize: '12px', fontWeight: 600, color: text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: 0 }}>{deal.title}</p>
@@ -598,7 +626,7 @@ export function AdminDistribuirLeadsPage() {
                                     display: 'flex', alignItems: 'center', justifyContent: 'center', color: muted,
                                     transition: 'all 0.15s',
                                   }}
-                                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#ef4444'; e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.backgroundColor = isDark ? 'rgba(239,68,68,0.10)' : 'rgba(239,68,68,0.07)' }}
+                                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#b83535'; e.currentTarget.style.color = '#b83535'; e.currentTarget.style.backgroundColor = isDark ? 'rgba(184,53,53,0.12)' : 'rgba(184,53,53,0.07)' }}
                                   onMouseLeave={(e) => { e.currentTarget.style.borderColor = isDark ? 'rgba(255,255,255,0.08)' : '#eaecf0'; e.currentTarget.style.color = muted; e.currentTarget.style.backgroundColor = 'transparent' }}
                                 >
                                   <UserMinus style={{ width: '11px', height: '11px' }} />

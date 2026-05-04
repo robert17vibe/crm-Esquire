@@ -1,14 +1,14 @@
-import { useState, useEffect } from 'react'
-import { Bell, Plus, X, Megaphone, AlertTriangle, Info, Zap, Pencil, Clock, Users } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { Bell, Plus, X, Megaphone, AlertTriangle, Info, Zap, Pencil, Clock, Users, Trash2 } from 'lucide-react'
 import { useThemeStore } from '@/store/useThemeStore'
 import { useTeamStore } from '@/store/useTeamStore'
 import { useTeamNotificationStore, type NotifType } from '@/store/useTeamNotificationStore'
 
 const TYPE_CFG: Record<NotifType, { label: string; color: string; bg: string; bgDark: string; icon: React.ComponentType<{ style?: React.CSSProperties }> }> = {
   info:         { label: 'Informação',  color: '#2563eb', bg: '#eff6ff', bgDark: '#1e2d4a', icon: Info         },
-  announcement: { label: 'Aviso',       color: '#e31e24', bg: '#f0fdf4', bgDark: '#1a2e24', icon: Megaphone    },
+  announcement: { label: 'Aviso',       color: '#6b1212', bg: '#fdf0f0', bgDark: '#2a1010', icon: Megaphone    },
   warning:      { label: 'Atenção',     color: '#b45309', bg: '#fffbeb', bgDark: '#2d2010', icon: AlertTriangle },
-  urgent:       { label: 'Urgente',     color: '#dc2626', bg: '#fef2f2', bgDark: '#2d1515', icon: Zap          },
+  urgent:       { label: 'Urgente',     color: '#b83535', bg: '#fef2f2', bgDark: '#2d1515', icon: Zap          },
 }
 
 function timeAgo(iso: string): string {
@@ -80,8 +80,8 @@ function CreateDrawer({ isDark, teams, onClose }: {
         {/* Header */}
         <div style={{ padding: '20px 20px 16px', borderBottom: `1px solid ${border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{ width: '36px', height: '36px', borderRadius: '10px', backgroundColor: isDark ? '#1a2e24' : '#dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Bell style={{ width: '16px', height: '16px', color: '#e31e24' }} />
+            <div style={{ width: '36px', height: '36px', borderRadius: '10px', backgroundColor: isDark ? '#2a1010' : '#fde8e8', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Bell style={{ width: '16px', height: '16px', color: '#6b1212' }} />
             </div>
             <div>
               <p style={{ fontSize: '14px', fontWeight: 700, color: text }}>Nova Notificação</p>
@@ -157,7 +157,7 @@ function CreateDrawer({ isDark, teams, onClose }: {
         {/* Footer */}
         <div style={{ padding: '16px 20px', borderTop: `1px solid ${border}`, display: 'flex', flexDirection: 'column', gap: '10px' }}>
           {error && (
-            <div style={{ fontSize: '11px', color: '#ef4444', backgroundColor: isDark ? '#2d1515' : '#fff5f5', border: '1px solid #fecaca', borderRadius: '6px', padding: '8px 12px', maxHeight: '56px', overflowY: 'auto', lineHeight: 1.5 }}>
+            <div style={{ fontSize: '11px', color: '#b83535', backgroundColor: isDark ? '#2d1515' : '#fff5f5', border: '1px solid #e8b0b0', borderRadius: '6px', padding: '8px 12px', maxHeight: '56px', overflowY: 'auto', lineHeight: 1.5 }}>
               {error.includes('ainda não foi criada')
                 ? 'Tabela não encontrada. Aplica a migração SQL no Supabase Studio antes de enviar.'
                 : error}
@@ -283,9 +283,10 @@ export function AdminNotificationsPage() {
   const isDark       = useThemeStore((s) => s.isDark)
   const teams        = useTeamStore((s) => s.teams)
   const notifications = useTeamNotificationStore((s) => s.notifications)
-  const fetch        = useTeamNotificationStore((s) => s.fetch)
+  const archive      = useTeamNotificationStore((s) => s.archive)
   const isLoading    = useTeamNotificationStore((s) => s.isLoading)
-  const subscribeRealtime = useTeamNotificationStore((s) => s.subscribeRealtime)
+
+  const canvasRef = useRef<HTMLCanvasElement>(null)
 
   const [showCreate, setShowCreate] = useState(false)
   const [editNotif, setEditNotif] = useState<import('@/store/useTeamNotificationStore').TeamNotification | null>(null)
@@ -298,11 +299,38 @@ export function AdminNotificationsPage() {
   const text    = isDark ? '#e8e4dc' : '#1a1814'
   const muted   = isDark ? '#6b6560' : '#8a857d'
 
+
   useEffect(() => {
-    fetch()
-    const unsub = subscribeRealtime()
-    return unsub
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    const W = canvas.width  = canvas.offsetWidth
+    const H = canvas.height = canvas.offsetHeight
+    const cols = Math.floor(W / 14)
+    const drops = Array.from({ length: cols }, () => Math.random() * -H / 14)
+    const chars = 'アイウエオカキクケコサシスセソタチツテトナニヌネノ01アBCDE#%&'
+    let raf: number
+    function draw() {
+      ctx!.fillStyle = isDark ? 'rgba(13,12,10,0.18)' : 'rgba(245,244,240,0.18)'
+      ctx!.fillRect(0, 0, W, H)
+      ctx!.font = '11px monospace'
+      for (let i = 0; i < drops.length; i++) {
+        const ch = chars[Math.floor(Math.random() * chars.length)]
+        const y = drops[i] * 14
+        const bright = Math.random() > 0.9
+        ctx!.fillStyle = isDark
+          ? (bright ? '#fff7ed' : (Math.random() > 0.5 ? '#f97316' : '#ea580c'))
+          : (bright ? '#7c2d12' : (Math.random() > 0.5 ? '#c2410c' : '#9b2020'))
+        ctx!.fillText(ch, i * 14, y)
+        if (y > H && Math.random() > 0.975) drops[i] = 0
+        drops[i] += 0.4
+      }
+      raf = requestAnimationFrame(draw)
+    }
+    draw()
+    return () => cancelAnimationFrame(raf)
+  }, [isDark])
 
   const filtered = notifications
     .filter((n) => filter === 'all' || n.type === filter)
@@ -317,27 +345,37 @@ export function AdminNotificationsPage() {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: bg }}>
 
       {/* Header */}
-      <div style={{ height: '56px', minHeight: '56px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 24px', borderBottom: `1px solid ${border}`, backgroundColor: cardBg, flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Bell style={{ width: '16px', height: '16px', color: '#e31e24' }} />
-          <p style={{ fontSize: '14px', fontWeight: 700, color: text }}>Notificações da Equipa</p>
-          <span style={{ fontSize: '10px', fontWeight: 700, color: muted, backgroundColor: isDark ? '#1c1c1a' : '#f0ede8', padding: '2px 7px', borderRadius: '999px' }}>
-            {notifications.length} ativas
-          </span>
+      <div style={{
+        position: 'relative', height: '96px', minHeight: '96px',
+        display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between',
+        padding: '0 28px 18px', borderBottom: `1px solid ${border}`,
+        backgroundColor: isDark ? '#0a0a08' : '#ffffff', flexShrink: 0, overflow: 'hidden',
+      }}>
+        <canvas ref={canvasRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: isDark ? 0.35 : 0.2, pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', inset: 0, zIndex: 0, background: isDark ? 'linear-gradient(to bottom, transparent 40%, rgba(10,10,8,0.85) 100%)' : 'linear-gradient(to bottom, transparent 40%, rgba(255,255,255,0.88) 100%)', pointerEvents: 'none' }} />
+        <div style={{ position: 'relative', zIndex: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
+            <Bell size={18} color={text} />
+            <p style={{ fontSize: '20px', fontWeight: 600, color: text, letterSpacing: '-0.03em', margin: 0 }}>Notificações</p>
+            <span style={{ fontSize: '10px', fontWeight: 700, color: '#6b1212', backgroundColor: isDark ? '#2d1515' : '#fef2f2', padding: '2px 8px', borderRadius: '999px' }}>
+              {notifications.length} ativas
+            </span>
+          </div>
+          <p style={{ fontSize: '13px', color: muted, margin: 0 }}>Comunicados e alertas para as equipas</p>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', gap: '8px' }}>
           <select
             value={teamFilter}
             onChange={(e) => setTeamFilter(e.target.value)}
-            style={{ height: '32px', padding: '0 10px', borderRadius: '8px', border: `1px solid ${border}`, backgroundColor: isDark ? '#111110' : '#f8f7f4', color: text, fontSize: '12px', fontWeight: 500, cursor: 'pointer', outline: 'none' }}
+            style={{ height: '34px', padding: '0 10px', borderRadius: '8px', border: `1px solid ${border}`, backgroundColor: isDark ? '#1a1a18' : '#f5f4f0', color: text, fontSize: '12px', fontWeight: 500, cursor: 'pointer', outline: 'none' }}
           >
             <option value="all">Todos os grupos</option>
             <option value="global">Global (sem grupo)</option>
             {teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
           </select>
           <button type="button" onClick={() => setShowCreate(true)} style={{
-            height: '32px', padding: '0 14px', borderRadius: '8px', border: 'none',
-            backgroundColor: '#e31e24', color: '#fff', fontSize: '12px', fontWeight: 700,
+            height: '34px', padding: '0 16px', borderRadius: '8px', border: 'none',
+            backgroundColor: '#6b1212', color: '#fff', fontSize: '12px', fontWeight: 700,
             cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px',
           }}>
             <Plus style={{ width: '13px', height: '13px' }} />
@@ -357,7 +395,7 @@ export function AdminNotificationsPage() {
               padding: '6px 14px', borderRadius: '8px 8px 0 0', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: active ? 700 : 500,
               backgroundColor: active ? bg : 'transparent',
               color: active ? (cfg ? cfg.color : text) : muted,
-              borderBottom: active ? `2px solid ${cfg ? cfg.color : '#e31e24'}` : '2px solid transparent',
+              borderBottom: active ? `2px solid ${cfg ? cfg.color : '#6b1212'}` : '2px solid transparent',
               transition: 'all 0.15s',
               display: 'flex', alignItems: 'center', gap: '5px',
             }}>
@@ -378,7 +416,7 @@ export function AdminNotificationsPage() {
               <Bell style={{ width: '20px', height: '20px', color: muted }} />
             </div>
             <p style={{ fontSize: '13px', color: muted, fontWeight: 500 }}>Nenhuma notificação ativa</p>
-            <button type="button" onClick={() => setShowCreate(true)} style={{ fontSize: '12px', color: '#e31e24', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>
+            <button type="button" onClick={() => setShowCreate(true)} style={{ fontSize: '12px', color: '#6b1212', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>
               Criar primeira notificação →
             </button>
           </div>
@@ -426,6 +464,12 @@ export function AdminNotificationsPage() {
                       onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = isDark ? '#252522' : '#f0ede8'; e.currentTarget.style.color = cfg.color }}
                       onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = muted }}>
                       <Pencil style={{ width: '14px', height: '14px' }} />
+                    </button>
+                    <button type="button" onClick={() => archive(n.id)} title="Arquivar"
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: muted, padding: '6px', borderRadius: '7px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = isDark ? '#2d1515' : '#fef2f2'; e.currentTarget.style.color = '#b83535' }}
+                      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = muted }}>
+                      <Trash2 style={{ width: '14px', height: '14px' }} />
                     </button>
                   </div>
                 </div>

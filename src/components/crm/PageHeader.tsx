@@ -10,11 +10,12 @@ interface Crumb { label: string; href?: string }
 interface PageHeaderProps {
   title: string
   subtitle?: string
+  icon?: ReactNode
   actions?: ReactNode
   breadcrumb?: Crumb[]
 }
 
-export function PageHeader({ title, subtitle, actions, breadcrumb }: PageHeaderProps) {
+export function PageHeader({ title, subtitle, icon, actions, breadcrumb }: PageHeaderProps) {
   const isDark   = useThemeStore((s) => s.isDark)
   const navigate = useNavigate()
 
@@ -61,21 +62,22 @@ export function PageHeader({ title, subtitle, actions, breadcrumb }: PageHeaderP
           </div>
         )}
         {/* Title + subtitle */}
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: subtitle ? '2px' : 0 }}>
+          {icon && <span style={{ color: textMain, display: 'flex', alignItems: 'center' }}>{icon}</span>}
           <h1 style={{
-            fontSize: '16px', fontWeight: 600,
-            color: textMain, letterSpacing: '-0.02em',
+            fontSize: '20px', fontWeight: 600,
+            color: textMain, letterSpacing: '-0.03em',
             margin: 0, lineHeight: 1.2,
             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
           }}>
             {title}
           </h1>
-          {subtitle && (
-            <span style={{ fontSize: '12px', color: textMute, whiteSpace: 'nowrap' }}>
-              {subtitle}
-            </span>
-          )}
         </div>
+        {subtitle && (
+          <p style={{ fontSize: '13px', color: textMute, margin: 0 }}>
+            {subtitle}
+          </p>
+        )}
       </div>
 
       {/* Actions */}

@@ -54,25 +54,25 @@ export function AtividadesPage() {
         id: `new-${deal.id}`,
         type: 'new_deal',
         dealId: deal.id,
-        dealName: deal.name,
+        dealName: deal.title,
         company: deal.company_name ?? undefined,
-        toStage: deal.stage,
+        toStage: deal.stage_id,
         value: deal.value ?? undefined,
-        owner: deal.owner_name ?? undefined,
-        ownerColor: deal.owner_avatar_color ?? undefined,
+        owner: deal.owner?.name ?? undefined,
+        ownerColor: deal.owner?.avatar_color ?? undefined,
         date: deal.created_at,
       })
 
-      if (deal.stage === 'won') {
+      if (deal.stage_id === 'closed_won') {
         evts.push({
           id: `won-${deal.id}`,
           type: 'won',
           dealId: deal.id,
-          dealName: deal.name,
+          dealName: deal.title,
           company: deal.company_name ?? undefined,
           value: deal.value ?? undefined,
-          owner: deal.owner_name ?? undefined,
-          ownerColor: deal.owner_avatar_color ?? undefined,
+          owner: deal.owner?.name ?? undefined,
+          ownerColor: deal.owner?.avatar_color ?? undefined,
           date: deal.updated_at ?? deal.created_at,
         })
       }
@@ -94,11 +94,11 @@ export function AtividadesPage() {
   }), [events])
 
   const EVENT_ICONS: Record<string, { icon: React.ReactNode; color: string; bg: string; label: string }> = {
-    new_deal:    { icon: <UserPlus size={13} />,    color: '#2563eb', bg: '#2563eb18', label: 'Novo Lead' },
-    stage_move:  { icon: <ArrowRight size={13} />,  color: '#7c3aed', bg: '#7c3aed18', label: 'Avançou' },
+    new_deal:    { icon: <UserPlus size={13} />,    color: '#6b1212', bg: '#6b121218', label: 'Novo Lead' },
+    stage_move:  { icon: <ArrowRight size={13} />,  color: '#a16207', bg: '#a1620718', label: 'Avançou' },
     won:         { icon: <CheckCircle2 size={13} />, color: '#15803d', bg: '#15803d18', label: 'Ganho' },
-    lost:        { icon: <Zap size={13} />,          color: 'var(--brand)', bg: 'var(--brand)18', label: 'Perdido' },
-    value_update:{ icon: <TrendingUp size={13} />,   color: '#b45309', bg: '#b4530918', label: 'Valor' },
+    lost:        { icon: <Zap size={13} />,          color: '#b83535', bg: '#b8353518', label: 'Perdido' },
+    value_update:{ icon: <TrendingUp size={13} />,   color: '#4d7aa8', bg: '#4d7aa818', label: 'Valor' },
   }
 
   function getInitials(name?: string) {
@@ -133,9 +133,9 @@ export function AtividadesPage() {
         {/* Summary cards */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '24px' }}>
           {[
-            { label: 'Total', value: stats.total, icon: <Activity size={14} />, color: '#667085' },
-            { label: 'Hoje', value: stats.today, icon: <Clock size={14} />, color: '#2563eb' },
-            { label: 'Leads', value: stats.newDeals, icon: <UserPlus size={14} />, color: '#7c3aed' },
+            { label: 'Total', value: stats.total, icon: <Activity size={14} />, color: '#6b6560' },
+            { label: 'Hoje', value: stats.today, icon: <Clock size={14} />, color: '#a88030' },
+            { label: 'Leads', value: stats.newDeals, icon: <UserPlus size={14} />, color: '#6b1212' },
             { label: 'Ganhos', value: stats.won, icon: <CheckCircle2 size={14} />, color: '#15803d' },
           ].map((s) => (
             <div key={s.label} style={{
@@ -175,9 +175,9 @@ export function AtividadesPage() {
               onClick={() => setFilter(f.key)}
               style={{
                 padding: '4px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: 500,
-                border: `1px solid ${filter === f.key ? '#101828' : border}`,
-                backgroundColor: filter === f.key ? (isDark ? '#ffffff' : '#101828') : 'transparent',
-                color: filter === f.key ? (isDark ? '#000' : '#fff') : muted,
+                border: `1px solid ${filter === f.key ? '#6b1212' : border}`,
+                backgroundColor: filter === f.key ? '#6b1212' : 'transparent',
+                color: filter === f.key ? '#fff' : muted,
                 cursor: 'pointer', transition: 'all 0.15s ease',
               }}
             >

@@ -1,63 +1,391 @@
 import React, { useState, useMemo, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { Building2, TrendingUp, ArrowRight, Search, ChevronDown, ChevronRight, DollarSign, Activity, Mail } from 'lucide-react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import {
+  Building2, Search, X,
+  Mail, Globe, ArrowRight, ExternalLink, Users, Pencil, Check, Zap,
+} from 'lucide-react'
 import { useThemeStore } from '@/store/useThemeStore'
+import { useDealStore } from '@/store/useDealStore'
 import { STAGES } from '@/constants/pipeline'
-import { supabase } from '@/lib/supabase'
 import { useVisibleDeals } from '@/hooks/useVisibleDeals'
+import { evaluateDealScore } from '@/lib/dealScore'
 
-type StageHistoryEntry = {
-  id: string
-  deal_id: string
-  from_stage: string | null
-  to_stage: string
-  changed_at: string
-  days_in_previous_stage: number
-}
-
-function fmt(v: number) {
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency', currency: 'BRL', notation: 'compact', maximumFractionDigits: 1,
-  }).format(v)
-}
-
-function fmtFull(v: number) {
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency', currency: 'BRL', maximumFractionDigits: 0,
-  }).format(v)
-}
 
 const SIZE_LABELS: Record<string, string> = {
   '1-50': '1–50', '51-200': '51–200', '201-1000': '201–1k', '1000+': '1k+',
 }
 
+// ─── Side Panel ───────────────────────────────────────────────────────────────
+
+type Company = {
+  name: string
+  sector?: string
+  size?: string
+  website?: string
+  contactEmail?: string
+  contactName?: string
+  contactPhone?: string
+  deals: ReturnType<typeof useVisibleDeals>
+  active: number
+  won: number
+  pipeline: number
+  revenue: number
+  winRate: number
+  avgHealth: number
+  latestStage?: string
+}
+
+function HealthRing({ score, size = 40 }: { score: number; size?: number }) {
+  const r = (size - 6) / 2
+  const circ = 2 * Math.PI * r
+  const fill = circ * (score / 100)
+  const color = score >= 70 ? '#2a9a5a' : score >= 45 ? '#a88030' : '#b83535'
+  return (
+    <svg width={size} height={size} style={{ transform: 'rotate(-90deg)', flexShrink: 0 }}>
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={5} />
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={5}
+        strokeDasharray={`${fill} ${circ}`} strokeLinecap="round"
+        style={{ transition: 'stroke-dasharray 0.6s ease' }} />
+    </svg>
+  )
+}
+
+function HealthRingDark({ score, size = 40, isDark }: { score: number; size?: number; isDark: boolean }) {
+  const r = (size - 6) / 2
+  const circ = 2 * Math.PI * r
+  const fill = circ * (score / 100)
+  const color = score >= 70 ? '#2a9a5a' : score >= 45 ? '#a88030' : '#b83535'
+  const trackColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.08)'
+  return (
+    <svg width={size} height={size} style={{ transform: 'rotate(-90deg)', flexShrink: 0 }}>
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={trackColor} strokeWidth={5} />
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={5}
+        strokeDasharray={`${fill} ${circ}`} strokeLinecap="round"
+        style={{ transition: 'stroke-dasharray 0.6s ease' }} />
+    </svg>
+  )
+}
+
+function SidePanel({ company, isDark, onClose }: {
+  company: Company
+  isDark: boolean
+  onClose: () => void
+}) {
+  const navigate    = useNavigate()
+  const updateDeal  = useDealStore((s) => s.updateDeal)
+  const border      = isDark ? '#242422' : '#e8e5df'
+  const bg          = isDark ? '#111110' : '#ffffff'
+  const subtleBg    = isDark ? '#161614' : '#fafaf8'
+  const inputBg     = isDark ? '#0d0c0a' : '#f5f4f0'
+  const text        = isDark ? '#e8e4dc' : '#1a1814'
+  const muted       = isDark ? '#6b6560' : '#8a857d'
+  const stage       = STAGES.find((s) => s.id === company.latestStage)
+
+  const [isEditing, setIsEditing] = useState(false)
+  const [editName,  setEditName]  = useState(company.contactName  ?? '')
+  const [editEmail, setEditEmail] = useState(company.contactEmail ?? '')
+  const [editPhone, setEditPhone] = useState(company.contactPhone ?? '')
+  const [saving,    setSaving]    = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const [saved,     setSaved]     = useState(false)
+
+  async function handleSave() {
+    if (saving) return
+    setSaving(true)
+    setSaveError(null)
+    try {
+      await Promise.all(company.deals.map((d) =>
+        updateDeal(d.id, {
+          contact_name:  editName  || d.contact_name  || '',
+          contact_email: editEmail || d.contact_email || '',
+          contact_phone: editPhone || d.contact_phone || '',
+          company_name:  d.company_name ?? '',
+          stage_id:      d.stage_id as 'leads',
+        })
+      ))
+      setSaved(true)
+      setIsEditing(false)
+      setTimeout(() => setSaved(false), 2500)
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'Erro ao guardar')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const activeDeals = company.deals.filter((d) => !['closed_won', 'closed_lost'].includes(d.stage_id))
+  const sortedDeals = [...company.deals].sort((a, b) =>
+    STAGES.findIndex((s) => s.id === b.stage_id) - STAGES.findIndex((s) => s.id === a.stage_id)
+  )
+
+  const healthScore = company.avgHealth
+  const healthColor = healthScore >= 70 ? '#2a9a5a' : healthScore >= 45 ? '#a88030' : '#b83535'
+  const healthLabel = healthScore >= 70 ? 'Saudável' : healthScore >= 45 ? 'Atenção' : 'Crítico'
+
+  return (
+    <>
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 40, backgroundColor: 'rgba(0,0,0,0.22)' }} />
+      <div style={{
+        position: 'fixed', top: 0, right: 0, bottom: 0,
+        width: '400px', zIndex: 50,
+        backgroundColor: bg,
+        borderLeft: `1px solid ${border}`,
+        display: 'flex', flexDirection: 'column',
+        boxShadow: '-8px 0 40px rgba(0,0,0,0.14)',
+      }}>
+
+        {/* Header */}
+        <div style={{ padding: '18px 20px 14px', borderBottom: `1px solid ${border}`, flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
+              <div style={{
+                width: '42px', height: '42px', borderRadius: '12px', flexShrink: 0,
+                background: stage
+                  ? `linear-gradient(135deg, ${stage.color}22, ${stage.color}0a)`
+                  : (isDark ? '#1e1e1c' : '#f3f4f6'),
+                border: `1px solid ${stage ? `${stage.color}30` : border}`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: '17px', fontWeight: 700,
+                color: stage?.color ?? muted,
+              }}>
+                {company.name.charAt(0).toUpperCase()}
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <h2 style={{ fontSize: '14px', fontWeight: 700, color: text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', letterSpacing: '-0.02em', margin: 0, lineHeight: 1.2 }}>
+                  {company.name}
+                </h2>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginTop: '3px', flexWrap: 'wrap' }}>
+                  {company.sector && <span style={{ fontSize: '11px', color: muted }}>{company.sector}</span>}
+                  {company.sector && company.size && <span style={{ fontSize: '11px', color: isDark ? '#2a2a28' : '#d1d5db' }}>·</span>}
+                  {company.size && <span style={{ fontSize: '11px', color: muted }}>{SIZE_LABELS[company.size] ?? company.size} func.</span>}
+                </div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '5px', flexShrink: 0 }}>
+              <button type="button" onClick={() => setIsEditing((v) => !v)}
+                style={{ width: '28px', height: '28px', borderRadius: '8px', border: `1px solid ${isEditing ? '#6b1212' : border}`, backgroundColor: isEditing ? 'rgba(107,18,18,0.08)' : 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: isEditing ? '#6b1212' : muted, transition: 'all 0.15s ease' }}>
+                <Pencil size={12} />
+              </button>
+              <button type="button" onClick={onClose}
+                style={{ width: '28px', height: '28px', borderRadius: '8px', border: `1px solid ${border}`, backgroundColor: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: muted }}>
+                <X size={13} />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Health + Stats row */}
+        <div style={{ display: 'flex', borderBottom: `1px solid ${border}`, flexShrink: 0 }}>
+          {/* Health score block */}
+          <div style={{ flex: 1, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: '10px', borderRight: `1px solid ${border}` }}>
+            <div style={{ position: 'relative', flexShrink: 0 }}>
+              <HealthRingDark score={healthScore} size={44} isDark={isDark} />
+              <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <span style={{ fontSize: '10px', fontWeight: 700, color: healthColor, fontFamily: "'Geist Mono', monospace" }}>{healthScore}</span>
+              </div>
+            </div>
+            <div>
+              <p style={{ fontSize: '10px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Saúde</p>
+              <p style={{ fontSize: '13px', fontWeight: 700, color: healthColor, marginTop: '1px' }}>{healthLabel}</p>
+            </div>
+          </div>
+          {/* Stats */}
+          <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1px', backgroundColor: border }}>
+            {[
+              { label: 'Win Rate', value: `${company.winRate}%`, color: company.winRate >= 50 ? '#2a9a5a' : '#a88030' },
+              { label: 'Deals', value: String(company.deals.length), color: text },
+            ].map((s) => (
+              <div key={s.label} style={{ backgroundColor: subtleBg, padding: '12px 14px' }}>
+                <div style={{ fontSize: '9px', color: muted, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '2px' }}>{s.label}</div>
+                <div style={{ fontSize: '15px', fontWeight: 700, color: s.color, fontFamily: "'Geist Mono', monospace", letterSpacing: '-0.03em' }}>{s.value}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Contact view */}
+        {!isEditing && (company.contactEmail || company.contactName || company.contactPhone || company.website) && (
+          <div style={{ padding: '14px 20px', borderBottom: `1px solid ${border}`, flexShrink: 0 }}>
+            <div style={{ fontSize: '9px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '10px' }}>
+              Contacto Principal
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '7px' }}>
+              {company.contactName && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Users size={11} color={muted} />
+                  <span style={{ fontSize: '12px', color: text }}>{company.contactName}</span>
+                </div>
+              )}
+              {company.contactEmail && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Mail size={11} color={muted} />
+                  <button type="button" onClick={() => navigate(`/email?to=${encodeURIComponent(company.contactEmail!)}`)}
+                    style={{ fontSize: '12px', color: '#6b1212', background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'inherit' }}>
+                    {company.contactEmail}
+                  </button>
+                </div>
+              )}
+              {company.contactPhone && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '11px', color: muted, width: '11px', textAlign: 'center', flexShrink: 0 }}>☎</span>
+                  <span style={{ fontSize: '12px', color: text }}>{company.contactPhone}</span>
+                </div>
+              )}
+              {company.website && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Globe size={11} color={muted} />
+                  <a href={company.website.startsWith('http') ? company.website : `https://${company.website}`}
+                    target="_blank" rel="noopener noreferrer"
+                    style={{ fontSize: '12px', color: '#6b1212', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                    {company.website.replace(/^https?:\/\//, '')}
+                    <ExternalLink size={10} />
+                  </a>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Edit form */}
+        {isEditing && (
+          <div style={{ padding: '14px 20px', borderBottom: `1px solid ${border}`, flexShrink: 0, backgroundColor: isDark ? '#0d0c0b' : '#fafaf9' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+              <div style={{ fontSize: '9px', fontWeight: 700, color: '#6b1212', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                Editar contacto
+              </div>
+              <div style={{ display: 'flex', gap: '5px' }}>
+                <button type="button" onClick={() => setIsEditing(false)}
+                  style={{ height: '26px', padding: '0 10px', borderRadius: '7px', border: `1px solid ${border}`, backgroundColor: 'transparent', fontSize: '11px', color: muted, cursor: 'pointer' }}>
+                  Cancelar
+                </button>
+                <button type="button" onClick={handleSave} disabled={saving}
+                  style={{ height: '26px', padding: '0 12px', borderRadius: '7px', border: 'none', backgroundColor: saving ? '#a0403e' : '#6b1212', color: '#fff', fontSize: '11px', fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <Check size={11} />
+                  {saving ? 'A guardar…' : 'Guardar'}
+                </button>
+              </div>
+            </div>
+            {saved && (
+              <p style={{ fontSize: '11px', color: '#2a9a5a', marginBottom: '8px' }}>✓ Contacto guardado com sucesso</p>
+            )}
+            {saveError && (
+              <p style={{ fontSize: '11px', color: '#b83535', marginBottom: '8px' }}>Erro: {saveError}</p>
+            )}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {[
+                { label: 'Nome do contacto', value: editName,  onChange: setEditName,  placeholder: 'Ex: João Silva' },
+                { label: 'Email',            value: editEmail, onChange: setEditEmail, placeholder: 'email@empresa.com' },
+                { label: 'Telefone',         value: editPhone, onChange: setEditPhone, placeholder: '+55 11 99999-9999' },
+              ].map(({ label, value, onChange, placeholder }) => (
+                <div key={label}>
+                  <div style={{ fontSize: '10px', color: muted, marginBottom: '4px' }}>{label}</div>
+                  <input type="text" value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
+                    style={{ width: '100%', height: '32px', padding: '0 10px', fontSize: '12px', backgroundColor: inputBg, border: `1px solid ${border}`, borderRadius: '8px', color: text, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }}
+                    onFocus={(e) => { e.currentTarget.style.borderColor = '#6b1212' }}
+                    onBlur={(e) => { e.currentTarget.style.borderColor = border }}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Active deals health */}
+        {activeDeals.length > 0 && (
+          <div style={{ padding: '14px 20px', borderBottom: `1px solid ${border}`, flexShrink: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '10px' }}>
+              <Zap size={10} color="#6b1212" />
+              <span style={{ fontSize: '9px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                Saúde por deal ativo
+              </span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+              {activeDeals.map((deal) => {
+                const ds = STAGES.find((s) => s.id === deal.stage_id)
+                const sc = evaluateDealScore(deal)
+                const sc_color = sc >= 70 ? '#2a9a5a' : sc >= 45 ? '#a88030' : '#b83535'
+                const trackBg = isDark ? '#1e1e1c' : '#f0eeea'
+                return (
+                  <div key={deal.id} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: ds?.color ?? muted, flexShrink: 0 }} />
+                    <span style={{ fontSize: '11px', color: text, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{deal.title}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexShrink: 0 }}>
+                      <div style={{ width: '48px', height: '3px', borderRadius: '99px', backgroundColor: trackBg, overflow: 'hidden' }}>
+                        <div style={{ height: '100%', width: `${sc}%`, backgroundColor: sc_color, borderRadius: '99px', transition: 'width 0.4s ease' }} />
+                      </div>
+                      <span style={{ fontSize: '10px', fontWeight: 700, color: sc_color, fontFamily: "'Geist Mono', monospace", minWidth: '22px', textAlign: 'right' }}>{sc}</span>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Deals list */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '14px 20px' }}>
+          <div style={{ fontSize: '9px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '10px' }}>
+            Deals ({company.deals.length})
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+            {sortedDeals.map((deal) => {
+              const ds = STAGES.find((s) => s.id === deal.stage_id)
+              const sc = evaluateDealScore(deal)
+              const sc_color = sc >= 70 ? '#2a9a5a' : sc >= 45 ? '#a88030' : '#b83535'
+              return (
+                <button key={deal.id} type="button" onClick={() => navigate(`/deal/${deal.id}`)}
+                  style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 12px', borderRadius: '10px', backgroundColor: isDark ? '#161614' : '#fafaf8', border: `1px solid ${border}`, cursor: 'pointer', textAlign: 'left', width: '100%', transition: 'border-color 0.12s ease' }}
+                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#6b1212' }}
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = border }}>
+                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: ds?.color ?? '#94a3b8', flexShrink: 0 }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: '12px', fontWeight: 600, color: text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {deal.title}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginTop: '2px' }}>
+                      {ds && <span style={{ fontSize: '10px', color: ds.color, fontWeight: 500 }}>{ds.label}</span>}
+                      {deal.owner?.name && <span style={{ fontSize: '10px', color: muted }}>· {deal.owner.name.split(' ')[0]}</span>}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+                    <span style={{ fontSize: '10px', fontWeight: 700, color: sc_color, fontFamily: "'Geist Mono', monospace" }}>{sc}</span>
+                    <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: sc_color }} />
+                  </div>
+                  <ArrowRight size={11} color={muted} style={{ flexShrink: 0 }} />
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      </div>
+    </>
+  )
+}
+
+// ─── Main Page ────────────────────────────────────────────────────────────────
+
 export function ClientsPage() {
-  const deals    = useVisibleDeals()
-  const isDark   = useThemeStore((s) => s.isDark)
-  const navigate = useNavigate()
+  const deals         = useVisibleDeals()
+  const isDark        = useThemeStore((s) => s.isDark)
+  const navigate      = useNavigate()
+  const [searchParams] = useSearchParams()
 
-  const [searchQuery, setSearchQuery] = useState('')
-  const [expandedCompany, setExpandedCompany] = useState<string | null>(null)
-  const [stageHistoryMap, setStageHistoryMap] = useState<Record<string, StageHistoryEntry[]>>({})
-  const [loadingHistory, setLoadingHistory] = useState(false)
+  const [searchQuery, setSearchQuery]         = useState(searchParams.get('search') ?? '')
+  const [selectedCompany, setSelectedCompany] = useState<Company | null>(null)
 
-  const border  = isDark ? '#242422' : '#eaecf0'
-  const text    = isDark ? '#e8e4dc' : '#101828'
-  const muted   = isDark ? '#6b6560' : '#667085'
-  const cardBg  = isDark ? '#161614' : '#ffffff'
-  const hoverBg = isDark ? '#1c1c1a' : '#f3f4f6'
-  const trackBg = isDark ? '#1e1e1c' : '#f3f4f6'
-  const inputBg = isDark ? '#111111' : '#f3f4f6'
-  const inputBorder = isDark ? '#2a2a2a' : '#eaecf0'
-  const companies = useMemo(() => {
-    const map = new Map<string, {
-      name: string
-      sector?: string
-      size?: string
-      website?: string
-      contactEmail?: string
-      deals: typeof deals
-    }>()
+  useEffect(() => {
+    const q = searchParams.get('search')
+    if (q) setSearchQuery(q)
+  }, [searchParams])
+
+  const pageBg   = isDark ? '#0d0c0a' : '#f5f4f0'
+const subtleBg = isDark ? '#111110' : '#f0eeea'
+  const border   = isDark ? '#242422' : '#e8e5df'
+  const text     = isDark ? '#e8e4dc' : '#1a1814'
+  const muted    = isDark ? '#6b6560' : '#8a857d'
+  const inputBg  = isDark ? '#111110' : '#f5f4f0'
+  const companies = useMemo<Company[]>(() => {
+    const map = new Map<string, Company>()
 
     for (const deal of deals) {
       const name = deal.company_name ?? ''
@@ -70,30 +398,37 @@ export function ClientsPage() {
           size: deal.company_size ?? undefined,
           website: deal.company_website ?? undefined,
           contactEmail: deal.contact_email ?? undefined,
+          contactName: deal.contact_name ?? undefined,
+          contactPhone: deal.contact_phone ?? undefined,
           deals: [],
+          active: 0, won: 0, pipeline: 0, revenue: 0, winRate: 0, avgHealth: 0,
+          latestStage: undefined,
         })
       }
       const entry = map.get(key)!
       if (!entry.contactEmail && deal.contact_email) entry.contactEmail = deal.contact_email
+      if (!entry.contactName && deal.contact_name) entry.contactName = deal.contact_name
+      if (!entry.contactPhone && deal.contact_phone) entry.contactPhone = deal.contact_phone
       entry.deals.push(deal)
     }
 
     return [...map.values()]
       .map((c) => {
-        const active   = c.deals.filter((d) => !['closed_won', 'closed_lost'].includes(d.stage_id))
-        const won      = c.deals.filter((d) => d.stage_id === 'closed_won')
+        const active  = c.deals.filter((d) => !['closed_won', 'closed_lost'].includes(d.stage_id))
+        const won     = c.deals.filter((d) => d.stage_id === 'closed_won')
+        const closed  = c.deals.filter((d) => ['closed_won', 'closed_lost'].includes(d.stage_id))
         const pipeline = active.reduce((s, d) => s + Number(d.value), 0)
         const revenue  = won.reduce((s, d) => s + Number(d.value), 0)
-        const latestStage = c.deals
-          .filter((d) => !['closed_won', 'closed_lost'].includes(d.stage_id))
-          .sort((a, b) => {
-            const ai = STAGES.findIndex((s) => s.id === a.stage_id)
-            const bi = STAGES.findIndex((s) => s.id === b.stage_id)
-            return bi - ai
-          })[0]?.stage_id
-        return { ...c, active: active.length, won: won.length, pipeline, revenue, latestStage, contactEmail: c.contactEmail }
+        const winRate  = closed.length > 0 ? Math.round((won.length / closed.length) * 100) : 0
+        const latestStage = active.sort((a, b) =>
+          STAGES.findIndex((s) => s.id === b.stage_id) - STAGES.findIndex((s) => s.id === a.stage_id)
+        )[0]?.stage_id
+        const avgHealth = active.length > 0
+          ? Math.round(active.reduce((s, d) => s + evaluateDealScore(d), 0) / active.length)
+          : 0
+        return { ...c, active: active.length, won: won.length, pipeline, revenue, winRate, latestStage, avgHealth }
       })
-      .sort((a, b) => b.pipeline - a.pipeline || b.revenue - a.revenue)
+      .sort((a, b) => b.active - a.active || b.avgHealth - a.avgHealth)
   }, [deals])
 
   const filtered = useMemo(() => {
@@ -106,395 +441,161 @@ export function ClientsPage() {
     )
   }, [companies, searchQuery])
 
-  const totalPipeline = useMemo(() => filtered.reduce((s, c) => s + c.pipeline, 0), [filtered])
-  const totalWon      = useMemo(() => filtered.reduce((s, c) => s + c.revenue, 0), [filtered])
-
-  // Fetch stage history for all deals of the expanded company
-  useEffect(() => {
-    if (!expandedCompany) return
-    const company = filtered.find((c) => c.name === expandedCompany)
-    if (!company) return
-    const dealIds = company.deals.map((d) => d.id)
-    if (dealIds.length === 0) return
-    setLoadingHistory(true)
-    supabase
-      .from('deal_stage_history')
-      .select('id, deal_id, from_stage, to_stage, changed_at, days_in_previous_stage')
-      .in('deal_id', dealIds)
-      .order('changed_at', { ascending: true })
-      .then(({ data }) => {
-        const map: Record<string, StageHistoryEntry[]> = {}
-        for (const entry of (data ?? []) as StageHistoryEntry[]) {
-          if (!map[entry.deal_id]) map[entry.deal_id] = []
-          map[entry.deal_id].push(entry)
-        }
-        setStageHistoryMap(map)
-        setLoadingHistory(false)
-      })
-  }, [expandedCompany, filtered])
+  const trackBg = isDark ? '#242422' : '#e8e5df'
+  const GRID = 'minmax(200px, 2.5fr) minmax(110px, 1fr) 90px 72px 64px 40px'
+  const HEADER_STYLE: React.CSSProperties = { fontSize: '10px', fontWeight: 600, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em' }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: isDark ? '#0d0c0a' : '#f9fafb' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: pageBg, overflow: 'hidden' }}>
 
-      {/* Header */}
-      <div style={{
-        height: '56px', minHeight: '56px', display: 'flex', alignItems: 'center',
-        justifyContent: 'space-between', padding: '0 20px',
-        borderBottom: `1px solid ${border}`, flexShrink: 0, gap: '12px',
-        backgroundColor: isDark ? '#0d0c0a' : '#f9fafb',
-      }}>
-        <div>
-          <p style={{ fontSize: '16px', fontWeight: 600, color: text, letterSpacing: '-0.02em' }}>Clientes</p>
-          <p style={{ fontSize: '12px', color: muted, marginTop: '2px' }}>
-            {`${filtered.length} empresas · ${fmt(totalPipeline)} em pipeline · ${fmt(totalWon)} fechado`}
-          </p>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <div style={{ position: 'relative' }}>
-            <Search style={{
-              position: 'absolute', left: '9px', top: '50%', transform: 'translateY(-50%)',
-              width: '13px', height: '13px', color: muted, pointerEvents: 'none',
-            }} />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Buscar empresa, setor..."
-              style={{
-                height: '34px', paddingLeft: '30px', paddingRight: '10px',
-                fontSize: '13px', width: '220px',
-                backgroundColor: inputBg, border: `1px solid ${inputBorder}`,
-                borderRadius: '7px', color: text, outline: 'none',
-              }}
-            />
+      {/* ── Top bar ── */}
+      <div style={{ padding: '0 20px', height: '64px', minHeight: '64px', flexShrink: 0, borderBottom: `1px solid ${border}`, backgroundColor: pageBg, display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
+            <Building2 size={18} color={text} />
+            <p style={{ fontSize: '20px', fontWeight: 600, color: text, letterSpacing: '-0.03em', margin: 0 }}>Clientes</p>
           </div>
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: '5px',
-            fontSize: '12px', fontWeight: 600, color: 'var(--brand)',
-            backgroundColor: isDark ? 'rgba(185,28,34,0.10)' : '#fff1f2',
-            border: '1px solid rgba(185,28,34,0.20)',
-            borderRadius: '7px', padding: '5px 12px',
-          }}>
-            <Activity style={{ width: '13px', height: '13px' }} />
-            {filtered.filter((c) => c.active > 0).length} ativos
-          </div>
-          <button
-            type="button"
-            onClick={() => navigate('/pipeline')}
-            style={{
-              display: 'flex', alignItems: 'center', gap: '6px',
-              height: '34px', padding: '0 14px',
-              backgroundColor: '#101828', color: '#fff',
-              border: 'none', borderRadius: '7px',
-              fontSize: '13px', fontWeight: 500, cursor: 'pointer',
-              transition: 'background-color 0.15s ease',
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--brand)' }}
-            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#101828' }}
-          >
-            + Novo Lead
-          </button>
+          <p style={{ fontSize: '13px', color: muted, margin: 0 }}>{filtered.length} empresa{filtered.length !== 1 ? 's' : ''}</p>
         </div>
+        <div style={{ position: 'relative' }}>
+          <Search size={11} style={{ position: 'absolute', left: '9px', top: '50%', transform: 'translateY(-50%)', color: muted, pointerEvents: 'none' }} />
+          <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Buscar empresa ou contacto..."
+            style={{ height: '30px', paddingLeft: '28px', paddingRight: searchQuery ? '28px' : '10px', fontSize: '12px', width: '220px', backgroundColor: inputBg, border: `1px solid ${border}`, borderRadius: '8px', color: text, outline: 'none', boxSizing: 'border-box' }}
+            onFocus={(e) => { e.currentTarget.style.borderColor = '#6b1212' }}
+            onBlur={(e) => { e.currentTarget.style.borderColor = border }}
+          />
+          {searchQuery && (
+            <button type="button" onClick={() => setSearchQuery('')} style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: muted, display: 'flex', padding: 0 }}>
+              <X size={11} />
+            </button>
+          )}
+        </div>
+        <button type="button" onClick={() => navigate('/pipeline')}
+          style={{ display: 'flex', alignItems: 'center', gap: '5px', height: '30px', padding: '0 12px', backgroundColor: '#6b1212', color: '#fff', border: 'none', borderRadius: '7px', fontSize: '11px', fontWeight: 600, cursor: 'pointer', flexShrink: 0 }}
+          onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.88' }}
+          onMouseLeave={(e) => { e.currentTarget.style.opacity = '1' }}>
+          + Novo Lead
+        </button>
       </div>
 
-      {/* Summary cards */}
-      <div style={{ padding: '16px 20px 0', display: 'flex', gap: '10px', flexShrink: 0 }}>
-        {[
-          { label: 'Empresas',  value: String(filtered.length), icon: Building2, color: '#667085' },
-          { label: 'Pipeline',  value: fmt(totalPipeline), icon: TrendingUp, color: 'var(--brand)' },
-          { label: 'Fechado',   value: fmt(totalWon), icon: DollarSign, color: '#15803d' },
-          { label: 'Ativos',    value: String(filtered.filter((c) => c.active > 0).length), icon: Activity, color: '#2563eb' },
-        ].map(({ label, value, icon: Icon, color }) => (
-          <div key={label} style={{
-            flex: 1, padding: '12px 16px', borderRadius: '10px',
-            backgroundColor: cardBg,
-            border: `1px solid ${border}`,
-            boxShadow: isDark ? 'none' : '0 1px 3px rgba(16,24,40,0.06)',
-            display: 'flex', alignItems: 'center', gap: '12px',
-          }}>
-            <div style={{
-              width: '34px', height: '34px', borderRadius: '8px', flexShrink: 0,
-              backgroundColor: `${color}14`,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <Icon style={{ width: '15px', height: '15px', color }} />
-            </div>
-            <div>
-              <p style={{ fontSize: '16px', fontWeight: 600, color: text, fontFamily: "'Geist Mono', monospace", letterSpacing: '-0.03em' }}>{value}</p>
-              <p style={{ fontSize: '11px', color: muted, marginTop: '1px' }}>{label}</p>
-            </div>
-          </div>
-        ))}
-      </div>
+      {/* ── Table ── */}
+      <div style={{ flex: 1, overflowY: 'auto' }}>
+        {/* Table header */}
+        <div style={{
+          display: 'grid', gridTemplateColumns: GRID,
+          padding: '8px 20px', gap: '12px',
+          borderBottom: `1px solid ${border}`,
+          position: 'sticky', top: 0, zIndex: 5,
+          backgroundColor: subtleBg,
+        }}>
+          {['Empresa', 'Setor / Porte', 'Win Rate', 'Saúde', 'Deals', ''].map((h) => (
+            <span key={h} style={HEADER_STYLE}>{h}</span>
+          ))}
+        </div>
 
-      {/* Table */}
-      <div style={{ flex: 1, overflowY: 'auto', overflowX: 'auto', padding: '12px 20px' }}>
         {filtered.length === 0 ? (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: '8px' }}>
-            <Building2 style={{ width: '28px', height: '28px', color: border }} />
-            <p style={{ fontSize: '13px', fontWeight: 600, color: muted }}>
-              {searchQuery ? 'Nenhuma empresa encontrada' : 'Nenhum cliente ainda'}
-            </p>
-            <p style={{ fontSize: '12px', color: isDark ? '#3a3834' : '#c4bfb8' }}>
-              {searchQuery ? 'Tente outros termos' : 'Adicione deals no Pipeline para ver clientes aqui'}
-            </p>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '10px', padding: '60px 20px' }}>
+            <Building2 size={32} color={isDark ? '#2a2a28' : '#d1cdc8'} />
+            <p style={{ fontSize: '14px', fontWeight: 600, color: muted }}>{searchQuery ? 'Sem resultados' : 'Nenhum cliente ainda'}</p>
           </div>
-        ) : (
-          <div style={{ minWidth: '640px', backgroundColor: cardBg, borderRadius: '10px', border: `1px solid ${border}`, overflow: 'hidden', boxShadow: isDark ? 'none' : '0 1px 3px rgba(16,24,40,0.06)' }}>
-            {/* Column headers */}
-            <div style={{
-              display: 'grid', gridTemplateColumns: 'minmax(180px, 2fr) minmax(80px, 110px) minmax(60px, 80px) minmax(100px, 120px) minmax(100px, 120px) 64px',
-              padding: '10px 20px', gap: '10px',
-              borderBottom: `1px solid ${border}`,
-              backgroundColor: isDark ? '#111110' : '#f9fafb',
-            }}>
-              {['Empresa', 'Setor', 'Tam.', 'Pipeline', 'Fechado'].map((h) => (
-                <p key={h} style={{ fontSize: '10px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{h}</p>
-              ))}
-              <span />
-            </div>
-
-            {filtered.map((company, idx) => {
-              const stage       = STAGES.find((s) => s.id === company.latestStage)
-              const ownerColors = [...new Set(
-                company.deals
-                  .map((d) => d.owner?.avatar_color)
-                  .filter((c): c is string => Boolean(c))
-              )].slice(0, 3)
-              const isExpanded  = expandedCompany === company.name
-              const isLast      = idx === filtered.length - 1
-
-              return (
-                <div key={company.name}>
-                  {/* Company row */}
-                  <button
-                    type="button"
-                    onClick={() => setExpandedCompany(isExpanded ? null : company.name)}
-                    style={{
-                      display: 'grid', gridTemplateColumns: 'minmax(180px, 2fr) minmax(80px, 110px) minmax(60px, 80px) minmax(100px, 120px) minmax(100px, 120px) 64px',
-                      width: '100%', padding: '13px 20px', gap: '10px', alignItems: 'center',
-                      borderBottom: `1px solid ${isExpanded || isLast ? 'transparent' : border}`,
-                      background: isExpanded ? (isDark ? '#161614' : '#f8f7f4') : 'none',
-                      cursor: 'pointer',
-                      textAlign: 'left', transition: 'background-color 0.1s ease',
-                    }}
-                    onMouseEnter={(e) => { if (!isExpanded) e.currentTarget.style.backgroundColor = hoverBg }}
-                    onMouseLeave={(e) => { if (!isExpanded) e.currentTarget.style.backgroundColor = 'transparent' }}
-                  >
-                    {/* Company */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
-                      <div style={{
-                        width: '36px', height: '36px', borderRadius: '4px', flexShrink: 0,
-                        backgroundColor: stage ? `${stage.color}18` : trackBg,
-                        border: `1px solid ${stage ? `${stage.color}30` : border}`,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      }}>
-                        <Building2 style={{ width: '15px', height: '15px', color: stage?.color ?? muted }} />
-                      </div>
-                      <div style={{ minWidth: 0 }}>
-                        <p style={{ fontSize: '13px', fontWeight: 600, color: text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {company.name}
-                        </p>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '3px' }}>
-                          {stage && (
-                            <span style={{
-                              fontSize: '9px', fontWeight: 700, color: stage.color,
-                              backgroundColor: `${stage.color}14`, borderRadius: '3px', padding: '1px 6px',
-                              border: `1px solid ${stage.color}25`,
-                            }}>
-                              {stage.label}
-                            </span>
-                          )}
-                          <div style={{ display: 'flex', gap: '2px' }}>
-                            {ownerColors.map((color, i) => (
-                              <div key={i} style={{
-                                width: '14px', height: '14px', borderRadius: '50%',
-                                backgroundColor: color, border: `1.5px solid ${cardBg}`,
-                              }} />
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Sector */}
-                    <p style={{ fontSize: '12px', color: muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {company.sector ?? '—'}
+        ) : filtered.map((company) => {
+          const stage = STAGES.find((s) => s.id === company.latestStage)
+          const initial = company.name.trim().charAt(0).toUpperCase()
+          const healthColor = company.avgHealth >= 70 ? '#2a9a5a' : company.avgHealth >= 45 ? '#a88030' : company.active === 0 ? muted : '#b83535'
+          const isSelected = selectedCompany?.name === company.name
+          return (
+            <button
+              key={company.name}
+              type="button"
+              onClick={() => setSelectedCompany(isSelected ? null : company)}
+              style={{
+                display: 'grid', gridTemplateColumns: GRID, gap: '12px',
+                width: '100%', padding: '11px 20px',
+                backgroundColor: isSelected ? (isDark ? 'rgba(107,18,18,0.12)' : 'rgba(107,18,18,0.05)') : 'transparent',
+                borderBottom: `1px solid ${border}`,
+                borderLeft: isSelected ? '3px solid #6b1212' : '3px solid transparent',
+                cursor: 'pointer', textAlign: 'left',
+                transition: 'background-color 0.12s ease, border-left-color 0.12s ease',
+                alignItems: 'center',
+              }}
+              onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.backgroundColor = isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)' }}
+              onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.backgroundColor = 'transparent' }}
+            >
+              {/* Empresa */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                <div style={{
+                  width: '32px', height: '32px', borderRadius: '10px', flexShrink: 0,
+                  background: stage ? `linear-gradient(135deg, ${stage.color}22, ${stage.color}0a)` : (isDark ? '#1e1e1c' : '#eeece8'),
+                  border: `1px solid ${stage ? `${stage.color}28` : border}`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: '13px', fontWeight: 700, color: stage?.color ?? muted,
+                }}>
+                  {initial}
+                </div>
+                <div style={{ minWidth: 0 }}>
+                  <p style={{ fontSize: '13px', fontWeight: 600, color: text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {company.name}
+                  </p>
+                  {company.contactName && (
+                    <p style={{ fontSize: '10px', color: muted, marginTop: '1px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {company.contactName}
                     </p>
-
-                    {/* Size */}
-                    <p style={{ fontSize: '12px', color: muted }}>
-                      {company.size ? SIZE_LABELS[company.size] ?? company.size : '—'}
-                    </p>
-
-                    {/* Pipeline */}
-                    <div>
-                      <p style={{ fontSize: '13px', fontWeight: 700, color: company.pipeline > 0 ? text : muted, fontVariantNumeric: 'tabular-nums' }}>
-                        {company.pipeline > 0 ? fmt(company.pipeline) : '—'}
-                      </p>
-                      {company.active > 0 && (
-                        <p style={{ fontSize: '10px', color: '#4a7c8a', marginTop: '1px', fontWeight: 600 }}>
-                          {company.active} deal{company.active > 1 ? 's' : ''}
-                        </p>
-                      )}
-                    </div>
-
-                    {/* Won */}
-                    <div>
-                      <p style={{ fontSize: '13px', fontWeight: 700, color: company.revenue > 0 ? '#2d9e6b' : muted, fontVariantNumeric: 'tabular-nums' }}>
-                        {company.revenue > 0 ? fmt(company.revenue) : '—'}
-                      </p>
-                      {company.won > 0 && (
-                        <p style={{ fontSize: '10px', color: '#2d9e6b', marginTop: '1px', fontWeight: 600 }}>
-                          {company.won} fechado{company.won > 1 ? 's' : ''}
-                        </p>
-                      )}
-                    </div>
-
-                    {/* Actions: email + expand */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
-                      {company.contactEmail && (
-                        <button
-                          type="button"
-                          title={`Enviar email a ${company.contactEmail}`}
-                          onClick={(e) => { e.stopPropagation(); navigate(`/email?to=${encodeURIComponent(company.contactEmail!)}`) }}
-                          style={{ width: '24px', height: '24px', borderRadius: '6px', backgroundColor: 'transparent', border: `1px solid ${border}`, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: muted, flexShrink: 0 }}
-                          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = hoverBg; e.currentTarget.style.color = '#e31e24'; e.currentTarget.style.borderColor = '#e31e24' }}
-                          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = muted; e.currentTarget.style.borderColor = border }}
-                        >
-                          <Mail style={{ width: '11px', height: '11px' }} />
-                        </button>
-                      )}
-                      <div style={{
-                        width: '24px', height: '24px', borderRadius: '6px', flexShrink: 0,
-                        backgroundColor: isExpanded ? (isDark ? '#2a2a28' : '#eeece8') : 'transparent',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      }}>
-                        {isExpanded
-                          ? <ChevronDown style={{ width: '13px', height: '13px', color: muted }} />
-                          : <ChevronRight style={{ width: '13px', height: '13px', color: muted }} />
-                        }
-                      </div>
-                    </div>
-                  </button>
-
-                  {/* Expanded deals list + pipeline journey */}
-                  {isExpanded && (
-                    <div style={{
-                      borderBottom: isLast ? 'none' : `1px solid ${border}`,
-                      backgroundColor: isDark ? '#111110' : '#f9fafb',
-                    }}>
-                      {company.deals.map((deal, di) => {
-                        const dealStage = STAGES.find((s) => s.id === deal.stage_id)
-                        const history   = stageHistoryMap[deal.id] ?? []
-                        const isLastDeal = di === company.deals.length - 1
-
-                        return (
-                          <div key={deal.id} style={{ borderBottom: isLastDeal ? 'none' : `1px solid ${isDark ? '#1a1a18' : '#eeece8'}` }}>
-                            {/* Deal row */}
-                            <button
-                              type="button"
-                              onClick={(e) => { e.stopPropagation(); navigate(`/deal/${deal.id}`) }}
-                              style={{
-                                display: 'flex', alignItems: 'center', gap: '10px',
-                                width: '100%', padding: '8px 20px 8px 66px', borderRadius: '0',
-                                backgroundColor: 'transparent', border: 'none', cursor: 'pointer',
-                                textAlign: 'left',
-                              }}
-                              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = hoverBg; const arrow = e.currentTarget.querySelector<HTMLElement>('[data-arrow]'); if (arrow) arrow.style.color = '#e31e24' }}
-                              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; const arrow = e.currentTarget.querySelector<HTMLElement>('[data-arrow]'); if (arrow) arrow.style.color = muted }}
-                            >
-                              {dealStage && (
-                                <span style={{
-                                  fontSize: '9px', fontWeight: 700, color: dealStage.color,
-                                  backgroundColor: `${dealStage.color}18`, borderRadius: '3px',
-                                  padding: '2px 8px', flexShrink: 0, whiteSpace: 'nowrap',
-                                  border: `1px solid ${dealStage.color}25`,
-                                }}>
-                                  {dealStage.label}
-                                </span>
-                              )}
-                              <p style={{ fontSize: '12px', fontWeight: 500, color: text, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                {deal.contact_name || deal.title}
-                              </p>
-                              {deal.owner && (
-                                <div title={deal.owner.name} style={{
-                                  width: '20px', height: '20px', borderRadius: '50%', flexShrink: 0,
-                                  backgroundColor: deal.owner.avatar_color,
-                                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                  fontSize: '8px', fontWeight: 700, color: '#fff',
-                                }}>
-                                  {deal.owner.initials}
-                                </div>
-                              )}
-                              <p style={{ fontSize: '12px', fontWeight: 600, color: deal.stage_id === 'closed_won' ? '#2d9e6b' : text, fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
-                                {Number(deal.value) > 0 ? fmtFull(Number(deal.value)) : '—'}
-                              </p>
-                              {deal.contact_email && (
-                                <button type="button" title={`Enviar email a ${deal.contact_email}`}
-                                  onClick={(e) => { e.stopPropagation(); navigate(`/email?to=${encodeURIComponent(deal.contact_email!)}`) }}
-                                  style={{ width: '22px', height: '22px', borderRadius: '5px', border: `1px solid ${border}`, backgroundColor: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: muted, flexShrink: 0 }}
-                                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = hoverBg; e.currentTarget.style.color = '#e31e24' }}
-                                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = muted }}
-                                >
-                                  <Mail style={{ width: '11px', height: '11px' }} />
-                                </button>
-                              )}
-                              <ArrowRight data-arrow="" style={{ width: '10px', height: '10px', color: muted, flexShrink: 0 }} />
-                            </button>
-
-                            {/* Pipeline journey for this deal */}
-                            {!loadingHistory && (
-                              <div style={{ padding: '6px 20px 10px 66px' }}>
-                                <p style={{ fontSize: '9px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '6px' }}>
-                                  Jornada no Pipeline
-                                </p>
-                                {history.length === 0 ? (
-                                  <p style={{ fontSize: '11px', color: muted, fontStyle: 'italic' }}>Sem movimentações registadas ainda</p>
-                                ) : (
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
-                                    {/* First stage pill */}
-                                    {history[0].from_stage && (() => {
-                                      const s = STAGES.find((st) => st.id === history[0].from_stage)
-                                      return s ? (
-                                        <span style={{ fontSize: '9px', fontWeight: 600, color: s.color, backgroundColor: `${s.color}14`, border: `1px solid ${s.color}30`, borderRadius: '3px', padding: '1px 6px', whiteSpace: 'nowrap' }}>
-                                          {s.label}
-                                        </span>
-                                      ) : null
-                                    })()}
-                                    {history.map((entry, hi) => {
-                                      const toStage = STAGES.find((st) => st.id === entry.to_stage)
-                                      return (
-                                        <React.Fragment key={entry.id}>
-                                          <span style={{ color: muted, fontSize: '10px' }}>→</span>
-                                          <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1px' }}>
-                                            {toStage && (
-                                              <span style={{ fontSize: '9px', fontWeight: 600, color: toStage.color, backgroundColor: `${toStage.color}14`, border: `1px solid ${toStage.color}30`, borderRadius: '3px', padding: '1px 6px', whiteSpace: 'nowrap' }}>
-                                                {toStage.label}
-                                              </span>
-                                            )}
-                                            {entry.days_in_previous_stage > 0 && hi < history.length && (
-                                              <span style={{ fontSize: '8px', color: muted }}>{entry.days_in_previous_stage}d</span>
-                                            )}
-                                          </span>
-                                        </React.Fragment>
-                                      )
-                                    })}
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        )
-                      })}
-                    </div>
                   )}
                 </div>
-              )
-            })}
-          </div>
-        )}
+              </div>
+
+              {/* Setor / Porte */}
+              <div style={{ minWidth: 0 }}>
+                {company.sector && <p style={{ fontSize: '11px', color: text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{company.sector}</p>}
+                {company.size && <p style={{ fontSize: '10px', color: muted, marginTop: '1px' }}>{SIZE_LABELS[company.size] ?? company.size}</p>}
+                {!company.sector && !company.size && <p style={{ fontSize: '11px', color: muted, fontStyle: 'italic' }}>—</p>}
+              </div>
+
+              {/* Win Rate */}
+              <div>
+                <p style={{ fontSize: '13px', fontWeight: 600, color: company.winRate >= 50 ? '#2a9a5a' : '#a88030', fontFamily: "'Geist Mono', monospace" }}>
+                  {company.winRate}%
+                </p>
+                <p style={{ fontSize: '10px', color: muted, marginTop: '1px' }}>{company.won} ganhos</p>
+              </div>
+
+              {/* Saúde */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
+                {company.active > 0 ? (
+                  <>
+                    <HealthRing score={company.avgHealth} size={28} />
+                    <div>
+                      <p style={{ fontSize: '12px', fontWeight: 700, color: healthColor, fontFamily: "'Geist Mono', monospace" }}>{company.avgHealth}</p>
+                      <div style={{ width: '36px', height: '2px', borderRadius: '99px', backgroundColor: trackBg, overflow: 'hidden', marginTop: '2px' }}>
+                        <div style={{ height: '100%', width: `${company.avgHealth}%`, backgroundColor: healthColor, borderRadius: '99px' }} />
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <p style={{ fontSize: '11px', color: muted, fontStyle: 'italic' }}>—</p>
+                )}
+              </div>
+
+              {/* Deals */}
+              <div>
+                <p style={{ fontSize: '13px', fontWeight: 600, color: text, fontFamily: "'Geist Mono', monospace" }}>{company.deals.length}</p>
+                <p style={{ fontSize: '10px', color: muted, marginTop: '1px' }}>
+                  {company.active > 0 ? `${company.active} ativo${company.active > 1 ? 's' : ''}` : 'sem ativos'}
+                </p>
+              </div>
+
+              {/* Arrow */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <ArrowRight size={13} color={isSelected ? '#6b1212' : muted} />
+              </div>
+            </button>
+          )
+        })}
       </div>
+
+      {selectedCompany && (
+        <SidePanel company={selectedCompany} isDark={isDark} onClose={() => setSelectedCompany(null)} />
+      )}
     </div>
   )
 }

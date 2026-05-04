@@ -84,8 +84,14 @@ export interface Deal {
   // ── Lead metadata ─────────────────────────────────────
   lead_source?: LeadSource
   loss_reason?: string | null
-  lead_temperature?: 'hot' | 'warm' | 'cold' | null
   segment?: 'B2B' | 'B2C' | 'B2G' | null
+  lead_temperature?: 'hot' | 'warm' | 'cold' | null
+
+  // ── Health ────────────────────────────────────────────
+  health_score?: number | null
+  health_status?: string | null
+  health_calculated_at?: string | null
+  total_activities_count?: number
 
   // ── Stage tracking ────────────────────────────────────
   stage_changed_at?: string | null

@@ -47,10 +47,19 @@ interface EmailThread {
 
 // ─── Mock Data ────────────────────────────────────────────────────────────────
 
+// Paleta de avatares: bordeaux e variações sóbrias — sem cores gritantes
+const AVATAR_PALETTE = ['#7a1515', '#8b4a4a', '#6b5a6b', '#4a5e6b', '#5a6b5a', '#6b6248']
+
+function avatarColor(name: string): string {
+  let h = 0
+  for (let i = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h)
+  return AVATAR_PALETTE[Math.abs(h) % AVATAR_PALETTE.length]
+}
+
 const MOCK_EMAILS: EmailThread[] = [
   {
     id: '1',
-    from: { name: 'Ana Rodrigues', email: 'ana.rodrigues@globaltech.pt', initials: 'AR', color: '#3b5bdb' },
+    from: { name: 'Ana Rodrigues', email: 'ana.rodrigues@globaltech.pt', initials: 'AR', color: avatarColor('Ana Rodrigues') },
     subject: 'Proposta Comercial — Licenças Enterprise Q2',
     preview: 'Conforme acordado na nossa reunião de terça, segue em anexo a proposta atualizada para as 50 licenças...',
     body: 'Boa tarde,\n\nConforme acordado na nossa reunião de terça-feira, segue em anexo a proposta atualizada para as 50 licenças Enterprise para o segundo trimestre.\n\nOs valores refletem o desconto de 15% negociado, com vigência de 12 meses e suporte prioritário incluído.\n\nAguardo a sua confirmação para prosseguirmos com a assinatura do contrato.\n\nCom os melhores cumprimentos,\nAna Rodrigues\nAccount Manager — GlobalTech',
@@ -61,7 +70,7 @@ const MOCK_EMAILS: EmailThread[] = [
   },
   {
     id: '2',
-    from: { name: 'Marco Pinto', email: 'm.pinto@solucoesinfinitas.com', initials: 'MP', color: '#2f9e44' },
+    from: { name: 'Marco Pinto', email: 'm.pinto@solucoesinfinitas.com', initials: 'MP', color: avatarColor('Marco Pinto') },
     subject: 'Re: Follow-up reunião de onboarding',
     preview: 'Olá equipa, ficou alguma dúvida sobre o processo de integração? Estou disponível esta semana para...',
     body: 'Olá equipa,\n\nFicou alguma dúvida sobre o processo de integração depois da sessão de onboarding de ontem?\n\nEstou disponível esta semana para uma chamada rápida de 30 minutos, caso necessitem de esclarecimentos adicionais sobre a configuração do módulo de relatórios.\n\nPor favor, avisem com pelo menos 2 horas de antecedência.\n\nCumprimentos,\nMarco Pinto\nCustomer Success',
@@ -72,7 +81,7 @@ const MOCK_EMAILS: EmailThread[] = [
   },
   {
     id: '3',
-    from: { name: 'Sofia Mendes', email: 'sofia@aureatech.io', initials: 'SM', color: '#e67700' },
+    from: { name: 'Sofia Mendes', email: 'sofia@aureatech.io', initials: 'SM', color: avatarColor('Sofia Mendes') },
     subject: '[Interno] Revisão do pipeline Q2 — ação necessária',
     preview: 'Pessoal, precisamos fechar os deals em fase de negociação antes do dia 30. Segue a lista de...',
     body: 'Pessoal,\n\nPrecisamos fechar os deals em fase de negociação antes do final do mês para atingir o target do Q2.\n\nSegue a lista de oportunidades que requerem ação imediata:\n\n• GlobalTech — proposta enviada, aguardar aprovação\n• Infinitas — contrato em revisão legal\n• Nexaflow — demo agendada para sexta\n\nPor favor, atualizem o CRM com o estado atual até amanhã ao fim do dia.\n\nObrigada,\nSofia',
@@ -83,7 +92,7 @@ const MOCK_EMAILS: EmailThread[] = [
   },
   {
     id: '4',
-    from: { name: 'Tomás Ferreira', email: 'tomas.ferreira@nexaflow.io', initials: 'TF', color: '#7048e8' },
+    from: { name: 'Tomás Ferreira', email: 'tomas.ferreira@nexaflow.io', initials: 'TF', color: avatarColor('Tomás Ferreira') },
     subject: 'Confirmação demo — 26 Abril 14h00',
     preview: 'Confirmo a nossa demonstração para sexta-feira, dia 26 de Abril, às 14h00. Participarão da nossa...',
     body: 'Bom dia,\n\nConfirmo a nossa demonstração para sexta-feira, dia 26 de Abril, às 14h00 via Google Meet.\n\nParticiparão da nossa parte: eu (CEO), Carla Santos (CTO) e Ricardo Lima (Head of Ops).\n\nLink da reunião: meet.google.com/abc-defg-hij\n\nAté sexta!\nTomás Ferreira\nCEO — Nexaflow',
@@ -94,7 +103,7 @@ const MOCK_EMAILS: EmailThread[] = [
   },
   {
     id: '5',
-    from: { name: 'Beatriz Costa', email: 'beatriz@innovaprime.pt', initials: 'BC', color: '#c2255c' },
+    from: { name: 'Beatriz Costa', email: 'beatriz@innovaprime.pt', initials: 'BC', color: avatarColor('Beatriz Costa') },
     subject: 'Dúvida sobre integração API REST',
     preview: 'Estamos a ter dificuldade em autenticar os pedidos para o endpoint /v2/webhooks. O erro retornado é...',
     body: 'Boa tarde,\n\nEstamos a ter dificuldade em autenticar os pedidos para o endpoint /v2/webhooks.\n\nO erro retornado é: 401 Unauthorized — "Invalid API key format".\n\nJá verificámos que a chave está correta no painel. Poderão confirmar se existe algum requisito adicional de cabeçalho na versão 2 da API?\n\nObrigada,\nBeatriz Costa\nDevOps Lead — InnovaPrime',
@@ -105,7 +114,7 @@ const MOCK_EMAILS: EmailThread[] = [
   },
   {
     id: '6',
-    from: { name: 'Pedro Alves', email: 'pedro.alves@vectordata.pt', initials: 'PA', color: '#0c8599' },
+    from: { name: 'Pedro Alves', email: 'pedro.alves@vectordata.pt', initials: 'PA', color: avatarColor('Pedro Alves') },
     subject: 'Re: Renovação de contrato — condições especiais',
     preview: 'Após análise interna, estamos dispostos a renovar por mais 2 anos com as condições discutidas. Precisamos...',
     body: 'Olá,\n\nApós análise interna, a nossa direção aprovou a renovação por mais 2 anos com as condições discutidas na reunião de março.\n\nPrecisamos, no entanto, de incluir uma cláusula de saída a 12 meses sem penalização. É algo que conseguem acomodar?\n\nSe sim, podemos avançar para a assinatura esta semana.\n\nCumprimentos,\nPedro Alves\nCFO — VectorData',
@@ -116,7 +125,7 @@ const MOCK_EMAILS: EmailThread[] = [
   },
   {
     id: '7',
-    from: { name: 'Inês Lopes', email: 'ines@aureatech.io', initials: 'IL', color: '#5c7cfa' },
+    from: { name: 'Inês Lopes', email: 'ines@aureatech.io', initials: 'IL', color: avatarColor('Inês Lopes') },
     subject: '[Interno] Templates de proposta atualizados',
     preview: 'Partilho os novos templates de proposta aprovados pelo marketing. Usem a versão 3.2 daqui para...',
     body: 'Olá equipa,\n\nPartilho os novos templates de proposta aprovados pelo marketing para o Q2.\n\nUsem a versão 3.2 daqui para a frente — a antiga versão não deve ser utilizada em novos envios.\n\nPrincipais alterações:\n• Novo layout de capa\n• Secção de casos de sucesso atualizada\n• Tabela de preços com IVA separado\n\nFicheiros disponíveis na pasta partilhada.\n\nInês',
@@ -127,7 +136,7 @@ const MOCK_EMAILS: EmailThread[] = [
   },
   {
     id: '8',
-    from: { name: 'Carlos Nunes', email: 'carlos.nunes@meridian.eu', initials: 'CN', color: '#339af0' },
+    from: { name: 'Carlos Nunes', email: 'carlos.nunes@meridian.eu', initials: 'CN', color: avatarColor('Carlos Nunes') },
     subject: 'Interesse em solução para equipa de vendas (30 utilizadores)',
     preview: 'Vim ao vosso stand na Web Summit e fiquei interessado na solução. Somos uma empresa com 30 comerciais e...',
     body: 'Bom dia,\n\nVim ao vosso stand na Web Summit Lisboa e fiquei bastante interessado na solução CRM que apresentaram.\n\nSomos uma empresa com 30 comerciais distribuídos por 4 países europeus. O nosso principal desafio é a visibilidade do pipeline e a gestão de atividades cross-border.\n\nPoderiam agendar uma demo para a próxima semana? Tenho disponibilidade terça ou quarta depois das 15h.\n\nObrigado,\nCarlos Nunes\nSales Director — Meridian EU',
@@ -138,7 +147,7 @@ const MOCK_EMAILS: EmailThread[] = [
   },
   {
     id: '9',
-    from: { name: 'Marta Silva', email: 'marta@aureatech.io', initials: 'MS', color: '#f76707' },
+    from: { name: 'Marta Silva', email: 'marta@aureatech.io', initials: 'MS', color: avatarColor('Marta Silva') },
     subject: '[Interno] Reunião pipeline semanal — ata',
     preview: 'Segue a ata da reunião de pipeline de segunda-feira. Principais decisões: deal GlobalTech prioritário...',
     body: 'Boa tarde,\n\nSegue a ata da reunião de pipeline de segunda-feira.\n\nPrincipais decisões:\n• Deal GlobalTech elevado a prioridade máxima — Ana como owner\n• Nexaflow: avançar para demo esta semana\n• VectorData: preparar proposta de renovação com cláusula de saída\n• Meridian EU: qualificar lead e agendar discovery call\n\nPróxima reunião: segunda-feira, 10h00.\n\nMarta',
@@ -149,7 +158,7 @@ const MOCK_EMAILS: EmailThread[] = [
   },
   {
     id: '10',
-    from: { name: 'João Baptista', email: 'j.baptista@digitalpulse.pt', initials: 'JB', color: '#2f9e44' },
+    from: { name: 'João Baptista', email: 'j.baptista@digitalpulse.pt', initials: 'JB', color: avatarColor('João Baptista') },
     subject: 'Proposta rejeitada — feedback',
     preview: 'Lamentamos informar que após avaliação interna decidimos não avançar com a vossa proposta nesta fase...',
     body: 'Bom dia,\n\nLamentamos informar que após avaliação interna decidimos não avançar com a vossa proposta nesta fase.\n\nOs principais motivos prendem-se com o custo da implementação inicial e o prazo de retorno estimado, que ficou acima das nossas expectativas para 2026.\n\nNão descartamos reavaliar a parceria no próximo exercício fiscal. Ficam com a porta aberta.\n\nCom os nossos cumprimentos,\nJoão Baptista\nCOO — DigitalPulse',
@@ -160,7 +169,7 @@ const MOCK_EMAILS: EmailThread[] = [
   },
   {
     id: '11',
-    from: { name: 'Robert Ferreira', email: 'robert.sousa@aureatech.io', initials: 'RF', color: '#3b5bdb' },
+    from: { name: 'Robert Ferreira', email: 'robert.sousa@aureatech.io', initials: 'RF', color: avatarColor('Robert Ferreira') },
     subject: 'Proposta enviada — GlobalTech Enterprise Q2',
     preview: 'Boa tarde Ana, conforme combinado, segue em anexo a proposta revisada para as 50 licenças Enterprise...',
     body: 'Boa tarde Ana,\n\nConforme combinado na nossa call desta manhã, segue em anexo a proposta revisada para as 50 licenças Enterprise com o desconto de 15% aplicado.\n\nValidade da proposta: 30 dias.\n\nQualquer dúvida, estou disponível.\n\nCumprimentos,\nRobert Ferreira',
@@ -171,7 +180,7 @@ const MOCK_EMAILS: EmailThread[] = [
   },
   {
     id: '12',
-    from: { name: 'Robert Ferreira', email: 'robert.sousa@aureatech.io', initials: 'RF', color: '#3b5bdb' },
+    from: { name: 'Robert Ferreira', email: 'robert.sousa@aureatech.io', initials: 'RF', color: avatarColor('Robert Ferreira') },
     subject: 'Follow-up — Demo Nexaflow agendada',
     preview: 'Tomás, muito obrigado pela confirmação. Estamos a preparar a demonstração com foco nas funcionalidades...',
     body: 'Olá Tomás,\n\nMuito obrigado pela confirmação da disponibilidade para sexta-feira.\n\nEstamos a preparar a demonstração com foco especial nas funcionalidades de gestão de pipeline e automação de atividades, que parecem ser as áreas de maior interesse para a Nexaflow.\n\nAté sexta!\nRobert',
@@ -182,7 +191,7 @@ const MOCK_EMAILS: EmailThread[] = [
   },
   {
     id: '13',
-    from: { name: 'Robert Ferreira', email: 'robert.sousa@aureatech.io', initials: 'RF', color: '#3b5bdb' },
+    from: { name: 'Robert Ferreira', email: 'robert.sousa@aureatech.io', initials: 'RF', color: avatarColor('Robert Ferreira') },
     subject: '[Rascunho] Proposta renovação VectorData 2026-2028',
     preview: 'Pedro, na sequência da nossa conversa, preparei uma proposta de renovação que inclui a cláusula...',
     body: 'Pedro,\n\nNa sequência da nossa conversa, preparei uma proposta de renovação que inclui a cláusula de saída a 12 meses sem penalização solicitada.\n\nO valor anual mantém-se com um ajuste de 3% para inflação.\n\n[RASCUNHO — pendente revisão jurídica]',
@@ -196,11 +205,11 @@ const MOCK_EMAILS: EmailThread[] = [
 // ─── Label config ─────────────────────────────────────────────────────────────
 
 const LABEL_CONFIG: Record<LabelKey, { label: string; color: string; bg: string }> = {
-  'importante': { label: 'Importante', color: '#dc2626', bg: 'rgba(220,38,38,0.12)' },
-  'follow-up':  { label: 'Follow-up',  color: '#d97706', bg: 'rgba(217,119,6,0.12)'  },
-  'cliente':    { label: 'Cliente',    color: '#2563eb', bg: 'rgba(37,99,235,0.12)'   },
-  'interno':    { label: 'Interno',    color: '#6b7280', bg: 'rgba(107,114,128,0.12)' },
-  'proposta':   { label: 'Proposta',   color: '#16a34a', bg: 'rgba(22,163,74,0.12)'   },
+  'importante': { label: 'Importante', color: '#b83535', bg: 'rgba(184,53,53,0.10)' },
+  'follow-up':  { label: 'Follow-up',  color: '#a88030', bg: 'rgba(168,128,48,0.10)' },
+  'cliente':    { label: 'Cliente',    color: '#4d7aa8', bg: 'rgba(77,122,168,0.10)' },
+  'interno':    { label: 'Interno',    color: '#7a7268', bg: 'rgba(122,114,104,0.10)' },
+  'proposta':   { label: 'Proposta',   color: '#2a9a5a', bg: 'rgba(42,154,90,0.10)'  },
 }
 
 // ─── Folder config ────────────────────────────────────────────────────────────
@@ -324,7 +333,7 @@ export function EmailPage() {
             name: row.from_name,
             email: row.from_email,
             initials: row.from_name.split(' ').map((w: string) => w[0]).slice(0, 2).join('').toUpperCase(),
-            color: profile.avatar_color ?? '#3b5bdb',
+            color: profile.avatar_color ?? '#4d7aa8',
           },
           subject: row.subject,
           preview: row.body.slice(0, 100).replace(/\n/g, ' '),
@@ -378,7 +387,7 @@ export function EmailPage() {
           name: profile?.full_name ?? 'Eu',
           email: profile?.email ?? '',
           initials: (profile?.full_name ?? 'EU').split(' ').map((w: string) => w[0]).slice(0, 2).join('').toUpperCase(),
-          color: profile?.avatar_color ?? '#3b5bdb',
+          color: profile?.avatar_color ?? '#4d7aa8',
         },
         subject,
         preview: body.slice(0, 100).replace(/\n/g, ' '),
@@ -399,6 +408,7 @@ export function EmailPage() {
     }
   }
 
+  const accent   = isDark ? '#e05050' : '#b83535'
   const border   = isDark ? '#242422' : '#e4e0da'
   const text     = isDark ? '#e8e4dc' : '#1a1814'
   const muted    = isDark ? '#6b6560' : '#8a857d'
@@ -477,8 +487,11 @@ export function EmailPage() {
       }}>
         {/* Title */}
         <div style={{ padding: '16px 16px 10px', borderBottom: `1px solid ${border}` }}>
-          <p style={{ fontSize: '13px', fontWeight: 700, color: text, letterSpacing: '-0.01em' }}>Email</p>
-          <p style={{ fontSize: '10px', color: muted, marginTop: '2px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
+            <Mail size={18} color={text} />
+            <p style={{ fontSize: '20px', fontWeight: 600, color: text, letterSpacing: '-0.03em', margin: 0 }}>Email</p>
+          </div>
+          <p style={{ fontSize: '13px', color: muted, marginTop: '2px' }}>
             {inboxUnread > 0 ? `${inboxUnread} não lido${inboxUnread > 1 ? 's' : ''}` : 'Tudo lido'}
           </p>
         </div>
@@ -490,7 +503,7 @@ export function EmailPage() {
             onClick={() => { setShowCompose(true); setComposeSent(false); setComposeTo(''); setComposeSubject(''); setComposeBody('') }}
             style={{
               width: '100%', height: '34px', borderRadius: '4px',
-              backgroundColor: '#e31e24',
+              backgroundColor: '#b83535',
               color: '#ffffff',
               border: 'none', cursor: 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -541,11 +554,11 @@ export function EmailPage() {
                 style={{
                   display: 'flex', alignItems: 'center', gap: '8px',
                   height: '32px', padding: '0 10px', borderRadius: '0',
-                  border: 'none', borderLeft: isActive ? '2px solid #e31e24' : '2px solid transparent',
+                  border: 'none', borderLeft: isActive ? `2px solid ${accent}` : '2px solid transparent',
                   cursor: 'pointer', width: '100%', textAlign: 'left',
                   fontSize: '12px', fontWeight: isActive ? 600 : 500,
-                  color: isActive ? '#e31e24' : muted,
-                  backgroundColor: isActive ? (isDark ? 'rgba(227,30,36,0.07)' : 'rgba(227,30,36,0.05)') : 'transparent',
+                  color: isActive ? accent : muted,
+                  backgroundColor: isActive ? (isDark ? 'rgba(184,53,53,0.07)' : 'rgba(184,53,53,0.05)') : 'transparent',
                   transition: 'background-color 0.12s ease',
                 }}
                 onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.backgroundColor = hoverBg }}
@@ -556,7 +569,7 @@ export function EmailPage() {
                 {badge > 0 && (
                   <span style={{
                     fontSize: '9px', fontWeight: 700, minWidth: '18px', height: '16px',
-                    borderRadius: '3px', backgroundColor: '#e31e24', color: '#fff',
+                    borderRadius: '3px', backgroundColor: '#b83535', color: '#fff',
                     display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px',
                   }}>
                     {badge > 9 ? '9+' : badge}
@@ -643,10 +656,10 @@ export function EmailPage() {
                     display: 'flex', alignItems: 'flex-start', gap: '10px',
                     width: '100%', padding: '11px 16px', textAlign: 'left',
                     border: 'none', borderBottom: `1px solid ${border}`, cursor: 'pointer',
-                    borderLeft: isSelected ? '3px solid #e31e24' : '3px solid transparent',
+                    borderLeft: isSelected ? `3px solid ${accent}` : '3px solid transparent',
                     paddingLeft: isSelected ? '13px' : '16px',
                     backgroundColor: isSelected
-                      ? (isDark ? 'rgba(227,30,36,0.08)' : '#f0f7f3')
+                      ? (isDark ? 'rgba(184,53,53,0.08)' : 'rgba(184,53,53,0.06)')
                       : !email.read
                         ? (isDark ? '#161614' : '#fafaf8')
                         : 'transparent',
@@ -676,7 +689,7 @@ export function EmailPage() {
                     )}
                   </div>
                   {!email.read && (
-                    <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#e31e24', flexShrink: 0, marginTop: '6px' }} />
+                    <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#b83535', flexShrink: 0, marginTop: '6px' }} />
                   )}
                 </button>
               )
@@ -700,7 +713,7 @@ export function EmailPage() {
                   <button type="button"
                     onClick={() => setShowLabelMenu((v) => !v)}
                     title="Gerir etiquetas"
-                    style={{ width: '28px', height: '28px', borderRadius: '6px', border: `1px solid ${showLabelMenu ? '#e31e24' : border}`, backgroundColor: showLabelMenu ? 'rgba(227,30,36,0.08)' : 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: showLabelMenu ? '#e31e24' : muted }}
+                    style={{ width: '28px', height: '28px', borderRadius: '6px', border: `1px solid ${showLabelMenu ? accent : border}`, backgroundColor: showLabelMenu ? 'rgba(184,53,53,0.08)' : 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: showLabelMenu ? accent : muted }}
                     onMouseEnter={(e) => { if (!showLabelMenu) e.currentTarget.style.backgroundColor = hoverBg }}
                     onMouseLeave={(e) => { if (!showLabelMenu) e.currentTarget.style.backgroundColor = 'transparent' }}>
                     <Tag style={{ width: '12px', height: '12px' }} />
@@ -710,7 +723,7 @@ export function EmailPage() {
                     onClick={() => deleteEmail(selectedEmail.id)}
                     title={selectedEmail.folder === 'trash' ? 'Restaurar email' : 'Mover para lixeira'}
                     style={{ width: '28px', height: '28px', borderRadius: '6px', border: `1px solid ${border}`, backgroundColor: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                    onMouseEnter={(e) => { const b = e.currentTarget; b.style.backgroundColor = 'rgba(227,30,36,0.08)'; b.style.borderColor = '#e31e24'; b.style.color = '#e31e24' }}
+                    onMouseEnter={(e) => { const b = e.currentTarget; b.style.backgroundColor = 'rgba(184,53,53,0.08)'; b.style.borderColor = accent; b.style.color = accent }}
                     onMouseLeave={(e) => { const b = e.currentTarget; b.style.backgroundColor = 'transparent'; b.style.borderColor = border; b.style.color = muted }}>
                     <Trash2 style={{ width: '12px', height: '12px' }} />
                   </button>
@@ -735,20 +748,23 @@ export function EmailPage() {
                   )}
                 </div>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
                 <AvatarInitials initials={selectedEmail.from.initials} color={selectedEmail.from.color} size={38} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
-                    <span style={{ fontSize: '13px', fontWeight: 600, color: text }}>{selectedEmail.from.name}</span>
-                    <span style={{ fontSize: '11px', color: muted }}>&lt;{selectedEmail.from.email}&gt;</span>
+                <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: '13px', fontWeight: 700, color: text }}>{selectedEmail.from.name}</span>
+                    <span style={{ fontSize: '11px', color: muted, wordBreak: 'break-all' }}>&lt;{selectedEmail.from.email}&gt;</span>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                     <span style={{ fontSize: '11px', color: muted }}>Para: robert.sousa@aureatech.io</span>
+                    <span style={{ color: faint, fontSize: '10px' }}>·</span>
                     <span style={{ fontSize: '11px', color: faint }}>{selectedEmail.date}</span>
-                    <div style={{ display: 'flex', gap: '4px' }}>
+                  </div>
+                  {selectedEmail.labels.length > 0 && (
+                    <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginTop: '2px' }}>
                       {selectedEmail.labels.map((lk) => <LabelBadge key={lk} labelKey={lk} />)}
                     </div>
-                  </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -805,7 +821,7 @@ export function EmailPage() {
                       style={{
                         display: 'flex', alignItems: 'center', gap: '5px',
                         height: '30px', padding: '0 14px', borderRadius: '4px',
-                        backgroundColor: replyText.trim() ? '#e31e24' : (isDark ? '#2a2a28' : '#e4e0da'),
+                        backgroundColor: replyText.trim() ? '#b83535' : (isDark ? '#2a2a28' : '#e4e0da'),
                         color: replyText.trim() ? '#fff' : muted, border: 'none',
                         fontSize: '11px', fontWeight: 700, cursor: replyText.trim() ? 'pointer' : 'not-allowed',
                         textTransform: 'uppercase', letterSpacing: '0.06em',
@@ -837,9 +853,9 @@ export function EmailPage() {
                 style={{
                   display: 'flex', alignItems: 'center', gap: '6px',
                   height: '32px', padding: '0 14px', borderRadius: '4px',
-                  backgroundColor: showReply ? (isDark ? 'rgba(227,30,36,0.08)' : '#f0f7f3') : '#e31e24',
-                  color: showReply ? '#e31e24' : '#fff',
-                  border: showReply ? '1px solid #e31e24' : 'none',
+                  backgroundColor: showReply ? (isDark ? 'rgba(184,53,53,0.08)' : 'rgba(184,53,53,0.06)') : '#b83535',
+                  color: showReply ? accent : '#fff',
+                  border: showReply ? `1px solid ${accent}` : 'none',
                   cursor: 'pointer', fontSize: '11px', fontWeight: 700,
                   textTransform: 'uppercase', letterSpacing: '0.06em',
                   transition: 'all 0.15s ease',
@@ -863,7 +879,7 @@ export function EmailPage() {
                     textTransform: 'uppercase', letterSpacing: '0.05em',
                     transition: 'border-color 0.12s ease, color 0.12s ease',
                   }}
-                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#e31e24'; e.currentTarget.style.color = '#e31e24' }}
+                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = accent; e.currentTarget.style.color = accent }}
                   onMouseLeave={(e) => { e.currentTarget.style.borderColor = border; e.currentTarget.style.color = muted }}
                 >
                   <Icon style={{ width: '12px', height: '12px' }} />
@@ -911,7 +927,7 @@ export function EmailPage() {
                 <p style={{ fontSize: '32px', marginBottom: '12px' }}>✓</p>
                 <p style={{ fontSize: '14px', fontWeight: 700, color: text }}>Mensagem enviada</p>
                 <p style={{ fontSize: '12px', color: muted, marginTop: '4px' }}>O email foi colocado na caixa de enviados.</p>
-                <button type="button" onClick={() => setShowCompose(false)} style={{ marginTop: '16px', fontSize: '12px', fontWeight: 600, color: '#e31e24', background: 'none', border: 'none', cursor: 'pointer' }}>Fechar</button>
+                <button type="button" onClick={() => setShowCompose(false)} style={{ marginTop: '16px', fontSize: '12px', fontWeight: 600, color: accent, background: 'none', border: 'none', cursor: 'pointer' }}>Fechar</button>
               </div>
             ) : (
               <>
@@ -937,7 +953,7 @@ export function EmailPage() {
                       const ok = await sendEmail(composeTo.trim(), composeSubject.trim(), composeBody.trim())
                       if (ok) setComposeSent(true)
                     }}
-                    style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '0 18px', height: '34px', borderRadius: '4px', backgroundColor: (!composeTo.trim() || !composeSubject.trim() || sendingEmail) ? (isDark ? '#2a2a28' : '#e4e0da') : '#e31e24', color: (!composeTo.trim() || !composeSubject.trim() || sendingEmail) ? muted : '#fff', border: 'none', cursor: (!composeTo.trim() || !composeSubject.trim() || sendingEmail) ? 'not-allowed' : 'pointer', fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                    style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '0 18px', height: '34px', borderRadius: '4px', backgroundColor: (!composeTo.trim() || !composeSubject.trim() || sendingEmail) ? (isDark ? '#2a2a28' : '#e4e0da') : '#b83535', color: (!composeTo.trim() || !composeSubject.trim() || sendingEmail) ? muted : '#fff', border: 'none', cursor: (!composeTo.trim() || !composeSubject.trim() || sendingEmail) ? 'not-allowed' : 'pointer', fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                     {sendingEmail
                       ? <Loader2 style={{ width: '12px', height: '12px', animation: 'spin 1s linear infinite' }} />
                       : <Send style={{ width: '12px', height: '12px' }} />
@@ -945,7 +961,7 @@ export function EmailPage() {
                     {sendingEmail ? 'A enviar...' : 'Enviar'}
                   </button>
                   <button type="button" onClick={() => { setShowCompose(false); setSendError(null) }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: muted, fontSize: '12px', padding: '6px 10px' }}>Cancelar</button>
-                  {sendError && <span style={{ fontSize: '11px', color: '#dc2626', flex: 1 }}>{sendError}</span>}
+                  {sendError && <span style={{ fontSize: '11px', color: accent, flex: 1 }}>{sendError}</span>}
                 </div>
               </>
             )}

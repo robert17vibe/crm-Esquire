@@ -32,6 +32,8 @@ const TasksPage        = lazy(() => import('@/pages/TasksPage').then((m) => ({ d
 const AdminUsersPage          = lazy(() => import('@/pages/AdminUsersPage').then((m) => ({ default: m.AdminUsersPage })))
 const AdminNotificationsPage  = lazy(() => import('@/pages/AdminNotificationsPage').then((m) => ({ default: m.AdminNotificationsPage })))
 const AdminDistribuirLeadsPage = lazy(() => import('@/pages/AdminDistribuirLeadsPage').then((m) => ({ default: m.AdminDistribuirLeadsPage })))
+const AdminCobrancaPage    = lazy(() => import('@/pages/AdminCobrancaPage').then((m) => ({ default: m.AdminCobrancaPage })))
+const AdminDesempenhoPage  = lazy(() => import('@/pages/AdminDesempenhoPage').then((m) => ({ default: m.AdminDesempenhoPage })))
 const LandingPage         = lazy(() => import('@/pages/LandingPage').then((m) => ({ default: m.LandingPage })))
 const LoginPage        = lazy(() => import('@/pages/LoginPage').then((m) => ({ default: m.LoginPage })))
 const ForgotPasswordPage = lazy(() => import('@/pages/ForgotPasswordPage').then((m) => ({ default: m.ForgotPasswordPage })))
@@ -39,7 +41,8 @@ const ResetPasswordPage  = lazy(() => import('@/pages/ResetPasswordPage').then((
 const EmailPage          = lazy(() => import('@/pages/EmailPage').then((m) => ({ default: m.EmailPage })))
 const RelatoriosPage     = lazy(() => import('@/pages/RelatoriosPage').then((m) => ({ default: m.RelatoriosPage })))
 const AtividadesPage     = lazy(() => import('@/pages/AtividadesPage').then((m) => ({ default: m.AtividadesPage })))
-const PropostasPage      = lazy(() => import('@/pages/PropostasPage').then((m) => ({ default: m.PropostasPage })))
+const PropostasPage          = lazy(() => import('@/pages/PropostasPage').then((m) => ({ default: m.PropostasPage })))
+const ClientRenovacaoPage    = lazy(() => import('@/pages/ClientRenovacaoPage').then((m) => ({ default: m.ClientRenovacaoPage })))
 const AppLayout          = lazy(() => import('@/components/layout/AppLayout').then((m) => ({ default: m.AppLayout })))
 
 export default function App() {
@@ -106,12 +109,16 @@ export default function App() {
         <Route path="/atividades" element={<AtividadesPage />} />
         <Route path="/propostas"  element={<PropostasPage />} />
         <Route path="/settings"  element={<SettingsPage />} />
-        <Route path="/deal/:id"  element={<DealDetailPage />} />
+        <Route path="/deal/:id"     element={<DealDetailPage />} />
+        <Route path="/renewal/:id"  element={<ClientRenovacaoPage />} />
+        <Route path="/admin/integracoes" element={<Navigate to="/settings" replace />} />
         <Route element={<AdminGuard />}>
           <Route path="/teams"            element={<TeamsPage />} />
           <Route path="/admin/users"          element={<AdminUsersPage />} />
           <Route path="/admin/notifications"     element={<AdminNotificationsPage />} />
           <Route path="/admin/distribuir-leads" element={<AdminDistribuirLeadsPage />} />
+          <Route path="/admin/cobranca"         element={<AdminCobrancaPage />} />
+          <Route path="/admin/desempenho"       element={<AdminDesempenhoPage />} />
         </Route>
       </Route>
       <Route path="*" element={<Navigate to={session ? '/dashboard' : '/login'} replace />} />

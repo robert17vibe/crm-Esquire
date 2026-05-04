@@ -18,7 +18,7 @@ interface UserRow {
 }
 
 const AVATAR_COLORS = [
-  '#e31e24','#1d4ed8','#7c3aed','#b45309','#be185d',
+  '#6b1212','#1d4ed8','#7c3aed','#b45309','#be185d',
   '#0e7490','#065f46','#92400e','#6b21a8','#9f1239',
 ]
 
@@ -95,7 +95,7 @@ function InviteDrawer({ isDark, teams, onClose, onCreated }: {
         <div style={{ padding: '20px 20px 16px', borderBottom: `1px solid ${border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div style={{ width: '36px', height: '36px', borderRadius: '10px', backgroundColor: isDark ? '#1a2e24' : '#dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Plus style={{ width: '16px', height: '16px', color: '#e31e24' }} />
+              <Plus style={{ width: '16px', height: '16px', color: '#6b1212' }} />
             </div>
             <div>
               <p style={{ fontSize: '14px', fontWeight: 700, color: text }}>Novo Utilizador</p>
@@ -154,7 +154,7 @@ function InviteDrawer({ isDark, teams, onClose, onCreated }: {
 
           {error && (
             <div style={{ padding: '10px 14px', borderRadius: '8px', backgroundColor: isDark ? '#2d1515' : '#fee2e2', border: `1px solid ${isDark ? '#5c2020' : '#fca5a5'}` }}>
-              <p style={{ fontSize: '12px', color: '#ef4444', fontWeight: 500 }}>{error}</p>
+              <p style={{ fontSize: '12px', color: '#b83535', fontWeight: 500 }}>{error}</p>
             </div>
           )}
         </div>
@@ -164,7 +164,7 @@ function InviteDrawer({ isDark, teams, onClose, onCreated }: {
           <button type="button" onClick={onClose} style={{ flex: 1, height: '38px', borderRadius: '8px', border: `1px solid ${border}`, backgroundColor: 'transparent', color: muted, fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
             Cancelar
           </button>
-          <button type="button" onClick={handleCreate} disabled={saving} style={{ flex: 2, height: '38px', borderRadius: '8px', border: 'none', backgroundColor: '#e31e24', color: '#fff', fontSize: '13px', fontWeight: 700, cursor: 'pointer', opacity: saving ? 0.7 : 1 }}>
+          <button type="button" onClick={handleCreate} disabled={saving} style={{ flex: 2, height: '38px', borderRadius: '8px', border: 'none', backgroundColor: '#6b1212', color: '#fff', fontSize: '13px', fontWeight: 700, cursor: 'pointer', opacity: saving ? 0.7 : 1 }}>
             {saving ? 'A criar...' : 'Criar Utilizador'}
           </button>
         </div>
@@ -212,14 +212,16 @@ export function AdminUsersPage() {
     const chars = 'アイウエオカキクケコサシスセソタチツテトナニヌネノ01アBCDE#%&'
     let raf: number
     function draw() {
-      ctx!.fillStyle = 'rgba(13,12,10,0.18)'
+      ctx!.fillStyle = isDark ? 'rgba(13,12,10,0.18)' : 'rgba(245,244,240,0.18)'
       ctx!.fillRect(0, 0, W, H)
       ctx!.font = '11px monospace'
       for (let i = 0; i < drops.length; i++) {
         const ch = chars[Math.floor(Math.random() * chars.length)]
         const y = drops[i] * 14
         const bright = Math.random() > 0.9
-        ctx!.fillStyle = bright ? '#fff7ed' : (Math.random() > 0.5 ? '#f97316' : '#ea580c')
+        ctx!.fillStyle = isDark
+          ? (bright ? '#fff7ed' : (Math.random() > 0.5 ? '#f97316' : '#ea580c'))
+          : (bright ? '#7c2d12' : (Math.random() > 0.5 ? '#c2410c' : '#9b2020'))
         ctx!.fillText(ch, i * 14, y)
         if (y > H && Math.random() > 0.975) drops[i] = 0
         drops[i] += 0.4
@@ -228,7 +230,7 @@ export function AdminUsersPage() {
     }
     draw()
     return () => cancelAnimationFrame(raf)
-  }, [])
+  }, [isDark])
 
   async function loadUsers() {
     setLoading(true)
@@ -292,25 +294,34 @@ export function AdminUsersPage() {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: bg }}>
 
       {/* Header */}
-      <div style={{ position: 'relative', height: '56px', minHeight: '56px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 24px', borderBottom: `1px solid ${border}`, backgroundColor: isDark ? '#0a0a08' : cardBg, flexShrink: 0, overflow: 'hidden' }}>
-        {isDark && <canvas ref={canvasRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0.35, pointerEvents: 'none' }} />}
-        <div style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Shield style={{ width: '16px', height: '16px', color: '#e31e24' }} />
-          <p style={{ fontSize: '14px', fontWeight: 700, color: text }}>Gestão de Utilizadores</p>
-          <div style={{ display: 'flex', gap: '6px', marginLeft: '4px' }}>
-            <span style={{ fontSize: '10px', fontWeight: 700, color: '#e31e24', backgroundColor: isDark ? '#1a2e24' : '#dcfce7', padding: '2px 7px', borderRadius: '999px' }}>{activeCount} ativos</span>
-            {disabledCount > 0 && <span style={{ fontSize: '10px', fontWeight: 700, color: '#ef4444', backgroundColor: isDark ? '#2d1515' : '#fee2e2', padding: '2px 7px', borderRadius: '999px' }}>{disabledCount} suspensos</span>}
+      <div style={{
+        position: 'relative', height: '96px', minHeight: '96px',
+        display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between',
+        padding: '0 28px 18px', borderBottom: `1px solid ${border}`,
+        backgroundColor: isDark ? '#0a0a08' : '#ffffff', flexShrink: 0, overflow: 'hidden',
+      }}>
+        <canvas ref={canvasRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: isDark ? 0.35 : 0.2, pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', inset: 0, zIndex: 0, background: isDark ? 'linear-gradient(to bottom, transparent 40%, rgba(10,10,8,0.85) 100%)' : 'linear-gradient(to bottom, transparent 40%, rgba(255,255,255,0.88) 100%)', pointerEvents: 'none' }} />
+        <div style={{ position: 'relative', zIndex: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
+            <Shield size={18} color={text} />
+            <p style={{ fontSize: '20px', fontWeight: 600, color: text, letterSpacing: '-0.03em', margin: 0 }}>Gestão de Utilizadores</p>
+            <div style={{ display: 'flex', gap: '6px', marginLeft: '4px' }}>
+              <span style={{ fontSize: '10px', fontWeight: 700, color: '#6b1212', backgroundColor: isDark ? '#2d1515' : '#fef2f2', padding: '2px 8px', borderRadius: '999px' }}>{activeCount} ativos</span>
+              {disabledCount > 0 && <span style={{ fontSize: '10px', fontWeight: 700, color: '#a03030', backgroundColor: isDark ? '#2d1515' : '#fde8e8', padding: '2px 8px', borderRadius: '999px' }}>{disabledCount} suspensos</span>}
+            </div>
           </div>
+          <p style={{ fontSize: '13px', color: muted, margin: 0 }}>Contas, permissões e grupos da organização</p>
         </div>
         <div style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', gap: '10px' }}>
           <div style={{ position: 'relative' }}>
             <Search style={{ position: 'absolute', left: '9px', top: '50%', transform: 'translateY(-50%)', width: '12px', height: '12px', color: muted, pointerEvents: 'none' }} />
             <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Pesquisar..."
-              style={{ height: '32px', paddingLeft: '28px', paddingRight: '10px', fontSize: '12px', backgroundColor: inputBg, border: `1px solid ${border}`, borderRadius: '8px', color: text, outline: 'none', width: '200px' }} />
+              style={{ height: '34px', paddingLeft: '28px', paddingRight: '10px', fontSize: '12px', backgroundColor: isDark ? '#1a1a18' : '#f5f4f0', border: `1px solid ${border}`, borderRadius: '8px', color: text, outline: 'none', width: '200px' }} />
           </div>
           <button type="button" onClick={() => setShowInvite(true)} style={{
-            height: '32px', padding: '0 14px', borderRadius: '8px', border: 'none',
-            backgroundColor: '#e31e24', color: '#fff', fontSize: '12px', fontWeight: 700,
+            height: '34px', padding: '0 16px', borderRadius: '8px', border: 'none',
+            backgroundColor: '#6b1212', color: '#fff', fontSize: '12px', fontWeight: 700,
             cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px',
           }}>
             <Plus style={{ width: '13px', height: '13px' }} />
@@ -323,7 +334,7 @@ export function AdminUsersPage() {
         {loading ? (
           <p style={{ fontSize: '13px', color: muted, textAlign: 'center', paddingTop: '40px' }}>A carregar...</p>
         ) : (
-          <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '14px', overflow: 'hidden' }}>
+          <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '12px', overflow: 'hidden', boxShadow: isDark ? 'none' : '0 1px 4px rgba(16,24,40,0.06)' }}>
 
             {/* Table header */}
             {(() => {
@@ -381,17 +392,17 @@ export function AdminUsersPage() {
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
                           <div style={{
                             width: '36px', height: '36px', borderRadius: '10px',
-                            backgroundColor: user.avatar_color || '#e31e24',
+                            backgroundColor: user.avatar_color || '#6b1212',
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                             color: '#fff', fontSize: '11px', fontWeight: 800, flexShrink: 0,
-                            boxShadow: `0 2px 8px ${user.avatar_color ?? '#e31e24'}40`,
+                            boxShadow: `0 2px 8px ${user.avatar_color ?? '#6b1212'}40`,
                           }}>
                             {initials}
                           </div>
                           <div style={{ minWidth: 0 }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                               <p style={{ fontSize: '13px', fontWeight: 600, color: text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: 0 }}>{displayName}</p>
-                              {isDisabled && <span style={{ fontSize: '8px', fontWeight: 800, color: '#ef4444', backgroundColor: isDark ? '#2d1515' : '#fee2e2', padding: '2px 6px', borderRadius: '4px', flexShrink: 0, letterSpacing: '0.06em' }}>SUSPENSO</span>}
+                              {isDisabled && <span style={{ fontSize: '8px', fontWeight: 800, color: '#a03030', backgroundColor: isDark ? '#2d1515' : '#fde8e8', padding: '2px 6px', borderRadius: '4px', flexShrink: 0, letterSpacing: '0.06em' }}>SUSPENSO</span>}
                             </div>
                             <p style={{ fontSize: '11px', color: muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: '2px 0 0' }}>{user.email}</p>
                           </div>
@@ -411,7 +422,7 @@ export function AdminUsersPage() {
                               backgroundColor: user.is_admin
                                 ? (isDark ? 'rgba(227,30,36,0.12)' : 'rgba(227,30,36,0.08)')
                                 : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)'),
-                              color: user.is_admin ? '#e31e24' : muted,
+                              color: user.is_admin ? '#6b1212' : muted,
                               cursor: isDisabled ? 'default' : 'pointer',
                               letterSpacing: '0.04em', transition: 'all 0.15s',
                               opacity: (saving === user.id || isDisabled) ? 0.5 : 1,
@@ -465,7 +476,7 @@ export function AdminUsersPage() {
                             onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.7' }}
                             onMouseLeave={(e) => { e.currentTarget.style.opacity = '1' }}>
                             {isDisabled
-                              ? <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M3 3l10 10M13 3L3 13" stroke="#ef4444" strokeWidth="2.2" strokeLinecap="round" /></svg>
+                              ? <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M3 3l10 10M13 3L3 13" stroke="#b83535" strokeWidth="2.2" strokeLinecap="round" /></svg>
                               : <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M2 8l4.5 4.5L14 4" stroke={muted} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
                             }
                           </button>

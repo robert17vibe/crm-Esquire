@@ -23,6 +23,7 @@ interface TaskState {
   complete: (id: string) => Promise<void>
   uncomplete:(id: string) => Promise<void>
   remove:   (id: string) => Promise<void>
+  subscribeRealtime: () => () => void
 }
 
 export const useTaskStore = create<TaskState>((set) => ({
@@ -82,7 +83,18 @@ export const useTaskStore = create<TaskState>((set) => ({
           duration_minutes: 60,
           attendees: [],
           owner,
-        }).catch(() => { /* non-blocking */ })
+        }).catch((err: unknown) => {
+          console.warn('[useTaskStore] Falha ao sincronizar tarefa com calendário:', err)
+          // Regista no deal_events para que apareça no histórico
+          supabase.from('deal_events').insert({
+            deal_id:    t.deal_id,
+            actor_id:   userId,
+            event_type: 'field_update',
+            field_name: 'calendar_sync',
+            old_value:  null,
+            new_value:  { error: 'sync_failed', task: t.title },
+          }).then(() => { /* logged */ })
+        })
       }
     }
 
@@ -126,6 +138,32 @@ export const useTaskStore = create<TaskState>((set) => ({
   remove: async (id) => {
     set((s) => ({ tasks: s.tasks.filter((t) => t.id !== id) }))
     await supabase.from('tasks').delete().eq('id', id)
+  },
+
+  subscribeRealtime: () => {
+    const channel = supabase
+      .channel('tasks-realtime')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'tasks' }, (payload) => {
+        const userId = useAuthStore.getState().profile?.id
+        if (!userId) return
+        const row = payload.new as Record<string, unknown>
+        if (row.assigned_to !== userId && row.created_by !== userId) return
+        const task = { ...row, deal_title: undefined } as import('@/types/task.types').Task
+        set((s) => {
+          if (s.tasks.find((t) => t.id === task.id)) return s
+          return { tasks: [...s.tasks, task] }
+        })
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tasks' }, (payload) => {
+        const updated = payload.new as import('@/types/task.types').Task
+        set((s) => ({ tasks: s.tasks.map((t) => t.id === updated.id ? { ...t, ...updated } : t) }))
+      })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'tasks' }, (payload) => {
+        const deleted = payload.old as { id: string }
+        set((s) => ({ tasks: s.tasks.filter((t) => t.id !== deleted.id) }))
+      })
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
   },
 }))
 
