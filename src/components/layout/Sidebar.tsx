@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { NavLink, useLocation, useNavigate } from 'react-router-dom'
+import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard, Kanban, Users, Mic, CalendarDays,
   CheckSquare, Settings, LogOut, Users2, Shield, Mail,
@@ -126,7 +126,6 @@ function NavItem({
 }
 
 export function Sidebar() {
-  const location = useLocation()
   const signOut  = useAuthStore((s) => s.signOut)
   const profile  = useAuthStore((s) => s.profile)
   const tasks    = useTaskStore((s) => s.tasks)

@@ -195,7 +195,6 @@ export function AdminUsersPage() {
   const border  = isDark ? '#242422' : '#e4e0da'
   const text    = isDark ? '#e8e4dc' : '#1a1814'
   const muted   = isDark ? '#6b6560' : '#8a857d'
-  const inputBg = isDark ? '#111110' : '#f8f7f4'
   const rowHov  = isDark ? '#1a1916' : '#f8f7f4'
 
   useEffect(() => { loadUsers() }, [])

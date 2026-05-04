@@ -66,7 +66,7 @@ interface DealStore {
   initialize: () => Promise<void>
   subscribeRealtime: () => () => void
   createDeal: (values: NewLeadFormValues) => Promise<Deal>
-  updateDeal: (id: string, values: NewLeadFormValues) => Promise<Deal>
+  updateDeal: (id: string, values: NewLeadFormValues) => Promise<void>
   deleteDeal: (id: string) => Promise<void>
   moveDeal: (id: string, stageId: StageId) => Promise<void>
   setLossReason: (id: string, reason: string) => void
@@ -271,12 +271,8 @@ export const useDealStore = create<DealStore>((set, get) => {
 
     try {
       const { id: _id, company_id: _cid, created_at: _ca, owner: _owner, days_in_stage: _ds, ...patch } = updated
-      const confirmed = await patchDeal(id, patch)
-      const next = get().deals.map((d) => (d.id === id ? confirmed : d))
-      setDeals(next)
-      persistDeals(next)
+      await patchDeal(id, patch)
       useToastStore.getState().addToast(`Lead atualizado — ${values.company_name}`, 'success')
-      return confirmed
     } catch {
       setDeals(prev)
       persistDeals(prev)

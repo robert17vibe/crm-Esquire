@@ -60,7 +60,7 @@ function hashNum(s: string, mod: number) {
 
 // ─── Stage Funnel (subtle) ────────────────────────────────────────────────────
 
-function StageFunnel({ deals, isDark, border, muted }: {
+export function StageFunnel({ deals, isDark, border, muted }: {
   deals: Deal[]
   isDark: boolean
   border: string
@@ -156,7 +156,7 @@ function StageFunnel({ deals, isDark, border, muted }: {
 
 // ─── Mapa View ────────────────────────────────────────────────────────────────
 
-function MapaView({ deals, isDark, border, muted }: { deals: Deal[]; isDark: boolean; border: string; muted: string }) {
+export function MapaView({ deals, isDark, border, muted }: { deals: Deal[]; isDark: boolean; border: string; muted: string }) {
   const navigate = useNavigate()
   const [tooltip, setTooltip] = useState<{ deal: Deal; svgX: number; svgY: number } | null>(null)
   const [hoveredDeal, setHoveredDeal] = useState<string | null>(null)
@@ -534,7 +534,7 @@ const MATERIAL_STATUS_COLOR: Record<string, string> = {
   aprovado: '#15803d', enviado: '#2563eb', pendente: '#b45309',
 }
 
-function getRenovCol(deal: Deal): RenovColId {
+export function getRenovCol(deal: Deal): RenovColId {
   const daysSinceWon = deal.updated_at
     ? Math.floor((Date.now() - new Date(deal.updated_at).getTime()) / 86_400_000)
     : 999
@@ -1550,7 +1550,7 @@ export function PipelinePage() {
   const [viewFlash, setViewFlash]               = useState<ViewMode | null>(null)
   const [showNewModal, setShowNewModal]         = useState(false)
   const [prioritizeNew, setPrioritizeNew]       = useState(false)
-  const [sortMode, setSortMode]                 = useState<'manual' | 'score'>('manual')
+  const [sortMode, _setSortMode]                 = useState<'manual' | 'score'>('manual')
   const [editingDeal, setEditingDeal]           = useState<Deal | null>(null)
   const [viewMode, setViewMode]                 = useState<ViewMode>(() => (localStorage.getItem('esq_pipeline_view') as ViewMode) ?? 'kanban')
   const [listSort, setListSort]                 = useState<'date' | 'value' | 'stage'>('stage')
@@ -1640,11 +1640,9 @@ export function PipelinePage() {
   const filterBg     = isDark ? '#111111' : '#f5f4f1'
   const filterBorder = isDark ? '#2a2a2a' : '#e0ddd8'
   const filterText   = isDark ? '#888888' : '#6b6560'
-  const cardBg       = isDark ? '#161614' : '#ffffff'
   const border       = isDark ? '#242422' : '#eaecf0'
   const text         = isDark ? '#e8e4dc' : '#101828'
   const muted        = isDark ? '#6b6560' : '#667085'
-  const subtleBg     = isDark ? '#111110' : '#f3f4f6'
 
   const VIEW_MODES: { id: ViewMode; icon: React.ReactNode; label: string }[] = [
     { id: 'kanban',    icon: <LayoutGrid size={13} />,  label: 'Kanban' },

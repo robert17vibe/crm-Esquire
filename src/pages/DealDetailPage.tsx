@@ -16,7 +16,7 @@ import { supabase } from '@/lib/supabase'
 import { fetchDealEvents } from '@/services/deal-events.service'
 import { useTeamStore } from '@/store/useTeamStore'
 import { useNotificationStore } from '@/store/useNotificationStore'
-import type { Deal, DealActivity, DealMeeting, NextActivity, CompanySize, ArrRange, DealEvent } from '@/types/deal.types'
+import type { Deal, DealActivity, DealMeeting, CompanySize, ArrRange, DealEvent } from '@/types/deal.types'
 import { PageLoadingState } from '@/components/ui/PageState'
 import { evaluateDealScore } from '@/lib/dealScore'
 
@@ -70,12 +70,6 @@ const ACT_LABELS: Record<string, string> = {
   call: 'Ligação', email: 'Email', meeting: 'Reunião', task: 'Tarefa', note: 'Nota',
 }
 
-const NEXT_ACT_TYPES: { value: NextActivity['type']; label: string }[] = [
-  { value: 'call', label: 'Ligação' },
-  { value: 'meeting', label: 'Reunião' },
-  { value: 'task', label: 'Tarefa' },
-  { value: 'email', label: 'Email' },
-]
 
 const FIELD_LABELS: Record<string, string> = {
   stage_id: 'Etapa', value: 'Valor', probability: 'Probabilidade',
@@ -97,29 +91,6 @@ const ARR_OPTIONS: { value: ArrRange; label: string }[] = [
   { value: '500k-1M', label: 'R$ 500k–1M' },
   { value: '>1M', label: '> R$ 1M' },
 ]
-
-// ─── Building blocks ──────────────────────────────────────────────────────────
-
-function LinkField({ label, icon: Icon, href, external, children, muted }: {
-  label: string; icon: LucideIcon; href: string; external?: boolean; children: React.ReactNode; muted: string
-}) {
-  return (
-    <div style={{ marginBottom: '10px' }}>
-      <p style={{ fontSize: '10px', fontWeight: 600, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '3px' }}>
-        {label}
-      </p>
-      <a
-        href={href}
-        target={external ? '_blank' : undefined}
-        rel={external ? 'noopener noreferrer' : undefined}
-        style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: 500, color: accent, textDecoration: 'none' }}
-      >
-        <Icon style={{ width: '13px', height: '13px', color: muted, flexShrink: 0 }} />
-        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{children}</span>
-      </a>
-    </div>
-  )
-}
 
 // ─── Timeline helpers ─────────────────────────────────────────────────────────
 
@@ -230,6 +201,7 @@ function ActivityEntry({ activity, meeting, isDark }: {
   activity: DealActivity; meeting?: DealMeeting; isDark: boolean
 }) {
   const [expanded, setExpanded] = useState(false)
+  const accent = isDark ? '#e05050' : '#b83535'
   const color  = ACT_COLORS[activity.type] ?? '#8a857d'
   const Icon   = ACT_ICONS[activity.type] ?? FileText
   const text   = isDark ? '#e8e4dc' : '#1a1814'
@@ -343,31 +315,13 @@ function ActivityEntry({ activity, meeting, isDark }: {
   )
 }
 
-// ─── Health bar (uses evaluateDealScore thresholds: ≥70 saudável, ≥45 atenção, <45 crítico) ──
-
-function HealthBar({ score, isDark }: { score: number; isDark: boolean }) {
-  const color = score >= 70 ? '#2a9a5a' : score >= 45 ? '#a88030' : '#b83535'
-  const label = score >= 70 ? 'Saudável' : score >= 45 ? 'Atenção' : 'Crítico'
-  const trackBg = isDark ? '#1e1e1c' : '#eeece8'
-  return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '6px' }}>
-        <span style={{ fontSize: '24px', fontWeight: 700, color, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em' }}>{score}</span>
-        <span style={{ fontSize: '11px', fontWeight: 600, color }}>{label}</span>
-      </div>
-      <div style={{ height: '5px', borderRadius: '99px', backgroundColor: trackBg, overflow: 'hidden' }}>
-        <div style={{ height: '100%', borderRadius: '99px', width: `${score}%`, backgroundColor: color, transition: 'width 0.5s ease' }} />
-      </div>
-    </div>
-  )
-}
-
 // ─── Add Activity Form ────────────────────────────────────────────────────────
 
 function AddActivityForm({ dealId, owner, onClose, isDark }: {
   dealId: string; owner: Deal['owner']; onClose: () => void; isDark: boolean
 }) {
   const addActivity = useActivityStore((s) => s.addActivity)
+  const accent = isDark ? '#e05050' : '#b83535'
   const [type, setType]       = useState<DealActivity['type']>('call')
   const [subject, setSubject] = useState('')
   const [body, setBody]       = useState('')
@@ -597,6 +551,7 @@ function TemplatePicker({ isDark, border, text, muted, onPick }: {
   isDark: boolean; border: string; text: string; muted: string;
   onPick: (key: 'scope' | 'payment' | 'terms') => void
 }) {
+  const accent = isDark ? '#e05050' : '#b83535'
   const templates = [
     { key: 'scope'   as const, label: 'Escopo',    desc: 'Conteúdo editorial, entregas, prazos, revisões' },
     { key: 'payment' as const, label: 'Pagamento', desc: 'Condições geradas pelo número de parcelas selecionado' },
@@ -656,6 +611,7 @@ function ProposalTab({ deal, isDark, border, text, muted, inputBg }: {
   deal: Deal; isDark: boolean; border: string; text: string; muted: string; inputBg: string
 }) {
   const navigate   = useNavigate()
+  const accent     = isDark ? '#e05050' : '#b83535'
   const historyKey = `esq_proposals_v4_${deal.id}`
   const draftKey   = `esq_proposal_draft_v4_${deal.id}`
 
@@ -683,8 +639,6 @@ function ProposalTab({ deal, isDark, border, text, muted, inputBg }: {
   const subtotal   = lines.reduce((s, l) => s + l.qty * l.unit_price, 0)
   const discount   = subtotal * (discountPct / 100)
   const total      = subtotal - discount
-  const installAmt = installments > 0 ? total / installments : total
-
   function saveDraft() {
     localStorage.setItem(draftKey, JSON.stringify({ title: propTitle, intro, scope, validity, payment, terms, lines, discountPct, installments }))
   }
@@ -1194,13 +1148,7 @@ export function DealDetailPage() {
   const [quickTaskTitle, setQuickTaskTitle] = useState('')
   const [quickTaskDate, setQuickTaskDate]   = useState('')
   const [savingQuickTask, setSavingQuickTask] = useState(false)
-  const setNextActivity    = useDealStore((s) => s.setNextActivity)
   const patchDealFields    = useDealStore((s) => s.patchDealFields)
-  const [editingNextAct, setEditingNextAct]   = useState(false)
-  const [nextActType, setNextActType]         = useState<NextActivity['type']>('call')
-  const [nextActLabel, setNextActLabel]       = useState('')
-  const [nextActDate, setNextActDate]         = useState('')
-  const [savingNextAct, setSavingNextAct]     = useState(false)
 
   // ── Inline field edit ────────────────────────────────────────────────────────
   const [editingField, setEditingField] = useState<string | null>(null)
@@ -1295,6 +1243,12 @@ export function DealDetailPage() {
   }, [deal?.id])
 
 
+  const border  = isDark ? '#242422' : '#e4e0da'
+  const text    = isDark ? '#e8e4dc' : '#1a1814'
+  const muted   = isDark ? '#6b6560' : '#8a857d'
+  const inputBg = isDark ? '#111110' : '#f8f7f4'
+  const accent  = isDark ? '#e05050' : '#b83535'
+
   if (dealsLoading || !dealsInitialized) {
     return (
       <PageLoadingState
@@ -1340,14 +1294,7 @@ export function DealDetailPage() {
     completedTaskCount,
     pendingTaskCount,
     ...proposalCtx,
-    stageOrder: ['leads','prospecting','qualification','proposal','negotiation'].indexOf(deal.stage_id),
   })
-
-  const border  = isDark ? '#242422' : '#e4e0da'
-  const text    = isDark ? '#e8e4dc' : '#1a1814'
-  const muted   = isDark ? '#6b6560' : '#8a857d'
-  const inputBg = isDark ? '#111110' : '#f8f7f4'
-  const accent  = isDark ? '#e05050' : '#b83535'
 
   const currentStage = STAGES.find((s) => s.id === deal.stage_id)
 

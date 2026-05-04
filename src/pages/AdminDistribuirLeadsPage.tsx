@@ -374,10 +374,6 @@ export function AdminDistribuirLeadsPage() {
     }
   }
 
-  async function handleDistributeAllUnassigned() {
-    await handleDistributeEqually(unassigned.map((d) => d.id))
-  }
-
   async function handleUnassign(dealId: string) {
     setErr('')
     try {

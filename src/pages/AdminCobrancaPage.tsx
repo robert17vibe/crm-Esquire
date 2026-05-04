@@ -92,7 +92,7 @@ export function AdminCobrancaPage() {
     if (error || !data) { setLoading(false); return }
 
     const parsed: CobrancaRow[] = data.map((r) => {
-      const deal = r.deals as { company_name: string; contact_name: string | null; owner: { name?: string }; value: number } | null
+      const deal = (r.deals as unknown) as { company_name: string; contact_name: string | null; owner: { name?: string }; value: number } | null
       const lines = (r.lines as { qty: number; unit_price: number }[]) ?? []
       const sub   = lines.reduce((s, l) => s + l.qty * l.unit_price, 0)
       const valor = sub - sub * ((r.discount_pct ?? 0) / 100)

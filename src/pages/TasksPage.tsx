@@ -10,7 +10,7 @@ import { useVisibleDeals } from '@/hooks/useVisibleDeals'
 import { useImpersonationStore } from '@/store/useImpersonationStore'
 import { useOwnerStore } from '@/store/useOwnerStore'
 import type { Task, TaskPriority, TaskType } from '@/types/task.types'
-import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -484,14 +484,12 @@ export function TasksPage() {
   const update     = useTaskStore((s) => s.update)
   const complete   = useTaskStore((s) => s.complete)
   const uncomplete = useTaskStore((s) => s.uncomplete)
-  const remove     = useTaskStore((s) => s.remove)
   const owners     = useOwnerStore((s) => s.owners)
   const deals      = visibleDeals
   const navigate   = useNavigate()
 
   const [showForm, setShowForm]         = useState(false)
   const [editTask, setEditTask]         = useState<Task | null>(null)
-  const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const [filter, setFilter]             = useState<TaskFilter>('pending')
   const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>('all')
   const [typeFilter, setTypeFilter]     = useState<TypeFilter>('all')
@@ -724,7 +722,7 @@ export function TasksPage() {
                         isDark={isDark} border={border} text={text} muted={muted}
                         onComplete={() => complete(task.id)}
                         onUncomplete={() => uncomplete(task.id)}
-                        onRemove={() => setConfirmDelete(task.id)}
+                        onRemove={() => {}}
                         onNavigate={task.deal_id ? () => navigate(`/deal/${task.deal_id}`) : undefined}
                         onEdit={() => setEditTask(task)}
                       />

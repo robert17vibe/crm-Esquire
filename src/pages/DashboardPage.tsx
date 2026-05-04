@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useCallback, useRef } from 'react'
+import React, { useMemo, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'motion/react'
 import {
@@ -1332,12 +1332,6 @@ export function DashboardPage() {
             {tab === 'operacao' && (() => {
               // Sections that belong to the operacao tab (hero excluded — rendered above)
               const OP_IDS = ['kpis', 'pipeline_area', 'atencao', 'oq_fazer', 'tarefas', 'agenda', 'activity', 'grupos', 'renovacao']
-              // Natural 2-col pairs: render as a side-by-side grid when adjacent
-              const PAIRS: [string, string][] = [
-                ['atencao', 'oq_fazer'],
-                ['tarefas', 'agenda'],
-                ['grupos', 'renovacao'],
-              ]
               const PAIR_COLS: Record<string, string> = {
                 'atencao,oq_fazer':  '1fr 1fr',
                 'oq_fazer,atencao':  '1fr 1fr',

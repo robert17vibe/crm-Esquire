@@ -392,7 +392,7 @@ const ROLE_COLORS: Record<MemberRole, string> = {
   leader: '#6b1212', member: '#1e40af', observer: '#667085',
 }
 
-function GroupCard({
+export function GroupCard({
   team, owners, isDark, health, pipeline, openCount, wonCount, winRate, rank,
   onOpen,
 }: {
@@ -525,8 +525,6 @@ export function TeamsPage() {
   const border = isDark ? '#242422' : '#e4e0da'
   const text   = isDark ? '#e8e4dc' : '#1a1814'
   const muted  = isDark ? '#5a5652' : '#8a857d'
-  const inputBg = isDark ? '#111110' : '#ffffff'
-
   const now = Date.now()
 
   // Per-team stats
@@ -694,7 +692,7 @@ export function TeamsPage() {
           </div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '16px' }}>
-            {teamStats.map(({ team, pipeline, openCount, wonCount, winRate, health, overdueCount }) => {
+            {teamStats.map(({ team, pipeline, wonCount, winRate, health, overdueCount }) => {
               const members = owners.filter((o) => o.team_id === team.id)
               return (
                 <div

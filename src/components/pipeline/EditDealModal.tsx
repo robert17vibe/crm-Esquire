@@ -172,8 +172,8 @@ export function EditDealModal({ deal, open, onClose, onUpdated }: Props) {
 
   async function onSubmit(values: NewLeadFormValues) {
     if (!deal) return
-    const updated = await updateDeal(deal.id, values)
-    onUpdated(updated)
+    await updateDeal(deal.id, values)
+    onUpdated({ ...deal, ...values } as Deal)
     reset()
   }
 

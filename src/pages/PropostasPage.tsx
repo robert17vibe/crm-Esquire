@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { FileText, Search, TrendingUp, Clock, ArrowRight } from 'lucide-react'
+import { FileText, Search, TrendingUp } from 'lucide-react'
 import { useThemeStore } from '@/store/useThemeStore'
 import { useVisibleDeals } from '@/hooks/useVisibleDeals'
 import { STAGES } from '@/constants/pipeline'
@@ -14,15 +14,6 @@ function fmtFull(v: number) {
 function dateLabel(iso?: string | null) {
   if (!iso) return '—'
   return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })
-}
-
-type ProposalStatus = 'draft' | 'sent' | 'accepted' | 'rejected'
-
-const STATUS_CFG: Record<ProposalStatus, { label: string; color: string; bg: string; icon: React.ReactNode }> = {
-  draft:    { label: 'Enviada', color: '#4d7aa8', bg: '#4d7aa814', icon: <ArrowRight size={11} /> },
-  sent:     { label: 'Enviada', color: '#4d7aa8', bg: '#4d7aa814', icon: <ArrowRight size={11} /> },
-  accepted: { label: 'Enviada', color: '#4d7aa8', bg: '#4d7aa814', icon: <ArrowRight size={11} /> },
-  rejected: { label: 'Enviada', color: '#4d7aa8', bg: '#4d7aa814', icon: <ArrowRight size={11} /> },
 }
 
 // Shape stored in localStorage per deal (matches DealDetailPage SavedProposal)
