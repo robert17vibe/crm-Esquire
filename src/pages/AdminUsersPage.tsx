@@ -36,11 +36,27 @@ function InviteDrawer({ isDark, teams, onClose, onCreated }: {
 
   const [email,    setEmail]    = useState('')
   const [name,     setName]     = useState('')
+  const [password, setPassword] = useState('')
+  const [showPwd,  setShowPwd]  = useState(false)
   const [role,     setRole]     = useState<'admin' | 'user'>('user')
   const [teamId,   setTeamId]   = useState('')
   const [color,    setColor]    = useState(AVATAR_COLORS[0])
   const [saving,   setSaving]   = useState(false)
   const [error,    setError]    = useState('')
+  const [copied,   setCopied]   = useState(false)
+
+  function genPassword() {
+    const chars = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$'
+    const pwd = Array.from({ length: 12 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
+    setPassword(pwd)
+    setCopied(false)
+  }
+
+  function copyPassword() {
+    navigator.clipboard.writeText(password)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) { if (e.key === 'Escape') onClose() }
@@ -50,13 +66,14 @@ function InviteDrawer({ isDark, teams, onClose, onCreated }: {
 
   async function handleCreate() {
     if (!email.trim()) { setError('Email obrigatório'); return }
+    if (!password.trim()) { setError('Password obrigatória'); return }
+    if (password.length < 6) { setError('Password deve ter pelo menos 6 caracteres'); return }
     setSaving(true); setError('')
     try {
-      const tempPassword = Math.random().toString(36).slice(-10) + 'Aa1!'
       const { data, error: fnErr } = await supabase.functions.invoke('create-user', {
         body: {
           email: email.trim(),
-          password: tempPassword,
+          password: password.trim(),
           full_name: name.trim() || email.split('@')[0],
           is_admin: role === 'admin',
           avatar_color: color,
@@ -121,6 +138,40 @@ function InviteDrawer({ isDark, teams, onClose, onCreated }: {
           <div>
             <label style={{ fontSize: '10px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: '7px' }}>Nome completo</label>
             <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ana Beatriz Silva" style={inp} />
+          </div>
+
+          <div>
+            <label style={{ fontSize: '10px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: '7px' }}>Password *</label>
+            <div style={{ display: 'flex', gap: '6px' }}>
+              <div style={{ position: 'relative', flex: 1 }}>
+                <input
+                  type={showPwd ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => { setPassword(e.target.value); setCopied(false) }}
+                  placeholder="Mínimo 6 caracteres"
+                  style={{ ...inp, paddingRight: '40px' }}
+                />
+                <button type="button" onClick={() => setShowPwd((v) => !v)}
+                  style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: muted, fontSize: '11px', fontWeight: 600 }}>
+                  {showPwd ? 'Ocultar' : 'Ver'}
+                </button>
+              </div>
+              <button type="button" onClick={genPassword}
+                style={{ height: '38px', padding: '0 12px', borderRadius: '8px', border: `1px solid ${border}`, backgroundColor: 'transparent', color: muted, fontSize: '11px', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                Gerar
+              </button>
+              {password && (
+                <button type="button" onClick={copyPassword}
+                  style={{ height: '38px', padding: '0 12px', borderRadius: '8px', border: `1px solid ${copied ? '#2a9a5a' : border}`, backgroundColor: copied ? 'rgba(42,154,90,0.1)' : 'transparent', color: copied ? '#2a9a5a' : muted, fontSize: '11px', fontWeight: 600, cursor: 'pointer', flexShrink: 0, transition: 'all 0.15s' }}>
+                  {copied ? '✓ Copiada' : 'Copiar'}
+                </button>
+              )}
+            </div>
+            {password && (
+              <p style={{ fontSize: '10px', color: muted, marginTop: '5px' }}>
+                Partilha esta password com o utilizador após criar a conta.
+              </p>
+            )}
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
