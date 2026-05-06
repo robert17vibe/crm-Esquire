@@ -3,7 +3,7 @@ import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from 'recharts'
 
 interface DataPoint { label: string; value: number }
 
-const COLORS = ['#6b1212', '#15803d', '#92400e', '#1e40af', '#7c3aed', '#0e7490']
+const COLORS = ['#6b1212', '#2c5545', '#a88030', '#1e40af', '#7c5cbf', '#0e7490']
 
 interface CrmDonutChartProps {
   data: DataPoint[]

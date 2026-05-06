@@ -10,6 +10,7 @@ import { CheckSquare, Clock, FileText, Tag } from 'lucide-react'
 import { getStageColor, STAGES, type StageId } from '@/constants/pipeline'
 import { evaluateDealScore, scoreColor, scoreBg } from '@/lib/dealScore'
 import type { Deal } from '@/types/deal.types'
+import { useProposalStore } from '@/store/useProposalStore'
 
 
 interface DealCardProps {
@@ -52,12 +53,14 @@ export function DealCard({ deal, isOverlay = false, dimmed = false, showScore = 
 
   const stageColor  = getStageColor(deal.stage_id)
   const stageLabel  = STAGES.find((s) => s.id === deal.stage_id)?.label ?? deal.stage_id
+  const dealProposalsRaw = useProposalStore((s) => s.byDeal[deal.id])
+  const dealProposals = dealProposalsRaw ?? []
   const proposalCtx = (() => {
     if (!showScore || isSpecial) return {}
-    try {
-      const list: { status: string }[] = JSON.parse(localStorage.getItem(`esq_proposals_v4_${deal.id}`) ?? '[]')
-      return { proposalCount: list.length, hasAcceptedProposal: list.some((p) => p.status === 'accepted') }
-    } catch { return {} }
+    return {
+      proposalCount: dealProposals.length,
+      hasAcceptedProposal: dealProposals.some((p) => p.status === 'accepted'),
+    }
   })()
   const score = showScore && !isSpecial ? evaluateDealScore(deal, {
     pendingTaskCount: taskCount,
@@ -91,18 +94,13 @@ export function DealCard({ deal, isOverlay = false, dimmed = false, showScore = 
 
   // valor da proposta aceite (ou maior proposta) — só para Ganho
   const proposalValue = (() => {
-    if (!isWon) return null
-    try {
-      const list: { lines: { qty: number; unit_price: number }[]; discountPct: number; status: string }[] =
-        JSON.parse(localStorage.getItem(`esq_proposals_v4_${deal.id}`) ?? '[]')
-      if (!list.length) return null
-      const accepted = list.filter((p) => p.status === 'accepted')
-      const source = accepted.length ? accepted : list
-      return Math.max(...source.map((p) => {
-        const sub = p.lines.reduce((s, l) => s + l.qty * l.unit_price, 0)
-        return sub - sub * ((p.discountPct ?? 0) / 100)
-      }))
-    } catch { return null }
+    if (!isWon || !dealProposals.length) return null
+    const accepted = dealProposals.filter((p) => p.status === 'accepted')
+    const source = accepted.length ? accepted : dealProposals
+    return Math.max(...source.map((p) => {
+      const sub = p.lines.reduce((s, l) => s + l.qty * l.unit_price, 0)
+      return sub - sub * ((p.discount_pct ?? 0) / 100)
+    }))
   })()
 
   const cardStyle: React.CSSProperties = {
@@ -140,7 +138,7 @@ export function DealCard({ deal, isOverlay = false, dimmed = false, showScore = 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
           <span style={{
             fontSize: '10px', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase',
-            color: isSpecial ? (isWon ? '#15803d' : '#9b1c1c') : stageColor,
+            color: isSpecial ? (isWon ? '#2c5545' : '#c94444') : stageColor,
           }}>
             {isWon ? 'Ganho' : isLost ? 'Perdido' : stageLabel}
           </span>
@@ -201,20 +199,20 @@ export function DealCard({ deal, isOverlay = false, dimmed = false, showScore = 
           {isWon && (
             proposalValue != null && proposalValue > 0 ? (
               <span style={{
-                fontSize: '11px', fontWeight: 700, color: '#2a7a4a',
+                fontSize: '11px', fontWeight: 700, color: '#2c5545',
                 fontFamily: "'Geist Mono', monospace", letterSpacing: '-0.01em',
               }}>
                 {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(proposalValue)}
               </span>
             ) : (
-              <span style={{ fontSize: '10px', color: '#b45309', fontWeight: 600 }}>Sem proposta</span>
+              <span style={{ fontSize: '10px', color: '#a88030', fontWeight: 600 }}>Sem proposta</span>
             )
           )}
 
           {/* meta icons */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: 'auto' }}>
             {taskCount > 0 && (
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '10px', color: '#16a34a', fontWeight: 600 }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '10px', color: '#3d7060', fontWeight: 600 }}>
                 <CheckSquare size={11} />
                 {taskCount}
               </span>
@@ -251,9 +249,9 @@ export function DealCard({ deal, isOverlay = false, dimmed = false, showScore = 
             height: '100%',
             width: `${deal.probability}%`,
             background: deal.probability >= 70
-              ? 'linear-gradient(90deg, #15803d, #22c55e)'
+              ? 'linear-gradient(90deg, #2c5545, #3d7060)'
               : deal.probability >= 40
-              ? 'linear-gradient(90deg, #b45309, #f59e0b)'
+              ? 'linear-gradient(90deg, #a88030, #f59e0b)'
               : 'linear-gradient(90deg, #8b2020, #b83535)',
             transition: 'width 0.3s ease',
           }} />

@@ -37,7 +37,7 @@ const HEALTH_LABEL: Record<HealthStatus, string> = {
   healthy: 'Saudável', warning: 'Atenção', critical: 'Crítico',
 }
 const HEALTH_COLOR: Record<HealthStatus, string> = {
-  healthy: '#6b1212', warning: '#92400e', critical: '#b83535',
+  healthy: '#6b1212', warning: '#a88030', critical: '#b83535',
 }
 const HEALTH_BG: Record<HealthStatus, string> = {
   healthy: 'rgba(227,30,36,0.10)', warning: '#fef3c7', critical: '#fee2e2',
@@ -451,7 +451,7 @@ export function GroupCard({
         </div>
         <div>
           <p style={{ fontSize: '11px', color: muted, marginBottom: '2px' }}>Ganhos</p>
-          <p style={{ fontSize: '14px', fontWeight: 700, color: '#15803d', fontFamily: "'Geist Mono', monospace" }}>{wonCount}</p>
+          <p style={{ fontSize: '14px', fontWeight: 700, color: '#2c5545', fontFamily: "'Geist Mono', monospace" }}>{wonCount}</p>
         </div>
         <div>
           <p style={{ fontSize: '11px', color: muted, marginBottom: '2px' }}>Win Rate</p>

@@ -18,8 +18,8 @@ interface UserRow {
 }
 
 const AVATAR_COLORS = [
-  '#6b1212','#1d4ed8','#7c3aed','#b45309','#be185d',
-  '#0e7490','#065f46','#92400e','#6b21a8','#9f1239',
+  '#6b1212','#4d7aa8','#7c5cbf','#a88030','#be185d',
+  '#0e7490','#065f46','#a88030','#6b21a8','#9f1239',
 ]
 
 function InviteDrawer({ isDark, teams, onClose, onCreated }: {
@@ -70,7 +70,10 @@ function InviteDrawer({ isDark, teams, onClose, onCreated }: {
     if (password.length < 6) { setError('Password deve ter pelo menos 6 caracteres'); return }
     setSaving(true); setError('')
     try {
-      const { data, error: fnErr } = await supabase.functions.invoke('create-user', {
+      const timeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Timeout: a Edge Function demorou demasiado. Verifica o Supabase Dashboard.')), 15000)
+      )
+      const invoke = supabase.functions.invoke('create-user', {
         body: {
           email: email.trim(),
           password: password.trim(),
@@ -80,18 +83,28 @@ function InviteDrawer({ isDark, teams, onClose, onCreated }: {
           team_id: teamId || null,
         },
       })
+      const { data, error: fnErr } = await Promise.race([invoke, timeout])
       if (fnErr) {
-        const msg = fnErr.message ?? ''
-        if (msg.toLowerCase().includes('failed to fetch') || msg.toLowerCase().includes('not found') || msg.includes('404')) {
-          throw new Error('Edge Function não deployada. Corre: supabase functions deploy create-user')
+        // Extrair mensagem real — o Supabase JS encapsula o corpo da resposta em fnErr.context
+        let msg = ''
+        try {
+          const ctx = fnErr as unknown as { context?: Response }
+          if (ctx.context && typeof ctx.context.json === 'function') {
+            const body = await ctx.context.json()
+            msg = body?.error ?? body?.message ?? ''
+          }
+        } catch { /* ignorar */ }
+        if (!msg) msg = fnErr.message ?? ''
+        if (!msg || msg.toLowerCase().includes('failed to fetch') || msg.includes('404')) {
+          throw new Error('Edge Function não acessível. Verifica se está deployada no Supabase Dashboard → Functions.')
         }
-        throw new Error(msg || 'Erro na Edge Function')
+        throw new Error(msg)
       }
       if (data?.error) throw new Error(data.error)
       onClose()
       setTimeout(() => onCreated(), 800)
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Erro ao criar utilizador')
+      setError(e instanceof Error ? e.message : 'Erro desconhecido ao criar utilizador')
     } finally {
       setSaving(false)
     }
@@ -162,7 +175,7 @@ function InviteDrawer({ isDark, teams, onClose, onCreated }: {
               </button>
               {password && (
                 <button type="button" onClick={copyPassword}
-                  style={{ height: '38px', padding: '0 12px', borderRadius: '8px', border: `1px solid ${copied ? '#2a9a5a' : border}`, backgroundColor: copied ? 'rgba(42,154,90,0.1)' : 'transparent', color: copied ? '#2a9a5a' : muted, fontSize: '11px', fontWeight: 600, cursor: 'pointer', flexShrink: 0, transition: 'all 0.15s' }}>
+                  style={{ height: '38px', padding: '0 12px', borderRadius: '8px', border: `1px solid ${copied ? '#2c5545' : border}`, backgroundColor: copied ? 'rgba(42,154,90,0.1)' : 'transparent', color: copied ? '#2c5545' : muted, fontSize: '11px', fontWeight: 600, cursor: 'pointer', flexShrink: 0, transition: 'all 0.15s' }}>
                   {copied ? '✓ Copiada' : 'Copiar'}
                 </button>
               )}
@@ -541,8 +554,8 @@ export function AdminUsersPage() {
                               style={{
                                 position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center',
                                 width: '32px', height: '32px', borderRadius: '8px', cursor: 'pointer',
-                                backgroundColor: isActive ? '#16a34a' : (isHovered ? (isDark ? 'rgba(22,163,74,0.12)' : 'rgba(22,163,74,0.08)') : (isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)')),
-                                border: `1px solid ${isActive ? '#15803d' : (isHovered ? 'rgba(22,163,74,0.40)' : (isDark ? 'rgba(255,255,255,0.08)' : '#eaecf0'))}`,
+                                backgroundColor: isActive ? '#2c5545' : (isHovered ? (isDark ? 'rgba(22,163,74,0.12)' : 'rgba(22,163,74,0.08)') : (isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)')),
+                                border: `1px solid ${isActive ? '#2c5545' : (isHovered ? 'rgba(22,163,74,0.40)' : (isDark ? 'rgba(255,255,255,0.08)' : '#eaecf0'))}`,
                                 transition: 'all 0.18s ease', flexShrink: 0, overflow: 'hidden',
                               }}
                             >
@@ -550,12 +563,12 @@ export function AdminUsersPage() {
                                 width="18" height="18" viewBox="0 0 40 40" fill="none"
                                 style={{ transition: 'transform 0.35s cubic-bezier(0.34,1.56,0.64,1)', transform: (isHovered || isActive) ? 'scale(2.0) translateY(2px)' : 'scale(1)' }}
                               >
-                                <rect x="4" y="6" width="32" height="22" rx="3" stroke={isActive ? '#fff' : (isHovered ? '#16a34a' : muted)} strokeWidth="1.8" />
+                                <rect x="4" y="6" width="32" height="22" rx="3" stroke={isActive ? '#fff' : (isHovered ? '#2c5545' : muted)} strokeWidth="1.8" />
                                 <rect x="7" y="9" width="26" height="16" rx="1.5" fill={isActive ? 'rgba(255,255,255,0.12)' : (isHovered ? 'rgba(22,163,74,0.12)' : isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)')} />
-                                <rect x="10" y="12" width="14" height="1.5" rx="0.75" fill={isActive ? '#fff' : (isHovered ? '#16a34a' : muted)} />
-                                <rect x="10" y="15.5" width="10" height="1.5" rx="0.75" fill={isActive ? '#fff' : (isHovered ? '#16a34a' : muted)} />
-                                <rect x="10" y="19" width="16" height="1.5" rx="0.75" fill={isActive ? '#fff' : (isHovered ? '#16a34a' : muted)} />
-                                <path d="M17 28v4M23 28v4M14 32h12" stroke={isActive ? '#fff' : (isHovered ? '#16a34a' : muted)} strokeWidth="1.8" strokeLinecap="round" />
+                                <rect x="10" y="12" width="14" height="1.5" rx="0.75" fill={isActive ? '#fff' : (isHovered ? '#2c5545' : muted)} />
+                                <rect x="10" y="15.5" width="10" height="1.5" rx="0.75" fill={isActive ? '#fff' : (isHovered ? '#2c5545' : muted)} />
+                                <rect x="10" y="19" width="16" height="1.5" rx="0.75" fill={isActive ? '#fff' : (isHovered ? '#2c5545' : muted)} />
+                                <path d="M17 28v4M23 28v4M14 32h12" stroke={isActive ? '#fff' : (isHovered ? '#2c5545' : muted)} strokeWidth="1.8" strokeLinecap="round" />
                               </svg>
                             </button>
                           )}

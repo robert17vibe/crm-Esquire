@@ -28,7 +28,7 @@ function fmtDateShort(iso: string) {
   return new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(iso))
 }
 
-const SEG_COLOR: Record<string, string> = { B2B: '#2563eb', B2C: '#7c3aed', B2G: '#0891b2' }
+const SEG_COLOR: Record<string, string> = { B2B: '#4d7aa8', B2C: '#7c5cbf', B2G: '#0891b2' }
 const SEG_BG:    Record<string, string> = { B2B: 'rgba(37,99,235,0.12)', B2C: 'rgba(124,58,237,0.12)', B2G: 'rgba(8,145,178,0.12)' }
 
 // ─── WorkloadCard ─────────────────────────────────────────────────────────────
@@ -199,7 +199,7 @@ function ActionBar({ selectedCount, owners, workload, targetOwner, onTargetChang
           backgroundColor: 'transparent', color: isDark ? 'rgba(255,255,255,0.70)' : '#1a1a18',
           border: `1px solid ${border}`, opacity: !hasSelection || distributing ? 0.4 : 1,
         }}
-        onMouseEnter={(e) => { if (hasSelection && !distributing) { e.currentTarget.style.borderColor = '#2563eb'; e.currentTarget.style.color = '#2563eb' } }}
+        onMouseEnter={(e) => { if (hasSelection && !distributing) { e.currentTarget.style.borderColor = '#4d7aa8'; e.currentTarget.style.color = '#4d7aa8' } }}
         onMouseLeave={(e) => { e.currentTarget.style.borderColor = border; e.currentTarget.style.color = isDark ? 'rgba(255,255,255,0.70)' : '#1a1a18' }}
       >
         <Shuffle style={{ width: '12px', height: '12px' }} />
@@ -683,7 +683,7 @@ function HistoryTab({ history, owners, isDark, border, card, text, muted }: {
                 fontSize: '8px', fontWeight: 800, letterSpacing: '0.10em', textTransform: 'uppercase',
                 padding: '2px 7px', borderRadius: '3px',
                 backgroundColor: isAuto ? 'rgba(37,99,235,0.12)' : 'rgba(124,58,237,0.12)',
-                color: isAuto ? '#2563eb' : '#7c3aed',
+                color: isAuto ? '#4d7aa8' : '#7c5cbf',
               }}>
                 {isAuto ? 'Distribuição automática' : 'Atribuição manual'}
               </span>

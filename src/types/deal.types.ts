@@ -106,6 +106,11 @@ export interface Deal {
 
 export type GroupedDeals = Record<StageId, Deal[]>
 
+// Campos que o cliente pode actualizar. Exclui imutáveis geridos pelo servidor.
+export type DealPatch = Partial<
+  Omit<Deal, 'id' | 'company_id' | 'created_at' | 'deleted_at' | 'days_in_stage'>
+>
+
 // ─── Activity timeline entry ──────────────────────────────────────────────────
 
 export interface DealActivity {

@@ -7,9 +7,9 @@ export type ActivityColor = 'accent' | 'success' | 'warning' | 'danger' | 'info'
 
 const DOT_COLORS: Record<ActivityColor, { light: string; dark: string }> = {
   accent:  { light: '#6b1212', dark: '#c44040' },
-  success: { light: '#15803d', dark: '#4ade80' },
-  warning: { light: '#92400e', dark: '#fbbf24' },
-  danger:  { light: '#9b1c1c', dark: '#f87171' },
+  success: { light: '#2c5545', dark: '#5aaa88' },
+  warning: { light: '#a88030', dark: '#c9a040' },
+  danger:  { light: '#c94444', dark: '#f87171' },
   info:    { light: '#1e40af', dark: '#60a5fa' },
   neutral: { light: '#98a2b3', dark: '#6b6760' },
 }

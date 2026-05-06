@@ -7,7 +7,6 @@ import { useThemeStore } from '@/store/useThemeStore'
 import { useSettingsStore } from '@/store/useSettingsStore'
 import { useAuthStore } from '@/store/useAuthStore'
 import { supabase } from '@/lib/supabase'
-import { IntegrationsPage } from './IntegrationsPage'
 
 function Toggle({ checked, onChange, isDark }: { checked: boolean; onChange: (v: boolean) => void; isDark: boolean }) {
   return (
@@ -93,8 +92,8 @@ function Row({
 }
 
 const AVATAR_COLORS = [
-  '#6b1212', '#1e40af', '#7c3aed', '#b45309', '#be185d',
-  '#0f766e', '#b83535', '#0369a1', '#4d7c0f', '#92400e',
+  '#6b1212', '#1e40af', '#7c5cbf', '#a88030', '#be185d',
+  '#0f766e', '#b83535', '#0369a1', '#4d7c0f', '#a88030',
 ]
 
 type SettingsTab = 'perfil' | 'seguranca' | 'notificacoes' | 'preferencias' | 'api' | 'integracoes'
@@ -190,7 +189,7 @@ export function SettingsPage() {
         disabled={loading}
         style={{
           height: '32px', padding: '0 12px', borderRadius: '4px',
-          backgroundColor: saved ? '#2d9e6b' : '#6b1212',
+          backgroundColor: saved ? '#2c5545' : '#6b1212',
           color: '#ffffff', border: 'none', cursor: loading ? 'not-allowed' : 'pointer',
           fontSize: '11px', fontWeight: 700, flexShrink: 0,
           textTransform: 'uppercase' as const, letterSpacing: '0.06em',
@@ -405,7 +404,7 @@ export function SettingsPage() {
                   />
                 </div>
                 {pwdMsg && (
-                  <p style={{ fontSize: '11px', color: pwdMsg.type === 'ok' ? '#2d9e6b' : '#b83535', fontWeight: 600 }}>
+                  <p style={{ fontSize: '11px', color: pwdMsg.type === 'ok' ? '#2c5545' : '#b83535', fontWeight: 600 }}>
                     {pwdMsg.type === 'ok' ? '✓ ' : '✕ '}{pwdMsg.text}
                   </p>
                 )}
@@ -525,7 +524,7 @@ export function SettingsPage() {
                         onClick={copyKey}
                         style={{
                           height: '32px', padding: '0 14px', borderRadius: '4px',
-                          backgroundColor: apiCopied ? '#2d9e6b' : '#6b1212',
+                          backgroundColor: apiCopied ? '#2c5545' : '#6b1212',
                           color: '#fff', border: 'none', cursor: 'pointer',
                           fontSize: '11px', fontWeight: 700,
                           textTransform: 'uppercase' as const, letterSpacing: '0.06em',
@@ -580,14 +579,14 @@ export function SettingsPage() {
             <Section title="Conexão" isDark={isDark}>
               <div style={{ display: 'flex', alignItems: 'center', padding: '13px 16px', gap: '12px' }}>
                 <div style={{ width: '32px', height: '32px', borderRadius: '8px', backgroundColor: isDark ? '#1e1e1c' : '#f0eeea', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <Zap style={{ width: '14px', height: '14px', color: '#2d9e6b' }} />
+                  <Zap style={{ width: '14px', height: '14px', color: '#2c5545' }} />
                 </div>
                 <div style={{ flex: 1 }}>
                   <p style={{ fontSize: '13px', fontWeight: 600, color: text }}>Supabase</p>
                   <p style={{ fontSize: '11px', color: muted }}>Base de dados e autenticação</p>
                 </div>
-                <span style={{ fontSize: '11px', fontWeight: 600, color: '#2d9e6b', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#2d9e6b', display: 'inline-block' }} />
+                <span style={{ fontSize: '11px', fontWeight: 600, color: '#2c5545', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#2c5545', display: 'inline-block' }} />
                   Conectado
                 </span>
               </div>
@@ -666,8 +665,8 @@ export function SettingsPage() {
                             onClick={() => copyCred(cred.id, cred.value)}
                             style={{
                               height: '26px', padding: '0 10px', borderRadius: '4px', flexShrink: 0,
-                              backgroundColor: copiedCred === cred.id ? '#2d9e6b' : 'transparent',
-                              border: `1px solid ${copiedCred === cred.id ? '#2d9e6b' : border}`,
+                              backgroundColor: copiedCred === cred.id ? '#2c5545' : 'transparent',
+                              border: `1px solid ${copiedCred === cred.id ? '#2c5545' : border}`,
                               color: copiedCred === cred.id ? '#fff' : muted,
                               cursor: 'pointer', fontSize: '10px', fontWeight: 600,
                               display: 'flex', alignItems: 'center', gap: '4px',
@@ -699,7 +698,9 @@ export function SettingsPage() {
 
         {/* ── Integrações ── */}
         {activeTab === 'integracoes' && (
-          <IntegrationsPage />
+          <div style={{ padding: '40px', textAlign: 'center', color: isDark ? '#4a4844' : '#c4bfb8', fontSize: '13px' }}>
+            Integrações em desenvolvimento
+          </div>
         )}
 
         {activeTab !== 'integracoes' && (

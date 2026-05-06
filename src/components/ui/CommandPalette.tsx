@@ -132,9 +132,9 @@ export function CommandPalette({ open, onClose, onCreateDeal, onCreateTask }: Co
   // Build items list
   const createItems = useMemo<CmdItem[]>(() => [
     { id: 'c-deal',     label: 'Novo lead',    sublabel: 'Criar um novo lead no pipeline', type: 'create', shortcut: 'nd', color: '#2c5545', action: () => { onCreateDeal?.(); onClose() } },
-    { id: 'c-task',     label: 'Nova tarefa',  sublabel: 'Criar uma tarefa de follow-up',   type: 'create', shortcut: 'nt', color: '#7c3aed', action: () => { onCreateTask?.(); navigate('/tarefas'); onClose() } },
+    { id: 'c-task',     label: 'Nova tarefa',  sublabel: 'Criar uma tarefa de follow-up',   type: 'create', shortcut: 'nt', color: '#7c5cbf', action: () => { onCreateTask?.(); navigate('/tarefas'); onClose() } },
     { id: 'c-calendar', label: 'Nova reunião', sublabel: 'Agendar reunião no calendário',   type: 'create', shortcut: 'nm', color: '#0369a1', action: () => { navigate('/calendar'); onClose() } },
-    { id: 'c-email',    label: 'Novo email',   sublabel: 'Escrever um email no CRM',        type: 'create', shortcut: 'ne', color: '#b45309', action: () => { navigate('/email'); onClose() } },
+    { id: 'c-email',    label: 'Novo email',   sublabel: 'Escrever um email no CRM',        type: 'create', shortcut: 'ne', color: '#a88030', action: () => { navigate('/email'); onClose() } },
   ], [onCreateDeal, onCreateTask, navigate, onClose])
 
   const pageItems  = useMemo(() => PAGE_ITEMS(navigate), [navigate])

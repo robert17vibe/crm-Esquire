@@ -1,9 +1,9 @@
 import { useState, useEffect, useMemo } from 'react'
 import { NavLink } from 'react-router-dom'
 import {
-  LayoutDashboard, Kanban, Users, Mic, CalendarDays,
+  LayoutDashboard, Kanban, Users, CalendarDays,
   CheckSquare, Settings, LogOut, Users2, Shield, Mail,
-  Megaphone, GitFork, ChevronLeft, ChevronRight, BarChart2, Activity, FileText,
+  Megaphone, GitFork, ChevronLeft, ChevronRight,
   CreditCard, TrendingUp,
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
@@ -23,13 +23,9 @@ const NAV_ITEMS = [
   { to: '/dashboard',  label: 'Dashboard',   icon: LayoutDashboard },
   { to: '/pipeline',   label: 'Jornada',     icon: Kanban          },
   { to: '/clients',    label: 'Clientes',    icon: Users           },
-  { to: '/propostas',  label: 'Propostas',   icon: FileText        },
   { to: '/tarefas',    label: 'Tarefas',     icon: CheckSquare     },
-  { to: '/atividades', label: 'Atividades',  icon: Activity        },
-  { to: '/meetings',   label: 'Registo',     icon: Mic             },
   { to: '/calendar',   label: 'Calendário',  icon: CalendarDays    },
   { to: '/email',      label: 'Email',       icon: Mail            },
-  { to: '/relatorios', label: 'Relatórios',  icon: BarChart2       },
 ] as const
 
 type NavTo = (typeof NAV_ITEMS)[number]['to'] | '/teams' | '/admin/users' | '/admin/notifications' | '/admin/distribuir-leads' | '/admin/cobranca' | '/admin/desempenho'
@@ -89,7 +85,7 @@ function NavItem({
             <Icon
               style={{
                 width: '15px', height: '15px',
-                color: isActive ? '#e8b4b4' : hovered ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.32)',
+                color: isActive ? '#ffffff' : hovered ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.32)',
                 transition: 'color 0.15s ease',
                 transformOrigin: 'center',
                 display: 'block',
@@ -303,7 +299,7 @@ export function Sidebar() {
                 )}
                 <Settings style={{
                   width: '15px', height: '15px',
-                  color: isActive ? '#e8b4b4' : settingsHover ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.28)',
+                  color: isActive ? '#ffffff' : settingsHover ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.28)',
                   flexShrink: 0,
                   animation: settingsHover ? 'sb-gear 0.55s ease both' : 'none',
                   transformOrigin: 'center',
@@ -342,7 +338,7 @@ export function Sidebar() {
                 </div>
                 <button type="button" onClick={() => signOut()} title="Sair"
                   style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', flexShrink: 0, color: 'rgba(255,255,255,0.20)', transition: 'color 0.15s ease', display: 'flex' }}
-                  onMouseEnter={(e) => (e.currentTarget.style.color = '#9b3030')}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = '#e05050')}
                   onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.20)')}>
                   <LogOut style={{ width: '14px', height: '14px' }} />
                 </button>

@@ -33,10 +33,10 @@ function NotificationPanel({ onClose, isDark }: { onClose: () => void; isDark: b
   }
 
   const TEAM_TYPE_CFG: Record<string, { color: string; bg: string }> = {
-    info:         { color: '#1d4ed8', bg: isDark ? '#0f1c40' : '#eff6ff' },
-    warning:      { color: '#b45309', bg: isDark ? '#231508' : '#fef3c7' },
-    urgent:       { color: '#b91c1c', bg: isDark ? '#200f0f' : '#fee2e2' },
-    announcement: { color: '#7c3aed', bg: isDark ? '#160e30' : '#f5f3ff' },
+    info:         { color: '#4d7aa8', bg: isDark ? '#0d1e30' : '#eff6ff' },
+    warning:      { color: '#a88030', bg: isDark ? '#1e1508' : '#fef3c7' },
+    urgent:       { color: '#c94444', bg: isDark ? '#1e0d0d' : '#fee2e2' },
+    announcement: { color: '#7c5cbf', bg: isDark ? '#180e30' : '#f5f3ff' },
   }
 
   return (
@@ -58,7 +58,7 @@ function NotificationPanel({ onClose, isDark }: { onClose: () => void; isDark: b
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <p style={{ fontSize: '13px', fontWeight: 600, color: text, letterSpacing: '-0.01em' }}>Notificações</p>
             {totalUnread > 0 && (
-              <span style={{ fontSize: '10px', fontWeight: 600, color: '#fff', backgroundColor: '#b91c22', borderRadius: '99px', padding: '1px 7px' }}>
+              <span style={{ fontSize: '10px', fontWeight: 600, color: '#fff', backgroundColor: '#6b1212', borderRadius: '99px', padding: '1px 7px' }}>
                 {totalUnread}
               </span>
             )}
@@ -134,10 +134,10 @@ function NotificationPanel({ onClose, isDark }: { onClose: () => void; isDark: b
               )}
               {dealNotifs.slice(0, 15).map((n) => {
                 const cfgMap: Record<NotificationType, { color: string; bg: string; label: string }> = {
-                  new_deal:         { color: '#15803d', bg: isDark ? '#0c2015' : '#ecfdf5', label: 'Novo lead'        },
-                  overdue_activity: { color: '#b91c1c', bg: isDark ? '#200f0f' : '#fee2e2', label: 'Actividade vencida' },
-                  sla_breach:       { color: '#b45309', bg: isDark ? '#231508' : '#fef3c7', label: 'SLA em risco'      },
-                  meeting_invite:   { color: '#1d4ed8', bg: isDark ? '#0f1c40' : '#eff6ff', label: 'Convite reunião'   },
+                  new_deal:         { color: '#2c5545', bg: isDark ? '#0c1e18' : '#ecfdf5', label: 'Novo lead'        },
+                  overdue_activity: { color: '#c94444', bg: isDark ? '#1e0d0d' : '#fee2e2', label: 'Actividade vencida' },
+                  sla_breach:       { color: '#a88030', bg: isDark ? '#1e1508' : '#fef3c7', label: 'SLA em risco'      },
+                  meeting_invite:   { color: '#4d7aa8', bg: isDark ? '#0d1e30' : '#eff6ff', label: 'Convite reunião'   },
                 }
                 const IconMap: Record<NotificationType, typeof Bell> = {
                   new_deal: Bell, overdue_activity: AlertTriangle,
@@ -205,7 +205,7 @@ function UserMenu({ onClose, isDark }: { onClose: () => void; isDark: boolean })
   const displayName     = profile?.full_name || 'Utilizador'
   const displayEmail    = profile?.email || '—'
   const displayRole     = profile?.is_admin ? 'Admin' : 'Membro'
-  const displayColor    = profile?.avatar_color ?? '#b91c22'
+  const displayColor    = profile?.avatar_color ?? '#6b1212'
   const displayInitials = displayName.split(' ').map((p: string) => p[0]).slice(0, 2).join('').toUpperCase()
 
   return (
@@ -242,8 +242,8 @@ function UserMenu({ onClose, isDark }: { onClose: () => void; isDark: boolean })
             display: 'inline-block', marginTop: '10px',
             fontSize: '10px', fontWeight: 600, letterSpacing: '0.04em',
             textTransform: 'uppercase',
-            color: '#b91c22',
-            backgroundColor: isDark ? 'rgba(185,28,34,0.12)' : 'rgba(185,28,34,0.07)',
+            color: '#c94444',
+            backgroundColor: isDark ? 'rgba(107,18,18,0.22)' : 'rgba(107,18,18,0.09)',
             borderRadius: '4px', padding: '2px 8px',
           }}>
             {displayRole}
@@ -274,7 +274,7 @@ function UserMenu({ onClose, isDark }: { onClose: () => void; isDark: boolean })
               display: 'flex', alignItems: 'center', gap: '8px',
               width: '100%', padding: '8px 10px', borderRadius: '7px',
               backgroundColor: 'transparent', border: 'none', cursor: 'pointer',
-              fontSize: '13px', fontWeight: 400, color: '#b91c22', letterSpacing: '-0.01em',
+              fontSize: '13px', fontWeight: 400, color: '#c94444', letterSpacing: '-0.01em',
               transition: 'background-color 0.1s ease',
             }}
             onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = hover)}
@@ -303,7 +303,7 @@ export function Header({ onOpenSearch }: { onOpenSearch?: () => void }) {
   const unreadCount = notifications.filter((n) => !n.read).length
     + teamNotifs.filter((n) => !teamReadIds.has(n.id)).length
 
-  const displayColor    = profile?.avatar_color ?? '#b91c22'
+  const displayColor    = profile?.avatar_color ?? '#6b1212'
   const displayName     = profile?.full_name || 'Utilizador'
   const displayInitials = displayName.split(' ').map((p: string) => p[0]).slice(0, 2).join('').toUpperCase()
 
@@ -401,7 +401,7 @@ export function Header({ onOpenSearch }: { onOpenSearch?: () => void }) {
               <span style={{
                 position: 'absolute', top: '5px', right: '5px',
                 width: '7px', height: '7px', borderRadius: '50%',
-                backgroundColor: '#b91c22',
+                backgroundColor: '#6b1212',
                 border: `1.5px solid ${isDark ? '#0a0a08' : '#f7f6f3'}`,
               }} />
             )}

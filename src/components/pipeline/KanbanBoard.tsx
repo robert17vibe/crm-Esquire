@@ -21,6 +21,7 @@ import { StageColumn } from './StageColumn'
 import { DealCard } from './DealCard'
 import { LossReasonModal } from './LossReasonModal'
 import type { Deal, GroupedDeals } from '@/types/deal.types'
+import { useProposalStore } from '@/store/useProposalStore'
 
 interface KanbanBoardProps {
   initialDeals: Deal[]
@@ -166,11 +167,9 @@ export function KanbanBoard({
     : null
 
   // ── Proposal check ───────────────────────────────────────────────────────
+  const proposalHas = useProposalStore((s) => s.hasProposal)
   function hasProposal(dealId: string): boolean {
-    try {
-      const data = JSON.parse(localStorage.getItem(`esq_proposals_v4_${dealId}`) ?? '[]')
-      return Array.isArray(data) && data.length > 0
-    } catch { return false }
+    return proposalHas(dealId)
   }
 
   function revertFromWon(dealId: string, fromStage: StageId) {

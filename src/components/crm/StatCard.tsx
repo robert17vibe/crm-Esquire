@@ -31,8 +31,8 @@ export function StatCard({
   const shadow   = isDark ? 'none' : '0 1px 3px rgba(16,24,40,0.06), 0 1px 2px rgba(16,24,40,0.04)'
 
   const deltaColors = {
-    positive: { color: '#15803d', bg: 'rgba(21,128,61,0.08)', icon: <TrendingUp size={11} /> },
-    negative: { color: '#9b1c1c', bg: 'rgba(155,28,28,0.08)', icon: <TrendingDown size={11} /> },
+    positive: { color: '#2c5545', bg: 'rgba(21,128,61,0.08)', icon: <TrendingUp size={11} /> },
+    negative: { color: '#c94444', bg: 'rgba(155,28,28,0.08)', icon: <TrendingDown size={11} /> },
     neutral:  { color: '#667085', bg: 'rgba(16,24,40,0.06)', icon: <Minus size={11} /> },
   }
   const dc = deltaColors[deltaType]

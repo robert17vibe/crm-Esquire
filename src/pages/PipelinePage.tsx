@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef, useCallback } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
-import { Plus, Zap, LayoutGrid, List, RefreshCcw, CheckSquare, ChevronDown, ChevronRight, Clock, Kanban } from 'lucide-react'
+import { Plus, Zap, LayoutGrid, List, RefreshCcw, CheckSquare, ChevronDown, ChevronRight, Clock, Kanban, FileText } from 'lucide-react'
 
 import { useTaskStore } from '@/store/useTaskStore'
 import { useAuthStore } from '@/store/useAuthStore'
@@ -145,7 +145,7 @@ export function StageFunnel({ deals, isDark, border, muted }: {
         </div>
         <div>
           <div style={{ fontSize: '8px', color: muted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1px' }}>Win Rate</div>
-          <div style={{ fontSize: '11px', fontWeight: 700, color: winRate >= 50 ? '#15803d' : winRate >= 25 ? '#b45309' : textStrong, fontFamily: "'Geist Mono', monospace", letterSpacing: '-0.02em' }}>
+          <div style={{ fontSize: '11px', fontWeight: 700, color: winRate >= 50 ? '#2c5545' : winRate >= 25 ? '#a88030' : textStrong, fontFamily: "'Geist Mono', monospace", letterSpacing: '-0.02em' }}>
             {winRate}%
           </div>
         </div>
@@ -409,10 +409,10 @@ export function MapaView({ deals, isDark, border, muted }: { deals: Deal[]; isDa
 // ─── Renovação Kanban ─────────────────────────────────────────────────────────
 
 const RENOV_COLUMNS = [
-  { id: 'integracao', label: 'Integração',         color: '#2563eb', desc: 'Setup e briefing inicial' },
-  { id: 'producao',   label: 'Em Produção',        color: '#7c3aed', desc: 'Conteúdo sendo produzido' },
-  { id: 'revisao',    label: 'Em Revisão',         color: '#b45309', desc: 'Aguardando aprovação do cliente' },
-  { id: 'ativo',      label: 'Ativo',              color: '#15803d', desc: 'Contrato em vigor' },
+  { id: 'integracao', label: 'Integração',         color: '#4d7aa8', desc: 'Setup e briefing inicial' },
+  { id: 'producao',   label: 'Em Produção',        color: '#7c5cbf', desc: 'Conteúdo sendo produzido' },
+  { id: 'revisao',    label: 'Em Revisão',         color: '#a88030', desc: 'Aguardando aprovação do cliente' },
+  { id: 'ativo',      label: 'Ativo',              color: '#2c5545', desc: 'Contrato em vigor' },
   { id: 'renovar',    label: 'Renovar',            color: '#a16207', desc: 'Período encerrado · a renegociar' },
   { id: 'encerrado',  label: 'Contrato Encerrado', color: '#4b5563', desc: 'Contrato vencido — reativar' },
 ]
@@ -446,7 +446,7 @@ const MOCK_RENOV_CLIENTS: RenovClient[] = [
   {
     id: 'rc-1', company: 'Itaú Unibanco', contact: 'Mariana Costa', sector: 'Financeiro',
     value: 84000, contractStart: '2026-01-10', contractEnd: '2026-12-10',
-    col: 'ativo', ownerName: 'Rafael Mendes', ownerColor: '#2563eb',
+    col: 'ativo', ownerName: 'Rafael Mendes', ownerColor: '#4d7aa8',
     notes: 'Cliente VIP — contrato ativo e saudável. Foco em branded content financeiro para Q3.',
     material: [
       { id: 'm1', type: 'briefing',  label: 'Briefing Q1 2026',          date: '2026-01-12', status: 'aprovado' },
@@ -468,7 +468,7 @@ const MOCK_RENOV_CLIENTS: RenovClient[] = [
   {
     id: 'rc-8', company: 'Magazine Luiza', contact: 'Thiago Barros', sector: 'Varejo',
     value: 45000, contractStart: '2025-06-01', contractEnd: '2025-11-30',
-    col: 'renovar', ownerName: 'Ana Beatriz', ownerColor: '#7c3aed',
+    col: 'renovar', ownerName: 'Ana Beatriz', ownerColor: '#7c5cbf',
     notes: 'Parceria muito bem-sucedida em conteúdo de performance. Interesse em renovar com foco em vídeo e social. Budget aprovado internamente.',
     material: [
       { id: 'm17', type: 'relatorio', label: 'Relatório de Resultados H2/25',date: '2025-12-10', status: 'enviado'  },
@@ -478,7 +478,7 @@ const MOCK_RENOV_CLIENTS: RenovClient[] = [
   {
     id: 'rc-3', company: 'BMW Brasil', contact: 'Stefan Kruger', sector: 'Automotivo',
     value: 96000, contractStart: '2026-03-01', contractEnd: '2027-02-28',
-    col: 'producao', ownerName: 'Ana Beatriz', ownerColor: '#7c3aed',
+    col: 'producao', ownerName: 'Ana Beatriz', ownerColor: '#7c5cbf',
     notes: 'Campanha premium — 4 editoriais por trimestre. Material visual de alto padrão.',
     material: [
       { id: 'm7', type: 'briefing',  label: 'Briefing Série BMW M',       date: '2026-03-05', status: 'aprovado' },
@@ -488,7 +488,7 @@ const MOCK_RENOV_CLIENTS: RenovClient[] = [
   {
     id: 'rc-4', company: 'Amaro Fashion', contact: 'Juliana Rego', sector: 'Moda',
     value: 38000, contractStart: '2026-04-01', contractEnd: '2026-09-30',
-    col: 'revisao', ownerName: 'Pedro Lima', ownerColor: '#b45309',
+    col: 'revisao', ownerName: 'Pedro Lima', ownerColor: '#a88030',
     notes: 'Aguardando aprovação do lookbook de inverno. 2ª revisão solicitada.',
     material: [
       { id: 'm9',  type: 'briefing',  label: 'Briefing Coleção Inverno 26', date: '2026-04-03', status: 'aprovado' },
@@ -498,7 +498,7 @@ const MOCK_RENOV_CLIENTS: RenovClient[] = [
   {
     id: 'rc-5', company: 'XP Investimentos', contact: 'Fernanda Souza', sector: 'Financeiro',
     value: 55000, contractStart: '2026-04-15', contractEnd: '2027-04-14',
-    col: 'integracao', ownerName: 'Lucas Moreira', ownerColor: '#15803d',
+    col: 'integracao', ownerName: 'Lucas Moreira', ownerColor: '#2c5545',
     notes: 'Novo cliente. Primeira reunião de kickoff realizada. Aguardando briefing completo.',
     material: [
       { id: 'm11', type: 'contrato', label: 'Contrato Assinado',           date: '2026-04-14', status: 'aprovado' },
@@ -507,7 +507,7 @@ const MOCK_RENOV_CLIENTS: RenovClient[] = [
   {
     id: 'rc-6', company: 'Natura &Co', contact: 'Beatriz Andrade', sector: 'Beleza & Bem-estar',
     value: 72000, contractStart: '2025-01-01', contractEnd: '2025-12-31',
-    col: 'encerrado', ownerName: 'Rafael Mendes', ownerColor: '#2563eb',
+    col: 'encerrado', ownerName: 'Rafael Mendes', ownerColor: '#4d7aa8',
     notes: 'Contrato encerrado em dez/2025. Relacionamento muito positivo — diretor de marketing aberto a conversar sobre nova proposta. Foco em conteúdo institucional e ESG.',
     material: [
       { id: 'm12', type: 'relatorio', label: 'Relatório Anual 2025',        date: '2026-01-08', status: 'enviado'  },
@@ -531,7 +531,7 @@ const MATERIAL_ICON: Record<string, string> = {
   briefing: '📋', conteudo: '✏️', relatorio: '📊', proposta: '📄', contrato: '✅',
 }
 const MATERIAL_STATUS_COLOR: Record<string, string> = {
-  aprovado: '#15803d', enviado: '#2563eb', pendente: '#b45309',
+  aprovado: '#2c5545', enviado: '#4d7aa8', pendente: '#a88030',
 }
 
 export function getRenovCol(deal: Deal): RenovColId {
@@ -913,7 +913,7 @@ function RenovacaoDetailPanel({ client, isDark, border, onClose, onMoveClient, o
               <p style={{ fontSize: '10px', fontWeight: 700, color: '#a16207', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '2px' }}>
                 Renovar
               </p>
-              <p style={{ fontSize: '11px', color: isDark ? '#c49a38' : '#92400e' }}>
+              <p style={{ fontSize: '11px', color: isDark ? '#c49a38' : '#a88030' }}>
                 Período encerrado há {Math.abs(contractDaysLeft)} dias · iniciar renegociação
               </p>
             </div>
@@ -940,7 +940,7 @@ function RenovacaoDetailPanel({ client, isDark, border, onClose, onMoveClient, o
                     }}>
                       <span style={{ fontSize: '11px', color: muted, flexShrink: 0 }}>{label}</span>
                       <span style={{
-                        fontSize: '11px', fontWeight: 700, color: label === 'Variação' ? '#15803d' : text,
+                        fontSize: '11px', fontWeight: 700, color: label === 'Variação' ? '#2c5545' : text,
                         textAlign: 'right', fontFamily: label !== 'Vigência proposta' ? "'Geist Mono', monospace" : undefined,
                       }}>{value}</span>
                     </div>
@@ -979,8 +979,8 @@ function RenovacaoDetailPanel({ client, isDark, border, onClose, onMoveClient, o
                         </div>
                         <span style={{
                           fontSize: '9px', fontWeight: 700,
-                          color: hasIt ? '#15803d' : '#b45309',
-                          backgroundColor: hasIt ? '#15803d15' : '#b4530915',
+                          color: hasIt ? '#2c5545' : '#a88030',
+                          backgroundColor: hasIt ? '#2c554515' : '#a8803015',
                           borderRadius: '999px', padding: '2px 8px', flexShrink: 0,
                           textTransform: 'uppercase', letterSpacing: '0.05em',
                         }}>
@@ -1018,7 +1018,7 @@ function RenovacaoDetailPanel({ client, isDark, border, onClose, onMoveClient, o
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', paddingTop: '4px' }}>
                 <button type="button"
                   onClick={() => onMoveClient(client.id, 'integracao')}
-                  style={{ width: '100%', padding: '12px', borderRadius: '9px', backgroundColor: '#15803d', color: '#fff', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: 700, boxShadow: '0 2px 8px rgba(21,128,61,0.3)' }}>
+                  style={{ width: '100%', padding: '12px', borderRadius: '9px', backgroundColor: '#2c5545', color: '#fff', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: 700, boxShadow: '0 2px 8px rgba(21,128,61,0.3)' }}>
                   ✓ Contrato fechado — mover para Integração
                 </button>
                 <button type="button"
@@ -1098,8 +1098,8 @@ function RenovacaoDetailPanel({ client, isDark, border, onClose, onMoveClient, o
                         </div>
                         <span style={{
                           fontSize: '9px', fontWeight: 700,
-                          color: hasMaterial ? '#15803d' : '#b45309',
-                          backgroundColor: hasMaterial ? '#15803d15' : '#b4530915',
+                          color: hasMaterial ? '#2c5545' : '#a88030',
+                          backgroundColor: hasMaterial ? '#2c554515' : '#a8803015',
                           borderRadius: '999px', padding: '2px 8px', flexShrink: 0,
                           textTransform: 'uppercase', letterSpacing: '0.05em',
                         }}>
@@ -1142,7 +1142,7 @@ function RenovacaoDetailPanel({ client, isDark, border, onClose, onMoveClient, o
                 </button>
                 <button type="button"
                   onClick={() => onMoveClient(client.id, 'integracao')}
-                  style={{ width: '100%', padding: '10px', borderRadius: '9px', backgroundColor: '#15803d', color: '#fff', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: 700, boxShadow: '0 2px 8px rgba(21,128,61,0.25)' }}>
+                  style={{ width: '100%', padding: '10px', borderRadius: '9px', backgroundColor: '#2c5545', color: '#fff', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: 700, boxShadow: '0 2px 8px rgba(21,128,61,0.25)' }}>
                   ✓ Contrato fechado — mover para Integração
                 </button>
               </div>
@@ -1278,7 +1278,7 @@ function RenovacaoView({ isDark, border, muted }: { deals: Deal[]; isDark: boole
                           </span>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                             {pendingCount > 0 && (
-                              <span style={{ fontSize: '10px', color: '#b45309', fontWeight: 600 }}>
+                              <span style={{ fontSize: '10px', color: '#a88030', fontWeight: 600 }}>
                                 {pendingCount} pendente{pendingCount > 1 ? 's' : ''}
                               </span>
                             )}
@@ -1293,7 +1293,7 @@ function RenovacaoView({ isDark, border, muted }: { deals: Deal[]; isDark: boole
                         <div style={{
                           height: '100%',
                           width: `${Math.max(5, Math.min(100, Math.round((daysLeft / 365) * 100)))}%`,
-                          background: isUrgent ? 'linear-gradient(90deg,#8b2020,#b83535)' : 'linear-gradient(90deg,#15803d,#22c55e)',
+                          background: isUrgent ? 'linear-gradient(90deg,#8b2020,#b83535)' : 'linear-gradient(90deg,#2c5545,#3d8a6e)',
                           transition: 'width 0.3s ease',
                         }} />
                       </div>
@@ -1402,9 +1402,9 @@ function ListRow({ deal, isDark, border, text, muted, taskCount, isAdmin, onMove
         {taskCount > 0 ? (
           <span style={{
             display: 'inline-flex', alignItems: 'center', gap: '5px',
-            fontSize: '11px', fontWeight: 600, color: '#16a34a',
+            fontSize: '11px', fontWeight: 600, color: '#2c5545',
             backgroundColor: isDark ? '#0d2318' : '#f0faf4',
-            border: '1px solid #16a34a28', borderRadius: '6px', padding: '3px 10px',
+            border: '1px solid #2c554528', borderRadius: '6px', padding: '3px 10px',
           }}>
             <CheckSquare size={11} />
             {taskCount} tarefa{taskCount !== 1 ? 's' : ''}
@@ -1437,20 +1437,20 @@ function ListRow({ deal, isDark, border, text, muted, taskCount, isAdmin, onMove
         {!isWon && !isLost && (deal.probability ?? 0) > 0 ? (
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
-              <span style={{ fontSize: '11px', fontWeight: 600, color: (deal.probability ?? 0) >= 70 ? '#16a34a' : (deal.probability ?? 0) >= 40 ? '#a88030' : '#b83535', fontVariantNumeric: 'tabular-nums' }}>
+              <span style={{ fontSize: '11px', fontWeight: 600, color: (deal.probability ?? 0) >= 70 ? '#2c5545' : (deal.probability ?? 0) >= 40 ? '#a88030' : '#b83535', fontVariantNumeric: 'tabular-nums' }}>
                 {deal.probability}%
               </span>
             </div>
             <div style={{ height: '5px', borderRadius: '999px', backgroundColor: isDark ? '#1e1e1c' : '#e8e5e0', overflow: 'hidden' }}>
               <div style={{
                 height: '100%', width: `${deal.probability}%`,
-                background: (deal.probability ?? 0) >= 70 ? 'linear-gradient(90deg,#15803d,#22c55e)' : (deal.probability ?? 0) >= 40 ? 'linear-gradient(90deg,#a88030,#f59e0b)' : 'linear-gradient(90deg,#8b2020,#b83535)',
+                background: (deal.probability ?? 0) >= 70 ? 'linear-gradient(90deg,#2c5545,#3d8a6e)' : (deal.probability ?? 0) >= 40 ? 'linear-gradient(90deg,#a88030,#f59e0b)' : 'linear-gradient(90deg,#8b2020,#b83535)',
                 borderRadius: '999px', transition: 'width 0.3s ease',
               }} />
             </div>
           </div>
         ) : isWon ? (
-          <span style={{ fontSize: '11px', fontWeight: 700, color: '#16a34a' }}>✓ Ganho</span>
+          <span style={{ fontSize: '11px', fontWeight: 700, color: '#2c5545' }}>✓ Ganho</span>
         ) : isLost ? (
           <span style={{ fontSize: '11px', fontWeight: 700, color: '#b83535' }}>✗ Perdido</span>
         ) : (
@@ -1462,7 +1462,7 @@ function ListRow({ deal, isDark, border, text, muted, taskCount, isAdmin, onMove
       <div style={{ textAlign: 'right', paddingRight: '16px' }}>
         <span style={{
           fontSize: '13px', fontWeight: 700,
-          color: isWon ? '#16a34a' : deal.value ? text : muted,
+          color: isWon ? '#2c5545' : deal.value ? text : muted,
           fontFamily: "'Geist Mono', monospace", letterSpacing: '-0.01em',
         }}>
           {deal.value ? fmt(deal.value) : '—'}
@@ -1527,6 +1527,7 @@ function ListRow({ deal, isDark, border, text, muted, taskCount, isAdmin, onMove
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export function PipelinePage() {
+  const navigate         = useNavigate()
   const deals            = useVisibleDeals()
   const deleteDeal       = useDealStore((s) => s.deleteDeal)
   const moveDeal         = useDealStore((s) => s.moveDeal)
@@ -1729,6 +1730,23 @@ export function PipelinePage() {
             />
           </button>
 
+          {/* Propostas */}
+          <button
+            type="button"
+            onClick={() => navigate('/propostas')}
+            title="Ver todas as propostas"
+            style={{
+              display: 'flex', alignItems: 'center', gap: '5px',
+              height: '30px', padding: '0 12px', borderRadius: '8px',
+              border: `1px solid ${filterBorder}`, backgroundColor: filterBg,
+              color: filterText, fontSize: '11px', fontWeight: 500,
+              cursor: 'pointer', flexShrink: 0,
+            }}
+          >
+            <FileText style={{ width: '13px', height: '13px' }} />
+            Propostas
+          </button>
+
           {/* Divider */}
           <div style={{ width: '1px', height: '20px', backgroundColor: filterBorder, flexShrink: 0 }} />
 
@@ -1755,11 +1773,41 @@ export function PipelinePage() {
 
 
       {/* Content */}
-      {dealsLoading || !dealsInitialized ? (
+      {dealsLoading && !dealsInitialized ? (
         <PageLoadingState title="Carregando pipeline" description="Estamos buscando os leads e organizando a jornada." />
       ) : viewMode === 'renovacao' ? (
         <div key="renovacao" className="view-enter" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
           <RenovacaoView deals={displayDeals} isDark={isDark} border={border} muted={muted} />
+        </div>
+      ) : viewMode === 'kanban' ? (
+        <div key="kanban" className="view-enter" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+          {dealsError && (
+            <div style={{
+              margin: '8px 16px 0', padding: '8px 14px', borderRadius: '8px',
+              backgroundColor: isDark ? 'rgba(107,18,18,0.18)' : 'rgba(107,18,18,0.07)',
+              border: `1px solid rgba(107,18,18,0.25)`,
+              fontSize: '12px', color: isDark ? '#e8a0a0' : '#6b1212', fontWeight: 500,
+            }}>
+              ⚠ {dealsError}
+            </div>
+          )}
+          <div style={{ flex: 1, minHeight: 0 }}>
+            <KanbanBoard
+              initialDeals={displayDeals}
+              pendingNewDeal={pendingNewDeal}
+              onNewDealConsumed={() => setPendingNewDeal(null)}
+              pendingUpdatedDeal={updatedDeal}
+              onUpdatedDealConsumed={() => setUpdatedDeal(null)}
+              onEditDeal={setEditingDeal}
+              onDeleteDeal={(id) => { deleteDeal(id) }}
+              onStageChange={(id, stageId) => { moveDeal(id, stageId) }}
+              onLossReasonConfirmed={(id, reason) => { setLossReason(id, reason) }}
+              showScore={prioritizeNew || sortMode === 'score'}
+              highlightNew={prioritizeNew}
+              sortMode={sortMode}
+              onAddDeal={() => setShowNewModal(true)}
+            />
+          </div>
         </div>
       ) : displayDeals.length === 0 ? (
         hasFilter ? (
@@ -1777,7 +1825,7 @@ export function PipelinePage() {
         ) : (
           <PageEmptyState
             icon={<Plus style={{ width: '28px', height: '28px', color: '#6b1212' }} />}
-            title="Seu pipeline ainda está vazio"
+            title="Sem leads"
             description={dealsError || 'Crie o primeiro lead para começar.'}
             action={
               <button type="button" onClick={() => setShowNewModal(true)}
@@ -1787,24 +1835,6 @@ export function PipelinePage() {
             }
           />
         )
-      ) : viewMode === 'kanban' ? (
-        <div key="kanban" className="view-enter" style={{ flex: 1, minHeight: 0 }}>
-          <KanbanBoard
-            initialDeals={displayDeals}
-            pendingNewDeal={pendingNewDeal}
-            onNewDealConsumed={() => setPendingNewDeal(null)}
-            pendingUpdatedDeal={updatedDeal}
-            onUpdatedDealConsumed={() => setUpdatedDeal(null)}
-            onEditDeal={setEditingDeal}
-            onDeleteDeal={(id) => { deleteDeal(id) }}
-            onStageChange={(id, stageId) => { moveDeal(id, stageId) }}
-            onLossReasonConfirmed={(id, reason) => { setLossReason(id, reason) }}
-            showScore={prioritizeNew || sortMode === 'score'}
-            highlightNew={prioritizeNew}
-            sortMode={sortMode}
-            onAddDeal={() => setShowNewModal(true)}
-          />
-        </div>
       ) : (
         <div key="list" className="view-enter" style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
           {/* Sticky header row */}

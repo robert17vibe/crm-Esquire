@@ -20,8 +20,8 @@ const RELATION_LABELS: Record<RelationType, string> = {
   duplicate: 'Duplicata', referral: 'Indicação',
 }
 const RELATION_COLORS: Record<RelationType, string> = {
-  upsell: '#2c5545', renewal: '#1d4ed8', subsidiary: '#7c3aed',
-  duplicate: '#92400e', referral: '#b45309',
+  upsell: '#2c5545', renewal: '#4d7aa8', subsidiary: '#7c5cbf',
+  duplicate: '#a88030', referral: '#a88030',
 }
 const RELATION_BG: Record<RelationType, string> = {
   upsell: '#d1fae5', renewal: '#dbeafe', subsidiary: '#ede9fe',

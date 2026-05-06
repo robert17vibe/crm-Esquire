@@ -30,7 +30,9 @@
       "Bash(npx supabase *)",
       "Bash(git checkout *)",
       "WebFetch(domain:www.esquirebrasil.com.br)",
-      "Bash(supabase --version)"
+      "Bash(supabase --version)",
+      "PowerShell([System.IO.Directory]::GetFiles\\(\"C:\\\\Users\\\\robert.ferreira\\\\Documents\\\\crm-esquire\\\\supabase\\\\migrations\\\\\"\\))",
+      "Bash(npx skills *)"
     ]
   }
 }

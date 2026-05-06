@@ -5,9 +5,9 @@ import { useTeamStore } from '@/store/useTeamStore'
 import { useTeamNotificationStore, type NotifType } from '@/store/useTeamNotificationStore'
 
 const TYPE_CFG: Record<NotifType, { label: string; color: string; bg: string; bgDark: string; icon: React.ComponentType<{ style?: React.CSSProperties }> }> = {
-  info:         { label: 'Informação',  color: '#2563eb', bg: '#eff6ff', bgDark: '#1e2d4a', icon: Info         },
+  info:         { label: 'Informação',  color: '#4d7aa8', bg: '#eff6ff', bgDark: '#1e2d4a', icon: Info         },
   announcement: { label: 'Aviso',       color: '#6b1212', bg: '#fdf0f0', bgDark: '#2a1010', icon: Megaphone    },
-  warning:      { label: 'Atenção',     color: '#b45309', bg: '#fffbeb', bgDark: '#2d2010', icon: AlertTriangle },
+  warning:      { label: 'Atenção',     color: '#a88030', bg: '#fffbeb', bgDark: '#2d2010', icon: AlertTriangle },
   urgent:       { label: 'Urgente',     color: '#b83535', bg: '#fef2f2', bgDark: '#2d1515', icon: Zap          },
 }
 
@@ -450,7 +450,7 @@ export function AdminNotificationsPage() {
                         {n.expires_at && (
                           <>
                             <span style={{ color: muted, fontSize: '10px' }}>·</span>
-                            <span style={{ fontSize: '10px', color: '#b45309' }}>Expira {new Date(n.expires_at).toLocaleDateString('pt-BR')}</span>
+                            <span style={{ fontSize: '10px', color: '#a88030' }}>Expira {new Date(n.expires_at).toLocaleDateString('pt-BR')}</span>
                           </>
                         )}
                       </div>

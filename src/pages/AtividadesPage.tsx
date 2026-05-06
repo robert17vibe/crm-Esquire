@@ -96,7 +96,7 @@ export function AtividadesPage() {
   const EVENT_ICONS: Record<string, { icon: React.ReactNode; color: string; bg: string; label: string }> = {
     new_deal:    { icon: <UserPlus size={13} />,    color: '#6b1212', bg: '#6b121218', label: 'Novo Lead' },
     stage_move:  { icon: <ArrowRight size={13} />,  color: '#a16207', bg: '#a1620718', label: 'Avançou' },
-    won:         { icon: <CheckCircle2 size={13} />, color: '#15803d', bg: '#15803d18', label: 'Ganho' },
+    won:         { icon: <CheckCircle2 size={13} />, color: '#2c5545', bg: '#2c554518', label: 'Ganho' },
     lost:        { icon: <Zap size={13} />,          color: '#b83535', bg: '#b8353518', label: 'Perdido' },
     value_update:{ icon: <TrendingUp size={13} />,   color: '#4d7aa8', bg: '#4d7aa818', label: 'Valor' },
   }
@@ -136,7 +136,7 @@ export function AtividadesPage() {
             { label: 'Total', value: stats.total, icon: <Activity size={14} />, color: '#6b6560' },
             { label: 'Hoje', value: stats.today, icon: <Clock size={14} />, color: '#a88030' },
             { label: 'Leads', value: stats.newDeals, icon: <UserPlus size={14} />, color: '#6b1212' },
-            { label: 'Ganhos', value: stats.won, icon: <CheckCircle2 size={14} />, color: '#15803d' },
+            { label: 'Ganhos', value: stats.won, icon: <CheckCircle2 size={14} />, color: '#2c5545' },
           ].map((s) => (
             <div key={s.label} style={{
               backgroundColor: cardBg,
@@ -254,7 +254,7 @@ export function AtividadesPage() {
                         </span>
                       )}
                       {evt.value && (
-                        <span style={{ fontSize: '11px', fontWeight: 500, color: '#15803d' }}>
+                        <span style={{ fontSize: '11px', fontWeight: 500, color: '#2c5545' }}>
                           {fmt(evt.value)}
                         </span>
                       )}

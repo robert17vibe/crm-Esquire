@@ -117,7 +117,7 @@ export function AppLayout() {
       {impersonatedName && (
         <div style={{
           height: '36px', minHeight: '36px', flexShrink: 0,
-          backgroundColor: '#92400e', display: 'flex', alignItems: 'center',
+          backgroundColor: '#a88030', display: 'flex', alignItems: 'center',
           justifyContent: 'center', gap: '12px', zIndex: 50,
         }}>
           <span style={{ fontSize: '12px', fontWeight: 600, color: '#fef3c7' }}>
@@ -127,7 +127,7 @@ export function AppLayout() {
             type="button"
             onClick={stopImpersonation}
             style={{
-              fontSize: '11px', fontWeight: 700, color: '#92400e',
+              fontSize: '11px', fontWeight: 700, color: '#a88030',
               backgroundColor: '#fef3c7', border: 'none', borderRadius: '4px',
               padding: '2px 10px', cursor: 'pointer',
             }}

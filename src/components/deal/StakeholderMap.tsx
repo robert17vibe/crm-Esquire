@@ -30,16 +30,16 @@ interface RichStakeholder {
 // ─── Config ───────────────────────────────────────────────────────────────────
 
 const ROLE_CFG: Record<StakeholderRole, { label: string; icon: string; color: string; bg: string }> = {
-  economic_buyer:  { label: 'Decisor Econômico', icon: '💰', color: '#7c3aed', bg: '#ede9fe' },
-  technical_buyer: { label: 'Decisor Técnico',   icon: '⚙️', color: '#1d4ed8', bg: '#dbeafe' },
-  champion:        { label: 'Champion',           icon: '🏆', color: '#16a34a', bg: '#dcfce7' },
+  economic_buyer:  { label: 'Decisor Econômico', icon: '💰', color: '#7c5cbf', bg: '#ede9fe' },
+  technical_buyer: { label: 'Decisor Técnico',   icon: '⚙️', color: '#4d7aa8', bg: '#dbeafe' },
+  champion:        { label: 'Champion',           icon: '🏆', color: '#2c5545', bg: '#dcfce7' },
   influencer:      { label: 'Influenciador',      icon: '🎯', color: '#d97706', bg: '#fef3c7' },
   blocker:         { label: 'Bloqueador',         icon: '🚫', color: '#dc2626', bg: '#fee2e2' },
   user:            { label: 'Usuário Final',      icon: '👤', color: '#6b7280', bg: '#f3f4f6' },
 }
 
 const REL_CFG: Record<Relationship, { label: string; color: string }> = {
-  strong:   { label: 'Forte',        color: '#16a34a' },
+  strong:   { label: 'Forte',        color: '#2c5545' },
   moderate: { label: 'Moderado',     color: '#d97706' },
   weak:     { label: 'Fraco',        color: '#dc2626' },
   unknown:  { label: 'Desconhecido', color: '#9ca3af' },
@@ -348,7 +348,7 @@ export function StakeholderMap({ dealId, isDark }: { dealId: string; isDark: boo
                 {analysis.alerts.map((a, i) => (
                   <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
                     <span style={{ fontSize: '12px', flexShrink: 0 }}>{a.icon}</span>
-                    <span style={{ fontSize: '11px', color: a.severity === 'high' ? '#dc2626' : a.severity === 'medium' ? '#d97706' : '#16a34a', fontWeight: 500 }}>{a.msg}</span>
+                    <span style={{ fontSize: '11px', color: a.severity === 'high' ? '#dc2626' : a.severity === 'medium' ? '#d97706' : '#2c5545', fontWeight: 500 }}>{a.msg}</span>
                   </div>
                 ))}
                 <div style={{ display: 'flex', gap: '12px', marginTop: '4px', paddingTop: '8px', borderTop: `1px solid ${border}` }}>

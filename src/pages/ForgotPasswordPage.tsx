@@ -58,7 +58,7 @@ export function ForgotPasswordPage() {
 
         {sent ? (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', textAlign: 'center' }}>
-            <CheckCircle style={{ width: '40px', height: '40px', color: '#2d9e6b' }} />
+            <CheckCircle style={{ width: '40px', height: '40px', color: '#2c5545' }} />
             <div>
               <p style={{ fontSize: '15px', fontWeight: 600, color: text, marginBottom: '6px' }}>
                 Verifique seu email

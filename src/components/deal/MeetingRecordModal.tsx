@@ -77,7 +77,7 @@ export function MeetingRecordModal({ dealId, onClose, onSaved }: Props) {
   }
 
   const score = computeScore()
-  const scoreColor = score >= 7 ? '#16a34a' : score >= 4 ? '#d97706' : '#dc2626'
+  const scoreColor = score >= 7 ? '#2c5545' : score >= 4 ? '#d97706' : '#dc2626'
 
   return (
     <div style={{
@@ -132,11 +132,11 @@ export function MeetingRecordModal({ dealId, onClose, onSaved }: Props) {
                     display: 'flex', alignItems: 'center', gap: '10px',
                     padding: '10px 12px', borderRadius: '8px', cursor: 'pointer',
                     backgroundColor: done ? (isDark ? 'rgba(22,163,74,0.08)' : '#f0fdf4') : inputBg,
-                    border: `1px solid ${done ? '#16a34a30' : border}`,
+                    border: `1px solid ${done ? '#2c554530' : border}`,
                     textAlign: 'left', transition: 'all 0.12s ease',
                   }}>
                   {done
-                    ? <CheckSquare style={{ width: '16px', height: '16px', color: '#16a34a', flexShrink: 0 }} />
+                    ? <CheckSquare style={{ width: '16px', height: '16px', color: '#2c5545', flexShrink: 0 }} />
                     : <Square style={{ width: '16px', height: '16px', color: muted, flexShrink: 0 }} />
                   }
                   <span style={{ fontSize: '12px', fontWeight: done ? 600 : 400, color: done ? text : muted, flex: 1 }}>{item.text}</span>

@@ -1,8 +1,9 @@
-import { useMemo, useState, useEffect, useRef } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { FileText, Search, TrendingUp } from 'lucide-react'
 import { useThemeStore } from '@/store/useThemeStore'
 import { useVisibleDeals } from '@/hooks/useVisibleDeals'
+import { useProposalStore } from '@/store/useProposalStore'
 import { STAGES } from '@/constants/pipeline'
 
 function fmt(v: number) {
@@ -14,17 +15,6 @@ function fmtFull(v: number) {
 function dateLabel(iso?: string | null) {
   if (!iso) return '—'
   return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })
-}
-
-// Shape stored in localStorage per deal (matches DealDetailPage SavedProposal)
-interface StoredProposal {
-  id?: string
-  status?: string
-  createdAt?: string   // DealDetailPage stores camelCase
-  created_at?: string  // legacy snake_case fallback
-  lines: { description?: string; qty: number; unit_price: number }[]
-  discountPct: number
-  title?: string
 }
 
 interface ProposalRow {
@@ -39,31 +29,7 @@ interface ProposalRow {
   createdAt: string
 }
 
-function readProposals(deals: ReturnType<typeof useVisibleDeals>): ProposalRow[] {
-  const rows: ProposalRow[] = []
-  for (const deal of deals) {
-    try {
-      const list: StoredProposal[] = JSON.parse(localStorage.getItem(`esq_proposals_v4_${deal.id}`) ?? '[]')
-      const stageLabel = STAGES.find((s) => s.id === deal.stage_id)?.label ?? deal.stage_id
-      list.forEach((p, idx) => {
-        const sub = p.lines.reduce((s, l) => s + l.qty * l.unit_price, 0)
-        const value = sub - sub * ((p.discountPct ?? 0) / 100)
-        rows.push({
-          key: `${deal.id}-${idx}`,
-          dealId: deal.id,
-          dealTitle: p.title ?? deal.title,
-          companyName: deal.company_name ?? undefined,
-          ownerName: deal.owner?.name ?? undefined,
-          ownerColor: deal.owner?.avatar_color ?? undefined,
-          stageLabel,
-          value,
-          createdAt: p.createdAt ?? p.created_at ?? deal.created_at,
-        })
-      })
-    } catch { /* localStorage parse error — skip */ }
-  }
-  return rows
-}
+
 
 export function PropostasPage() {
   const isDark = useThemeStore((s) => s.isDark)
@@ -80,15 +46,31 @@ export function PropostasPage() {
   const subtleBg = isDark ? '#111110' : '#f3f4f6'
   const inputBg  = isDark ? '#111111' : '#f3f4f6'
 
-  // Read localStorage only when deal IDs change, not on every deal update
-  const dealIdsKey = useMemo(() => deals.map((d) => d.id).join(','), [deals])
-  const [proposals, setProposals] = useState<ProposalRow[]>([])
-  const dealsRef = useRef(deals)
-  dealsRef.current = deals
+  const byDeal = useProposalStore((s) => s.byDeal)
 
-  useEffect(() => {
-    setProposals(readProposals(dealsRef.current))
-  }, [dealIdsKey])
+  const proposals = useMemo<ProposalRow[]>(() => {
+    const rows: ProposalRow[] = []
+    for (const deal of deals) {
+      const list = byDeal[deal.id] ?? []
+      const stageLabel = STAGES.find((s) => s.id === deal.stage_id)?.label ?? deal.stage_id
+      list.forEach((p, idx) => {
+        const sub = p.lines.reduce((s, l) => s + l.qty * l.unit_price, 0)
+        const value = sub - sub * ((p.discount_pct ?? 0) / 100)
+        rows.push({
+          key: `${deal.id}-${idx}`,
+          dealId: deal.id,
+          dealTitle: p.title || deal.title,
+          companyName: deal.company_name ?? undefined,
+          ownerName: deal.owner?.name ?? undefined,
+          ownerColor: deal.owner?.avatar_color ?? undefined,
+          stageLabel,
+          value,
+          createdAt: p.created_at,
+        })
+      })
+    }
+    return rows
+  }, [deals, byDeal])
 
   const filtered = useMemo(() => {
     let list = proposals
@@ -137,7 +119,7 @@ export function PropostasPage() {
         {/* KPI cards */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginBottom: '24px' }}>
           {[
-            { label: 'Total Documentos', value: stats.total,    sub: fmtFull(stats.totalValue), icon: <FileText size={14} />,   color: '#6b1212' },
+            { label: 'Total Documentos', value: stats.total,    sub: fmtFull(stats.totalValue), icon: <FileText size={14} />,   color: '#c94444' },
             { label: 'Valor Total',      value: fmt(stats.totalValue), sub: `${stats.total} proposta${stats.total !== 1 ? 's' : ''}`, icon: <TrendingUp size={14} />, color: '#4d7aa8' },
           ].map((s) => (
             <div key={s.label} style={{
@@ -254,7 +236,7 @@ export function PropostasPage() {
 
                 <span style={{ fontSize: '11px', color: muted }}>{p.stageLabel}</span>
 
-                <div style={{ fontSize: '13px', fontWeight: 600, color: p.value > 0 ? '#15803d' : muted, fontFamily: "'Geist Mono', monospace" }}>
+                <div style={{ fontSize: '13px', fontWeight: 600, color: p.value > 0 ? '#2c5545' : muted, fontFamily: "'Geist Mono', monospace" }}>
                   {p.value > 0 ? fmt(p.value) : '—'}
                 </div>
 

@@ -174,7 +174,7 @@ export const MOCK_DEALS: Deal[] = [
     owner_id: 'u-3',
     owner: CM,
     stakeholders: [
-      { initials: 'FS', color: '#7c3aed', name: 'Fernanda Souza' },
+      { initials: 'FS', color: '#7c5cbf', name: 'Fernanda Souza' },
       { initials: 'DM', color: '#d97706', name: 'Diego Martins' },
     ],
     last_activity_at: '2026-04-12',
@@ -275,7 +275,7 @@ export const MOCK_DEALS: Deal[] = [
     owner: RF,
     stakeholders: [
       { initials: 'LC', color: '#2c5545', name: 'Lucia Carvalho' },
-      { initials: 'TP', color: '#7c3aed', name: 'Thiago Pinheiro' },
+      { initials: 'TP', color: '#7c5cbf', name: 'Thiago Pinheiro' },
     ],
     next_activity: { type: 'meeting', label: 'Apresentação ao board', due_date: '2026-04-23' },
     last_activity_at: '2026-04-14',
@@ -374,7 +374,7 @@ export const MOCK_DEALS: Deal[] = [
     tags: ['IA'],
     owner_id: 'u-4',
     owner: JS_owner,
-    stakeholders: [{ initials: 'CB', color: '#7c3aed', name: 'Carolina Barros' }],
+    stakeholders: [{ initials: 'CB', color: '#7c5cbf', name: 'Carolina Barros' }],
     next_activity: { type: 'call', label: 'Alinhamento de pricing', due_date: '2026-04-17' },
     last_activity_at: '2026-04-16',
     contact_name: 'Carolina Barros',

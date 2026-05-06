@@ -12,7 +12,7 @@ export function ImpersonationBanner() {
     <div style={{
       position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999,
       height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-      backgroundColor: '#b45309', gap: '10px',
+      backgroundColor: '#a88030', gap: '10px',
       boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
     }}>
       <Eye style={{ width: '14px', height: '14px', color: '#fff' }} />

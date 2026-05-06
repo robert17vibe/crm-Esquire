@@ -209,7 +209,7 @@ const LABEL_CONFIG: Record<LabelKey, { label: string; color: string; bg: string 
   'follow-up':  { label: 'Follow-up',  color: '#a88030', bg: 'rgba(168,128,48,0.10)' },
   'cliente':    { label: 'Cliente',    color: '#4d7aa8', bg: 'rgba(77,122,168,0.10)' },
   'interno':    { label: 'Interno',    color: '#7a7268', bg: 'rgba(122,114,104,0.10)' },
-  'proposta':   { label: 'Proposta',   color: '#2a9a5a', bg: 'rgba(42,154,90,0.10)'  },
+  'proposta':   { label: 'Proposta',   color: '#2c5545', bg: 'rgba(42,154,90,0.10)'  },
 }
 
 // ─── Folder config ────────────────────────────────────────────────────────────
@@ -810,7 +810,7 @@ export function EmailPage() {
                 />
                 <div style={{ padding: '8px 14px', display: 'flex', gap: '8px', borderTop: `1px solid ${border}` }}>
                   {replySent ? (
-                    <span style={{ fontSize: '12px', color: '#16a34a', fontWeight: 600, padding: '6px 0' }}>✓ Resposta enviada</span>
+                    <span style={{ fontSize: '12px', color: '#2c5545', fontWeight: 600, padding: '6px 0' }}>✓ Resposta enviada</span>
                   ) : (
                     <button type="button"
                       disabled={!replyText.trim() || sendingEmail}

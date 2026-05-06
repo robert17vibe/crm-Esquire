@@ -23,7 +23,7 @@ function AdminGuard() {
 const DashboardPage    = lazy(() => import('@/pages/DashboardPage').then((m) => ({ default: m.DashboardPage })))
 const PipelinePage     = lazy(() => import('@/pages/PipelinePage').then((m) => ({ default: m.PipelinePage })))
 const ClientsPage      = lazy(() => import('@/pages/ClientsPage').then((m) => ({ default: m.ClientsPage })))
-const MeetingsPage     = lazy(() => import('@/pages/MeetingsPage').then((m) => ({ default: m.MeetingsPage })))
+const ClientDetailPage = lazy(() => import('@/pages/ClientDetailPage').then((m) => ({ default: m.ClientDetailPage })))
 const CalendarPage     = lazy(() => import('@/pages/CalendarPage').then((m) => ({ default: m.CalendarPage })))
 const SettingsPage     = lazy(() => import('@/pages/SettingsPage').then((m) => ({ default: m.SettingsPage })))
 const DealDetailPage   = lazy(() => import('@/pages/DealDetailPage').then((m) => ({ default: m.DealDetailPage })))
@@ -34,13 +34,10 @@ const AdminNotificationsPage  = lazy(() => import('@/pages/AdminNotificationsPag
 const AdminDistribuirLeadsPage = lazy(() => import('@/pages/AdminDistribuirLeadsPage').then((m) => ({ default: m.AdminDistribuirLeadsPage })))
 const AdminCobrancaPage    = lazy(() => import('@/pages/AdminCobrancaPage').then((m) => ({ default: m.AdminCobrancaPage })))
 const AdminDesempenhoPage  = lazy(() => import('@/pages/AdminDesempenhoPage').then((m) => ({ default: m.AdminDesempenhoPage })))
-const LandingPage         = lazy(() => import('@/pages/LandingPage').then((m) => ({ default: m.LandingPage })))
 const LoginPage        = lazy(() => import('@/pages/LoginPage').then((m) => ({ default: m.LoginPage })))
 const ForgotPasswordPage = lazy(() => import('@/pages/ForgotPasswordPage').then((m) => ({ default: m.ForgotPasswordPage })))
 const ResetPasswordPage  = lazy(() => import('@/pages/ResetPasswordPage').then((m) => ({ default: m.ResetPasswordPage })))
 const EmailPage          = lazy(() => import('@/pages/EmailPage').then((m) => ({ default: m.EmailPage })))
-const RelatoriosPage     = lazy(() => import('@/pages/RelatoriosPage').then((m) => ({ default: m.RelatoriosPage })))
-const AtividadesPage     = lazy(() => import('@/pages/AtividadesPage').then((m) => ({ default: m.AtividadesPage })))
 const PropostasPage          = lazy(() => import('@/pages/PropostasPage').then((m) => ({ default: m.PropostasPage })))
 const ClientRenovacaoPage    = lazy(() => import('@/pages/ClientRenovacaoPage').then((m) => ({ default: m.ClientRenovacaoPage })))
 const PerformancePage        = lazy(() => import('@/pages/PerformancePage').then((m) => ({ default: m.PerformancePage })))
@@ -99,16 +96,16 @@ export default function App() {
         element={session ? <AppLayout /> : <Navigate to="/login" replace />}
       >
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        <Route path="/landing"   element={<LandingPage />} />
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/pipeline"  element={<PipelinePage />} />
-        <Route path="/clients"   element={<ClientsPage />} />
-        <Route path="/meetings"  element={<MeetingsPage />} />
+        <Route path="/clients"        element={<ClientsPage />} />
+        <Route path="/clients/:name"  element={<ClientDetailPage />} />
+        <Route path="/meetings"  element={<Navigate to="/calendar" replace />} />
         <Route path="/calendar"  element={<CalendarPage />} />
         <Route path="/email"      element={<EmailPage />} />
         <Route path="/tarefas"    element={<TasksPage />} />
-        <Route path="/relatorios" element={<RelatoriosPage />} />
-        <Route path="/atividades" element={<AtividadesPage />} />
+        <Route path="/relatorios" element={<Navigate to="/dashboard" replace />} />
+        <Route path="/atividades" element={<Navigate to="/calendar" replace />} />
         <Route path="/propostas"  element={<PropostasPage />} />
         <Route path="/settings"  element={<SettingsPage />} />
         <Route path="/deal/:id"     element={<DealDetailPage />} />

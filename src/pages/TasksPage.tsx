@@ -629,7 +629,7 @@ export function TasksPage() {
             { label: 'Atrasadas', value: grouped.overdue.length, sub: 'requerem atenção',    color: '#b83535', Icon: AlertTriangle },
             { label: 'Hoje',      value: grouped.today.length,   sub: 'para hoje',           color: '#a88030', Icon: Clock         },
             { label: 'Pendentes', value: pendingCount,           sub: 'no total',            color: '#6b1212', Icon: CheckSquare   },
-            { label: 'Concluídas',value: grouped.done.length,    sub: 'finalizadas',         color: '#15803d', Icon: TrendingUp    },
+            { label: 'Concluídas',value: grouped.done.length,    sub: 'finalizadas',         color: '#2c5545', Icon: TrendingUp    },
           ].map((s) => (
             <div key={s.label} style={{
               backgroundColor: isDark ? '#161614' : '#ffffff',

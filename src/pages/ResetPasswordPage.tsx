@@ -67,7 +67,7 @@ export function ResetPasswordPage() {
 
         {done ? (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '14px', textAlign: 'center' }}>
-            <CheckCircle style={{ width: '40px', height: '40px', color: '#2d9e6b' }} />
+            <CheckCircle style={{ width: '40px', height: '40px', color: '#2c5545' }} />
             <p style={{ fontSize: '14px', fontWeight: 600, color: text }}>Senha atualizada</p>
             <p style={{ fontSize: '12px', color: muted, lineHeight: 1.6 }}>
               Redirecionando para o login...

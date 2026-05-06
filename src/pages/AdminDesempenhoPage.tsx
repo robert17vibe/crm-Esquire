@@ -4,23 +4,24 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useThemeStore } from '@/store/useThemeStore'
 
+// Todas as metas são valores DIÁRIOS — o sistema multiplica pelos dias do período
 interface Metas {
-  faturamento: number
-  ligacoes_dia: number
-  reunioes: number
-  agendamentos: number
-  vendas: number
+  faturamento_dia: number   // R$ por dia
+  vendas_dia:      number   // vendas por dia
+  ligacoes_dia:    number   // ligações por dia
+  reunioes_dia:    number   // reuniões por dia
+  agendamentos_dia:number   // agendamentos por dia
 }
 
 const DEFAULT_METAS: Metas = {
-  faturamento: 5_000_000,
-  ligacoes_dia: 50,
-  reunioes: 10,
-  agendamentos: 10,
-  vendas: 20,
+  faturamento_dia:  166_667,  // ~5M/mês ÷ 30
+  vendas_dia:       1,
+  ligacoes_dia:     50,
+  reunioes_dia:     1,
+  agendamentos_dia: 1,
 }
 
-const LS_KEY = 'esq_desempenho_metas_v1'
+const LS_KEY = 'esq_desempenho_metas_v2'
 
 function loadMetas(): Metas {
   try {
@@ -29,12 +30,12 @@ function loadMetas(): Metas {
   } catch { return DEFAULT_METAS }
 }
 
-const META_FIELDS: { key: keyof Metas; label: string; desc: string; prefix?: string; suffix?: string }[] = [
-  { key: 'faturamento',  label: 'Faturamento',    desc: 'Meta de receita total',          prefix: 'R$' },
-  { key: 'vendas',       label: 'Vendas',          desc: 'Negócios fechados' },
-  { key: 'ligacoes_dia', label: 'Ligações / Dia',  desc: 'Média diária por responsável',  suffix: '/dia' },
-  { key: 'reunioes',     label: 'Reuniões',        desc: 'Reuniões realizadas' },
-  { key: 'agendamentos', label: 'Agendamentos',    desc: 'Reuniões agendadas' },
+const META_FIELDS: { key: keyof Metas; label: string; desc: string; prefix?: string }[] = [
+  { key: 'faturamento_dia',   label: 'Faturamento / Dia',   desc: 'Receita diária esperada',            prefix: 'R$' },
+  { key: 'vendas_dia',        label: 'Vendas / Dia',        desc: 'Negócios fechados por dia' },
+  { key: 'ligacoes_dia',      label: 'Ligações / Dia',      desc: 'Chamadas por responsável por dia' },
+  { key: 'reunioes_dia',      label: 'Reuniões / Dia',      desc: 'Reuniões realizadas por dia' },
+  { key: 'agendamentos_dia',  label: 'Agendamentos / Dia',  desc: 'Reuniões agendadas por dia' },
 ]
 
 export function AdminDesempenhoPage() {
@@ -48,10 +49,14 @@ export function AdminDesempenhoPage() {
   const pageBg  = isDark ? '#0d0c0a' : '#f5f4f0'
   const inputBg = isDark ? '#161614' : '#f8f7f4'
 
-  const [metas,  setMetas]  = useState<Metas>(loadMetas)
-  const [dirty,  setDirty]  = useState(false)
-  const [saving, setSaving] = useState(false)
-  const [copied, setCopied] = useState(false)
+  // Usamos string para o input para evitar o "0 na frente"
+  const [values,  setValues]  = useState<Record<keyof Metas, string>>(() => {
+    const m = loadMetas()
+    return Object.fromEntries(Object.entries(m).map(([k, v]) => [k, String(v)])) as Record<keyof Metas, string>
+  })
+  const [dirty,   setDirty]   = useState(false)
+  const [saving,  setSaving]  = useState(false)
+  const [copied,  setCopied]  = useState(false)
 
   const perfUrl = `${window.location.origin}/performance`
 
@@ -60,22 +65,39 @@ export function AdminDesempenhoPage() {
       .then(({ data }) => {
         if (data?.value) {
           const v = data.value as { metas?: Partial<Metas> }
-          if (v.metas) setMetas({ ...DEFAULT_METAS, ...v.metas })
+          if (v.metas) {
+            const merged = { ...DEFAULT_METAS, ...v.metas }
+            setValues(Object.fromEntries(Object.entries(merged).map(([k, val]) => [k, String(val)])) as Record<keyof Metas, string>)
+          }
         }
       })
   }, [])
 
-  function handleChange(key: keyof Metas, val: number) {
-    setMetas((m) => ({ ...m, [key]: val }))
-    setDirty(true)
+  function handleChange(key: keyof Metas, raw: string) {
+    // Permite vazio (para o utilizador apagar e escrever novo valor)
+    if (raw === '' || /^\d*$/.test(raw)) {
+      setValues((v) => ({ ...v, [key]: raw }))
+      setDirty(true)
+    }
+  }
+
+  function getMetas(): Metas {
+    return Object.fromEntries(
+      Object.entries(values).map(([k, v]) => [k, Number(v) || 0])
+    ) as unknown as Metas
   }
 
   async function handleSave() {
     setSaving(true)
+    const metas = getMetas()
     localStorage.setItem(LS_KEY, JSON.stringify(metas))
     const { data: existing } = await supabase.from('app_settings').select('value').eq('key', 'desempenho_config').single()
     const prev = (existing?.value ?? {}) as Record<string, unknown>
-    await supabase.from('app_settings').upsert({ key: 'desempenho_config', value: { ...prev, metas }, updated_at: new Date().toISOString() })
+    await supabase.from('app_settings').upsert({
+      key: 'desempenho_config',
+      value: { ...prev, metas },
+      updated_at: new Date().toISOString(),
+    })
     setSaving(false)
     setDirty(false)
   }
@@ -85,7 +107,7 @@ export function AdminDesempenhoPage() {
   }
 
   const inputStyle: React.CSSProperties = {
-    width: '120px',
+    width: '130px',
     height: '34px',
     padding: '0 10px',
     fontSize: '14px',
@@ -98,81 +120,105 @@ export function AdminDesempenhoPage() {
     fontFamily: 'inherit',
     textAlign: 'right',
     flexShrink: 0,
-    MozAppearance: 'textfield',
+  }
+
+  // Estimativas mensais (30 dias)
+  const metas = getMetas()
+  const estimativas = {
+    faturamento: (metas.faturamento_dia * 30).toLocaleString('pt-BR'),
+    vendas:       metas.vendas_dia * 30,
+    ligacoes:     metas.ligacoes_dia * 30,
+    reunioes:     metas.reunioes_dia * 30,
+    agendamentos: metas.agendamentos_dia * 30,
   }
 
   return (
     <div style={{ height: '100%', backgroundColor: pageBg, display: 'flex', flexDirection: 'column' }}>
 
-      {/* ── Header ── */}
+      {/* Header */}
       <div style={{ backgroundColor: cardBg, borderBottom: `1px solid ${border}`, padding: '14px 20px', flexShrink: 0 }}>
         <p style={{ fontSize: '15px', fontWeight: 700, color: text, letterSpacing: '-0.02em' }}>Desempenho</p>
-        <p style={{ fontSize: '11px', color: muted, marginTop: '2px' }}>Configuração de metas e acesso à página da equipa</p>
+        <p style={{ fontSize: '11px', color: muted, marginTop: '2px' }}>Metas diárias · o sistema calcula o total do período automaticamente</p>
       </div>
 
-      {/* ── Content ── */}
       <div style={{ flex: 1, overflow: 'auto', padding: '20px' }}>
         <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
 
-          {/* ── Metas form ── */}
+          {/* Metas form */}
           <div style={{ flex: '1 1 0', minWidth: 0, backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '12px' }}>
 
-            {/* Section title */}
-            <div style={{ padding: '14px 18px', borderBottom: `1px solid ${border}` }}>
-              <p style={{ fontSize: '13px', fontWeight: 700, color: text }}>Metas do Período</p>
-              <p style={{ fontSize: '11px', color: muted, marginTop: '1px' }}>Aparecem como indicadores de progresso na página da equipa</p>
+            <div style={{ padding: '14px 18px', borderBottom: `1px solid ${border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <p style={{ fontSize: '13px', fontWeight: 700, color: text }}>Metas Diárias</p>
+                <p style={{ fontSize: '11px', color: muted, marginTop: '1px' }}>Define o alvo por dia — a meta total ajusta-se ao período seleccionado</p>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <p style={{ fontSize: '9px', color: muted, textTransform: 'uppercase', letterSpacing: '0.07em' }}>Estimativa mensal</p>
+                <p style={{ fontSize: '9px', color: muted, marginTop: '1px' }}>baseada em 30 dias</p>
+              </div>
             </div>
 
-            {/* Fields */}
-            <div style={{ padding: '4px 0' }}>
-              {META_FIELDS.map(({ key, label, desc, prefix, suffix }, i) => (
+            <div>
+              {META_FIELDS.map(({ key, label, desc, prefix }, i) => (
                 <div key={key} style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  padding: '12px 18px',
+                  display: 'flex', alignItems: 'center',
+                  padding: '11px 18px',
                   borderBottom: i < META_FIELDS.length - 1 ? `1px solid ${border}` : 'none',
                   gap: '12px',
                 }}>
                   {/* Label */}
-                  <div style={{ minWidth: 0 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
                     <p style={{ fontSize: '13px', fontWeight: 600, color: text }}>{label}</p>
                     <p style={{ fontSize: '10px', color: muted }}>{desc}</p>
                   </div>
 
-                  {/* Input group */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                  {/* Estimativa mensal */}
+                  <div style={{ textAlign: 'right', flexShrink: 0, minWidth: '80px' }}>
+                    <p style={{ fontSize: '10px', color: muted }}>
+                      {key === 'faturamento_dia'
+                        ? `R$ ${estimativas.faturamento}/mês`
+                        : key === 'vendas_dia'       ? `${estimativas.vendas}/mês`
+                        : key === 'ligacoes_dia'      ? `${estimativas.ligacoes}/mês`
+                        : key === 'reunioes_dia'      ? `${estimativas.reunioes}/mês`
+                        : `${estimativas.agendamentos}/mês`}
+                    </p>
+                  </div>
+
+                  {/* Input */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexShrink: 0 }}>
                     {prefix && <span style={{ fontSize: '12px', color: muted }}>{prefix}</span>}
                     <input
-                      type="number" min={0}
-                      value={metas[key]}
-                      onChange={(e) => handleChange(key, Number(e.target.value))}
+                      type="text"
+                      inputMode="numeric"
+                      value={values[key]}
+                      onChange={(e) => handleChange(key, e.target.value)}
+                      onFocus={(e) => e.target.select()}
+                      placeholder="0"
                       style={inputStyle}
-                      className="no-spin"
                     />
-                    {suffix && <span style={{ fontSize: '11px', color: muted }}>{suffix}</span>}
+                    <span style={{ fontSize: '10px', color: muted, width: '24px' }}>/dia</span>
                   </div>
                 </div>
               ))}
             </div>
 
-            {/* Save */}
-            <div style={{ padding: '14px 18px', borderTop: `1px solid ${border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <p style={{ fontSize: '11px', color: muted }}>
-                {dirty ? 'Alterações por guardar' : 'Metas sincronizadas com a página da equipa'}
+            <div style={{ padding: '12px 18px', borderTop: `1px solid ${border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <p style={{ fontSize: '11px', color: dirty ? (isDark ? '#f0a050' : '#a06010') : muted }}>
+                {dirty ? 'Alterações por guardar' : 'Sincronizado com a página da equipa'}
               </p>
               <button type="button" onClick={handleSave} disabled={!dirty || saving}
-                style={{ height: '34px', padding: '0 18px', borderRadius: '8px', border: 'none', backgroundColor: dirty && !saving ? '#2c5545' : (isDark ? '#1a1a18' : '#ece9e4'), color: dirty && !saving ? '#fff' : muted, fontSize: '12px', fontWeight: 700, cursor: dirty && !saving ? 'pointer' : 'default', transition: 'all 0.15s', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                style={{ height: '32px', padding: '0 16px', borderRadius: '8px', border: 'none', backgroundColor: dirty && !saving ? '#2c5545' : (isDark ? '#1a1a18' : '#ece9e4'), color: dirty && !saving ? '#fff' : muted, fontSize: '12px', fontWeight: 700, cursor: dirty && !saving ? 'pointer' : 'default', transition: 'all 0.15s', display: 'flex', alignItems: 'center', gap: '6px' }}>
                 {saving ? 'A guardar...' : !dirty ? <><Check style={{ width: '12px', height: '12px' }} />Guardado</> : 'Guardar'}
               </button>
             </div>
           </div>
 
-          {/* ── Right panel ── */}
+          {/* Right panel */}
           <div style={{ width: '240px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '12px' }}>
 
-            {/* Link da equipa */}
             <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '12px', padding: '16px' }}>
               <p style={{ fontSize: '12px', fontWeight: 700, color: text, marginBottom: '3px' }}>Página da Equipa</p>
-              <p style={{ fontSize: '10px', color: muted, marginBottom: '12px' }}>Partilha com a equipa para verem o desempenho</p>
+              <p style={{ fontSize: '10px', color: muted, marginBottom: '12px' }}>Partilha com a equipa — vêem os dados em tempo real</p>
 
               <div style={{ backgroundColor: pageBg, border: `1px solid ${border}`, borderRadius: '7px', padding: '8px 10px', marginBottom: '10px', wordBreak: 'break-all' }}>
                 <p style={{ fontSize: '10px', color: muted, fontFamily: 'monospace' }}>{perfUrl}</p>
@@ -180,23 +226,22 @@ export function AdminDesempenhoPage() {
 
               <div style={{ display: 'flex', gap: '6px' }}>
                 <button type="button" onClick={copyLink}
-                  style={{ flex: 1, height: '32px', borderRadius: '7px', border: `1px solid ${border}`, backgroundColor: 'transparent', color: copied ? '#2c5545' : muted, fontSize: '10px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px', transition: 'all 0.15s' }}>
-                  {copied ? <><CheckCheck style={{ width: '11px', height: '11px' }} />Copiado</> : <><Copy style={{ width: '11px', height: '11px' }} />Copiar</>}
+                  style={{ flex: 1, height: '30px', borderRadius: '7px', border: `1px solid ${border}`, backgroundColor: 'transparent', color: copied ? '#2c5545' : muted, fontSize: '10px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', transition: 'all 0.15s' }}>
+                  {copied ? <><CheckCheck style={{ width: '10px', height: '10px' }} />Copiado</> : <><Copy style={{ width: '10px', height: '10px' }} />Copiar</>}
                 </button>
                 <button type="button" onClick={() => navigate('/performance')}
-                  style={{ height: '32px', padding: '0 12px', borderRadius: '7px', border: 'none', backgroundColor: '#2c5545', color: '#fff', fontSize: '10px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  style={{ height: '30px', padding: '0 12px', borderRadius: '7px', border: 'none', backgroundColor: '#2c5545', color: '#fff', fontSize: '10px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
                   <ExternalLink style={{ width: '10px', height: '10px' }} />Abrir
                 </button>
               </div>
             </div>
 
-            {/* Instruções */}
             <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '12px', padding: '16px' }}>
               <p style={{ fontSize: '11px', fontWeight: 700, color: text, marginBottom: '10px' }}>Como funciona</p>
               {[
-                'Define as metas acima e guarda',
-                'A equipa acede a /performance',
-                'Escolhe vista Diário ou Mensal',
+                'Define os alvos diários acima',
+                'A meta total = valor × dias do período',
+                'Guarda para publicar na página da equipa',
                 'Vendas e reuniões aparecem em tempo real',
               ].map((t, i) => (
                 <div key={i} style={{ display: 'flex', gap: '8px', marginBottom: '6px', alignItems: 'flex-start' }}>

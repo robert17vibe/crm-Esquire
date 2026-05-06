@@ -5,7 +5,7 @@ import { useThemeStore } from '@/store/useThemeStore'
 import type { Toast } from '@/store/useToastStore'
 
 const CONFIG = {
-  success: { Icon: CheckCircle2, color: '#2d9e6b' },
+  success: { Icon: CheckCircle2, color: '#2c5545' },
   error:   { Icon: AlertCircle,  color: '#dc2626' },
   info:    { Icon: Info,         color: '#2c5545' },
 }

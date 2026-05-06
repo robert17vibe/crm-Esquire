@@ -12,14 +12,14 @@ import type { Deal } from '@/types/deal.types'
 // ─── Motivos rotineiros de declínio ──────────────────────────────────────────
 
 export const LOSS_REASON_PRESETS = [
-  { key: 'preco',       label: 'Preço alto',          icon: DollarSign,      color: '#b45309' },
+  { key: 'preco',       label: 'Preço alto',          icon: DollarSign,      color: '#a88030' },
   { key: 'orcamento',   label: 'Sem orçamento',        icon: TrendingDown,    color: '#dc2626' },
-  { key: 'concorrente', label: 'Escolheu concorrente', icon: Target,          color: '#7c3aed' },
+  { key: 'concorrente', label: 'Escolheu concorrente', icon: Target,          color: '#7c5cbf' },
   { key: 'timing',      label: 'Timing errado',        icon: Clock,           color: '#0284c7' },
   { key: 'necessidade', label: 'Sem necessidade',      icon: AlertTriangle,   color: '#d97706' },
   { key: 'decisor',     label: 'Sem decisor',          icon: Users,           color: '#6366f1' },
   { key: 'interesse',   label: 'Perdeu interesse',     icon: Zap,             color: '#64748b' },
-  { key: 'proposta',    label: 'Proposta inadequada',  icon: MessageSquareX,  color: '#9b1c1c' },
+  { key: 'proposta',    label: 'Proposta inadequada',  icon: MessageSquareX,  color: '#c94444' },
 ] as const
 
 type PresetKey = typeof LOSS_REASON_PRESETS[number]['key']
@@ -87,7 +87,7 @@ export function LostDealCard({ deal, isOverlay = false, dimmed = false }: LostDe
   const textMuted  = isDark ? '#6a4a4a' : '#c08080'
   const accentRed  = '#b83535'
   const tagBg      = isDark ? '#2a1010' : '#fde8e8'
-  const tagText    = isDark ? '#d88080' : '#9b1c1c'
+  const tagText    = isDark ? '#d88080' : '#c94444'
   const presetBg   = isDark ? '#1e1010' : '#fff0f0'
 
   return (
@@ -234,7 +234,7 @@ export function LostDealCard({ deal, isOverlay = false, dimmed = false }: LostDe
           {valueStr && (
             <span style={{
               fontSize: '11px', fontWeight: 700,
-              color: isDark ? '#d06060' : '#9b1c1c',
+              color: isDark ? '#d06060' : '#c94444',
               fontFamily: "'Geist Mono', monospace",
               textDecoration: 'line-through',
               textDecorationColor: `${accentRed}50`,

@@ -1,6 +1,6 @@
 import type { Owner } from '@/types/deal.types'
 
-const OWNER_FALLBACK_COLORS = ['#2c5545', '#0891b2', '#059669', '#d97706', '#7c3aed', '#334155']
+const OWNER_FALLBACK_COLORS = ['#2c5545', '#0891b2', '#059669', '#d97706', '#7c5cbf', '#334155']
 
 function hashToIndex(input: string, size: number): number {
   let hash = 0

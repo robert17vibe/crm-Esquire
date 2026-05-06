@@ -3,8 +3,10 @@ import { useNavigate } from 'react-router-dom'
 import {
   ChevronLeft, ChevronRight, Plus, X,
   Phone, Mail, CheckSquare, Bell, Mic, CalendarDays, Clock,
-  Link, Trash2, ExternalLink, Copy, Check,
+  Link, Trash2, ExternalLink, Copy, Check, Activity,
 } from 'lucide-react'
+import { MeetingsPage } from '@/pages/MeetingsPage'
+import { AtividadesPage } from '@/pages/AtividadesPage'
 import { useMeetingStore } from '@/store/useMeetingStore'
 import { useDealStore } from '@/store/useDealStore'
 import { useThemeStore } from '@/store/useThemeStore'
@@ -863,6 +865,9 @@ function EventModal({ state, onClose, isDark, deals, onSaved, onLogActivity }: {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export function CalendarPage() {
+  const [tab, setTab] = useState<'calendar' | 'meetings' | 'atividades'>(
+    () => (localStorage.getItem('esq_calendar_tab') as 'calendar' | 'meetings' | 'atividades') ?? 'calendar'
+  )
   const isDark         = useThemeStore((s) => s.isDark)
   const allMeetings    = useMeetingStore((s) => s.meetings)
   const allDeals       = useDealStore((s) => s.deals)
@@ -956,11 +961,22 @@ export function CalendarPage() {
 
   function openNewEvent(date: string, time?: string) { setModalState({ open: true, date, startTime: time }) }
 
+  const TABS = [
+    { key: 'calendar'   as const, label: 'Calendário', icon: CalendarDays },
+    { key: 'meetings'   as const, label: 'Reuniões',   icon: Mic          },
+    { key: 'atividades' as const, label: 'Atividades', icon: Activity     },
+  ]
+
+  function switchTab(next: 'calendar' | 'meetings' | 'atividades') {
+    setTab(next)
+    localStorage.setItem('esq_calendar_tab', next)
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
 
       {/* Header */}
-      <div style={{ height: '64px', minHeight: '64px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 20px', borderBottom: `1px solid ${border}`, flexShrink: 0 }}>
+      <div style={{ minHeight: '64px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 20px', borderBottom: `1px solid ${border}`, flexShrink: 0, flexWrap: 'wrap', gap: '12px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
@@ -969,7 +985,7 @@ export function CalendarPage() {
             </div>
             <p style={{ fontSize: '13px', color: muted, marginTop: '2px' }}>{upcoming.length} eventos nos próximos 30 dias</p>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          {tab === 'calendar' && (<div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <button type="button" onClick={prevWeek} style={{ display: 'flex', background: 'none', border: `1px solid ${border}`, borderRadius: '6px', cursor: 'pointer', padding: '4px 7px', color: muted, transition: 'color 0.12s' }}
               onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = '#6b1212' }}
               onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = muted }}>
@@ -986,12 +1002,36 @@ export function CalendarPage() {
                 Hoje
               </button>
             )}
-          </div>
+          </div>)}
+        </div>
+
+        {/* Tab bar */}
+        <div style={{ display: 'flex', gap: '2px', backgroundColor: isDark ? '#1a1a18' : '#f0eeea', borderRadius: '10px', padding: '3px' }}>
+          {TABS.map(({ key, label, icon: Icon }) => {
+            const active = tab === key
+            return (
+              <button key={key} type="button" onClick={() => switchTab(key)} style={{
+                display: 'flex', alignItems: 'center', gap: '6px',
+                height: '30px', padding: '0 14px', borderRadius: '8px', border: 'none', cursor: 'pointer',
+                fontSize: '12px', fontWeight: active ? 700 : 500,
+                backgroundColor: active ? (isDark ? '#2a2a28' : '#ffffff') : 'transparent',
+                color: active ? text : muted,
+                boxShadow: active ? '0 1px 3px rgba(0,0,0,0.12)' : 'none',
+                transition: 'all 0.15s ease',
+              }}>
+                <Icon style={{ width: '13px', height: '13px' }} />
+                {label}
+              </button>
+            )
+          })}
         </div>
       </div>
 
+      {tab === 'meetings'   && <div key="meetings"   className="view-enter" style={{ flex: 1, minHeight: 0, overflow: 'auto' }}><MeetingsPage /></div>}
+      {tab === 'atividades' && <div key="atividades" className="view-enter" style={{ flex: 1, minHeight: 0, overflow: 'auto' }}><AtividadesPage /></div>}
+
       {/* Body */}
-      <div style={{ flex: 1, minHeight: 0, display: 'flex', overflow: 'hidden' }}>
+      <div style={{ flex: 1, minHeight: 0, display: tab === 'calendar' ? 'flex' : 'none', overflow: 'hidden' }}>
 
         {/* Sidebar */}
         <div style={{ width: '264px', minWidth: '264px', flexShrink: 0, backgroundColor: sideBg, borderRight: `1px solid ${border}`, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>

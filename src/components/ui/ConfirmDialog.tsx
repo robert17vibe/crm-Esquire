@@ -32,7 +32,7 @@ export function ConfirmDialog({
       >
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', marginBottom: '16px' }}>
           <div style={{ width: '36px', height: '36px', borderRadius: '10px', backgroundColor: danger ? (isDark ? '#2d1515' : '#fef2f2') : (isDark ? '#1a2e24' : '#f0fdf4'), display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <AlertTriangle size={16} color={danger ? '#b83535' : '#15803d'} />
+            <AlertTriangle size={16} color={danger ? '#b83535' : '#2c5545'} />
           </div>
           <div style={{ flex: 1 }}>
             <p style={{ fontSize: '14px', fontWeight: 700, color: text, margin: '0 0 4px' }}>{title}</p>
@@ -46,7 +46,7 @@ export function ConfirmDialog({
           <button type="button" onClick={onCancel} style={{ height: '34px', padding: '0 16px', borderRadius: '8px', border: `1px solid ${border}`, backgroundColor: 'transparent', color: text, fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>
             {cancelLabel}
           </button>
-          <button type="button" onClick={onConfirm} style={{ height: '34px', padding: '0 16px', borderRadius: '8px', border: 'none', backgroundColor: danger ? '#b83535' : '#15803d', color: '#fff', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>
+          <button type="button" onClick={onConfirm} style={{ height: '34px', padding: '0 16px', borderRadius: '8px', border: 'none', backgroundColor: danger ? '#b83535' : '#2c5545', color: '#fff', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>
             {confirmLabel}
           </button>
         </div>

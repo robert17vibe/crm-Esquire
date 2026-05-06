@@ -16,7 +16,7 @@ interface CrmBarChartProps {
 }
 
 export function CrmBarChart({
-  data, color = '#6b1212', highlightColor = '#15803d',
+  data, color = '#6b1212', highlightColor = '#2c5545',
   height = 160, formatY, formatTooltip, radius = 4,
 }: CrmBarChartProps) {
   const isDark = useThemeStore((s) => s.isDark)

@@ -74,7 +74,7 @@ export function evaluateDealScore(deal: Deal, ctx: DealScoreContext = {}): numbe
 }
 
 export function scoreColor(score: number): string {
-  if (score >= 70) return '#2a9a5a'
+  if (score >= 70) return '#2c5545'
   if (score >= 45) return '#a88030'
   return '#b83535'
 }

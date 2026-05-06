@@ -33,6 +33,7 @@ import { PageHeader } from '@/components/crm/PageHeader'
 import { StatCard } from '@/components/crm/StatCard'
 import { EmptyState } from '@/components/crm/EmptyState'
 import { motionPresets } from '@/lib/motion'
+import { AnalyticsSection } from '@/components/crm/AnalyticsSection'
 
 // ─── Formatters ───────────────────────────────────────────────────────────────
 
@@ -65,8 +66,8 @@ type Period = '30d' | '90d' | '12m'
 
 // ─── Palette vivid (charts) ───────────────────────────────────────────────────
 
-const VIVID = ['#6b1212', '#2a9a5a', '#a88030', '#4d7aa8', '#8878b8', '#4d8fa8']
-const STAGE_COLORS = ['#94a3b8', '#6366f1', '#8b5cf6', '#f59e0b', '#22c55e']
+const VIVID = ['#6b1212', '#2c5545', '#a88030', '#4d7aa8', '#8878b8', '#4d8fa8']
+const STAGE_COLORS = ['#94a3b8', '#6366f1', '#8b5cf6', '#f59e0b', '#3d8a6e']
 
 
 
@@ -135,7 +136,7 @@ function RenovacaoAlert({ deals, isDark, navigate }: { deals: any[]; isDark: boo
               <p style={{ fontSize: '11px', color: muted }}>{deal.company_name ?? '—'}</p>
             </div>
             <div style={{ textAlign: 'right', flexShrink: 0 }}>
-              <p style={{ fontSize: '12px', fontWeight: 600, color: '#2a9a5a', fontFamily: "'Geist Mono', monospace" }}>
+              <p style={{ fontSize: '12px', fontWeight: 600, color: '#2c5545', fontFamily: "'Geist Mono', monospace" }}>
                 {fmtBRL(deal.value ?? 0)}
               </p>
               <span style={{ fontSize: '10px', fontWeight: 600, color: urgency, backgroundColor: `${urgency}18`, borderRadius: '5px', padding: '2px 6px' }}>
@@ -161,8 +162,8 @@ function MudancasFeed({ deals, isDark, navigate, isAdmin }: { deals: any[]; isDa
     novo_lead:        { color: '#4d7aa8', bg: '#4d7aa818', label: 'Novo Lead' },
     qualificado:      { color: '#8878b8', bg: '#8878b818', label: 'Qualificado' },
     proposta_enviada: { color: '#a88030', bg: '#a8803018', label: 'Proposta' },
-    em_negociacao:    { color: '#b45309', bg: '#b4530918', label: 'Negociação' },
-    won:              { color: '#2a9a5a', bg: '#2a9a5a18', label: 'Ganho ✓' },
+    em_negociacao:    { color: '#a88030', bg: '#a8803018', label: 'Negociação' },
+    won:              { color: '#2c5545', bg: '#2c554518', label: 'Ganho ✓' },
     lost:             { color: '#b83535', bg: '#b8353518', label: 'Perdido' },
   }
 
@@ -244,7 +245,7 @@ function MudancasFeed({ deals, isDark, navigate, isAdmin }: { deals: any[]; isDa
               {/* Right: value + time */}
               <div style={{ textAlign: 'right', flexShrink: 0 }}>
                 {deal.value ? (
-                  <p style={{ fontSize: '12px', fontWeight: 600, color: stageKey === 'won' ? '#2a9a5a' : (isDark ? '#edeae4' : '#101828'), fontFamily: "'Geist Mono', monospace" }}>
+                  <p style={{ fontSize: '12px', fontWeight: 600, color: stageKey === 'won' ? '#2c5545' : (isDark ? '#edeae4' : '#101828'), fontFamily: "'Geist Mono', monospace" }}>
                     {fmtBRL(deal.value)}
                   </p>
                 ) : <p style={{ fontSize: '12px', color: muted }}>—</p>}
@@ -323,7 +324,7 @@ function GruposPerformance({ groups, isDark }: { groups: GroupStat[]; isDark: bo
               <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
                 <div style={{ textAlign: 'right' }}>
                   <p style={{ fontSize: '10px', color: muted }}>Receita</p>
-                  <p style={{ fontSize: '13px', fontWeight: 700, color: '#2a9a5a', fontFamily: "'Geist Mono', monospace" }}>{fmtBRL(group.revenue)}</p>
+                  <p style={{ fontSize: '13px', fontWeight: 700, color: '#2c5545', fontFamily: "'Geist Mono', monospace" }}>{fmtBRL(group.revenue)}</p>
                 </div>
                 <div style={{ textAlign: 'right' }}>
                   <p style={{ fontSize: '10px', color: muted }}>Pipeline</p>
@@ -417,7 +418,7 @@ function WelcomeHero({ name, goalPct, isDark }: { name: string; goalPct: number;
           <motion.div
             initial={{ width: 0 }} animate={{ width: `${clamp}%` }}
             transition={{ duration: 1, ease: [0.16, 1, 0.3, 1], delay: 0.3 }}
-            style={{ height: '100%', borderRadius: '9999px', backgroundColor: clamp >= 100 ? '#2a9a5a' : clamp >= 70 ? brand : '#a88030' }}
+            style={{ height: '100%', borderRadius: '9999px', backgroundColor: clamp >= 100 ? '#2c5545' : clamp >= 70 ? brand : '#a88030' }}
           />
         </div>
         <p style={{ fontSize: '11px', color: muted, marginTop: '5px' }}>
@@ -470,7 +471,7 @@ function AtencaoImediata({ deals, isDark, navigate }: { deals: any[]; isDark: bo
               <p style={{ fontSize: '11px', color: muted, marginTop: '2px' }}>{deal.company_name ?? '—'}</p>
             </div>
             <div style={{ textAlign: 'right', flexShrink: 0 }}>
-              <p style={{ fontSize: '13px', fontWeight: 600, color: '#2a9a5a', fontFamily: "'Geist Mono', monospace" }}>
+              <p style={{ fontSize: '13px', fontWeight: 600, color: '#2c5545', fontFamily: "'Geist Mono', monospace" }}>
                 {fmtBRL(deal.value ?? 0)}
               </p>
               <span style={{
@@ -657,7 +658,7 @@ function TarefasHoje({ tasks, isDark, navigate }: { tasks: any[]; isDark: boolea
   const border = isDark ? 'rgba(255,255,255,0.07)' : '#eaecf0'
 
   const PRIORITY_COLORS: Record<string, string> = {
-    high: '#b83535', medium: '#a88030', low: '#2a9a5a', urgent: '#7c0000',
+    high: '#b83535', medium: '#a88030', low: '#2c5545', urgent: '#7c0000',
   }
 
   if (tasks.length === 0) return <EmptyState icon={<CheckSquare size={16} />} title="Nenhuma tarefa para hoje" />
@@ -757,11 +758,11 @@ const SECTIONS_CONFIG = [
   { id: 'agenda',       label: 'Agenda de Hoje' },
   { id: 'oq_fazer',     label: 'O que fazer hoje' },
   { id: 'heatmap',      label: 'Atividade do Time' },
-  { id: 'loss',         label: 'Por que perdemos?' },
   { id: 'activity',     label: 'Atividade Recente' },
-  { id: 'top_deals',    label: 'Top Oportunidades' },
   { id: 'grupos',       label: 'Performance por Grupo' },
   { id: 'renovacao',    label: 'Alertas de Renovação' },
+  { id: 'loss',         label: 'Por que perdemos? (Individual)' },
+  { id: 'top_deals',    label: 'Top Oportunidades (Individual)' },
 ]
 
 const PERSIST_KEY  = 'esq_dashboard_sections_v2'
@@ -988,7 +989,7 @@ function Leaderboard({ owners, isDark }: { owners: { name: string; color: string
             </div>
           </div>
           <div style={{ textAlign: 'right' }}>
-            <p style={{ fontSize: '12px', fontWeight: 700, color: '#2a9a5a', fontFamily: "'Geist Mono', monospace" }}>{fmtBRL(owner.won)}</p>
+            <p style={{ fontSize: '12px', fontWeight: 700, color: '#2c5545', fontFamily: "'Geist Mono', monospace" }}>{fmtBRL(owner.won)}</p>
             <p style={{ fontSize: '10px', color: muted }}>{owner.deals} deals</p>
           </div>
         </motion.div>
@@ -1005,7 +1006,7 @@ function TabBar({ active, onChange, isDark }: { active: string; onChange: (t: st
   const muted  = isDark ? '#6b6760' : '#667085'
   return (
     <div style={{ display: 'flex', borderBottom: `1px solid ${border}`, marginBottom: '20px' }}>
-      {['operacao', 'resultados'].map((tab) => (
+      {['empresa', 'individual'].map((tab) => (
         <button key={tab} type="button" onClick={() => onChange(tab)} style={{
           height: '40px', padding: '0 18px', fontSize: '13px',
           fontWeight: active === tab ? 600 : 400,
@@ -1014,7 +1015,7 @@ function TabBar({ active, onChange, isDark }: { active: string; onChange: (t: st
           borderBottom: `2px solid ${active === tab ? '#6b1212' : 'transparent'}`,
           marginBottom: '-1px', transition: 'all 0.15s ease', letterSpacing: '-0.01em',
         }}>
-          {tab === 'operacao' ? 'Operação' : 'Resultados'}
+          {tab === 'empresa' ? 'Empresa' : 'Individual'}
         </button>
       ))}
     </div>
@@ -1062,7 +1063,7 @@ export function DashboardPage() {
   const owners = useOwnerStore((s) => s.owners)
   const navigate = useNavigate()
 
-  const [tab, setTab]           = useState<'operacao' | 'resultados'>('operacao')
+  const [tab, setTab]           = useState<'empresa' | 'individual'>('empresa')
   const [period, setPeriod]     = useState<Period>('90d')
   const [showPersonalizar, setShowPersonalizar] = useState(false)
   const [sections, setSections] = useState<Record<string, boolean>>(loadSections)
@@ -1324,14 +1325,14 @@ export function DashboardPage() {
           )}
 
           {/* Tab bar */}
-          <TabBar active={tab} onChange={(t) => setTab(t as 'operacao' | 'resultados')} isDark={isDark} />
+          <TabBar active={tab} onChange={(t) => setTab(t as 'empresa' | 'individual')} isDark={isDark} />
 
           <AnimatePresence mode="wait">
 
-            {/* ── TAB OPERAÇÃO — order-driven rendering ── */}
-            {tab === 'operacao' && (() => {
+            {/* ── TAB EMPRESA — order-driven rendering ── */}
+            {tab === 'empresa' && (() => {
               // Sections that belong to the operacao tab (hero excluded — rendered above)
-              const OP_IDS = ['kpis', 'pipeline_area', 'atencao', 'oq_fazer', 'tarefas', 'agenda', 'activity', 'grupos', 'renovacao']
+              const OP_IDS = ['kpis', 'pipeline_area', 'atencao', 'oq_fazer', 'tarefas', 'agenda', 'activity', 'heatmap', 'grupos', 'renovacao']
               const PAIR_COLS: Record<string, string> = {
                 'atencao,oq_fazer':  '1fr 1fr',
                 'oq_fazer,atencao':  '1fr 1fr',
@@ -1448,6 +1449,11 @@ export function DashboardPage() {
                       <RenovacaoAlert deals={renewalDeals} isDark={isDark} navigate={navigate} />
                     </Card>
                   )
+                  case 'heatmap': return (
+                    <Card title="Atividade do Time" subtitle="Oportunidades criadas · 12 semanas" isDark={isDark}>
+                      <ActivityHeatmap deals={deals} isDark={isDark} />
+                    </Card>
+                  )
                   default: return null
                 }
               }
@@ -1482,9 +1488,12 @@ export function DashboardPage() {
               )
             })()}
 
-            {/* ── TAB RESULTADOS ── */}
-            {tab === 'resultados' && (
+            {/* ── TAB INDIVIDUAL ── */}
+            {tab === 'individual' && (
               <motion.div key="res" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} transition={{ duration: 0.18 }} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+
+                {/* Analytics por período — ranking, gráficos, funil */}
+                <AnalyticsSection />
 
                 {/* 4 KPIs resultado */}
                 {show('kpis') && (
@@ -1507,8 +1516,8 @@ export function DashboardPage() {
                             <stop offset="95%" stopColor={brand} stopOpacity={0} />
                           </linearGradient>
                           <linearGradient id="ga2" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#2a9a5a" stopOpacity={isDark ? 0.25 : 0.15} />
-                            <stop offset="95%" stopColor="#2a9a5a" stopOpacity={0} />
+                            <stop offset="5%" stopColor="#2c5545" stopOpacity={isDark ? 0.25 : 0.15} />
+                            <stop offset="95%" stopColor="#2c5545" stopOpacity={0} />
                           </linearGradient>
                         </defs>
                         <CartesianGrid stroke={gridColor} strokeDasharray="0" vertical={false} />
@@ -1516,7 +1525,7 @@ export function DashboardPage() {
                         <YAxis tick={axisStyle} axisLine={false} tickLine={false} tickFormatter={fmtBRL} width={56} />
                         <Tooltip contentStyle={tooltipStyle} formatter={(v) => fmtFull(Number(v))} />
                         <Area type="monotone" dataKey="pipeline" stroke={brand} strokeWidth={2} fill="url(#ga1)" dot={false} activeDot={{ r: 4, fill: brand }} isAnimationActive animationDuration={1000} animationEasing="ease-out" />
-                        <Area type="monotone" dataKey="won" stroke="#2a9a5a" strokeWidth={2} fill="url(#ga2)" dot={false} activeDot={{ r: 4, fill: '#2a9a5a' }} strokeDasharray="5 3" isAnimationActive animationDuration={1200} animationEasing="ease-out" />
+                        <Area type="monotone" dataKey="won" stroke="#2c5545" strokeWidth={2} fill="url(#ga2)" dot={false} activeDot={{ r: 4, fill: '#2c5545' }} strokeDasharray="5 3" isAnimationActive animationDuration={1200} animationEasing="ease-out" />
                       </AreaChart>
                     </ResponsiveContainer>
                     <div style={{ display: 'flex', gap: '16px', marginTop: '10px' }}>
@@ -1524,7 +1533,7 @@ export function DashboardPage() {
                         <div style={{ width: '20px', height: '2px', backgroundColor: brand }} />Pipeline
                       </span>
                       <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: isDark ? '#6b6760' : '#667085' }}>
-                        <div style={{ width: '20px', height: '2px', backgroundColor: '#2a9a5a', borderTop: '2px dashed #2a9a5a' }} />Receita
+                        <div style={{ width: '20px', height: '2px', backgroundColor: '#2c5545', borderTop: '2px dashed #2c5545' }} />Receita
                       </span>
                     </div>
                   </Card>
@@ -1558,20 +1567,11 @@ export function DashboardPage() {
                   </Card>
                 </div>
 
-                {/* Heatmap + Por que perdemos */}
-                {(show('heatmap') || show('loss')) && (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                    {show('heatmap') && (
-                      <Card title="Atividade do Time" subtitle="Oportunidades criadas · 12 semanas" isDark={isDark}>
-                        <ActivityHeatmap deals={deals} isDark={isDark} />
-                      </Card>
-                    )}
-                    {show('loss') && (
-                      <Card title="Por que perdemos?" subtitle="Motivos de perda" isDark={isDark}>
-                        <LossReasons deals={deals} isDark={isDark} />
-                      </Card>
-                    )}
-                  </div>
+                {/* Por que perdemos */}
+                {show('loss') && (
+                  <Card title="Por que perdemos?" subtitle="Motivos de perda" isDark={isDark}>
+                    <LossReasons deals={deals} isDark={isDark} />
+                  </Card>
                 )}
 
 
@@ -1592,7 +1592,7 @@ export function DashboardPage() {
                               {deal.company_name && <p style={{ fontSize: '11px', color: isDark ? '#6b6760' : '#98a2b3', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{deal.company_name}</p>}
                             </div>
                             {stage && <span style={{ fontSize: '10px', fontWeight: 600, color: stage.color, backgroundColor: `${stage.color}14`, borderRadius: '5px', padding: '3px 8px', textAlign: 'center' }}>{stage.label}</span>}
-                            <span style={{ fontSize: '13px', fontWeight: 600, color: deal.stage_id === 'closed_won' ? '#2a9a5a' : (isDark ? '#edeae4' : '#101828'), fontFamily: "'Geist Mono', monospace", textAlign: 'right' }}>
+                            <span style={{ fontSize: '13px', fontWeight: 600, color: deal.stage_id === 'closed_won' ? '#2c5545' : (isDark ? '#edeae4' : '#101828'), fontFamily: "'Geist Mono', monospace", textAlign: 'right' }}>
                               {fmtBRL(deal.value ?? 0)}
                             </span>
                           </motion.button>
@@ -1607,6 +1607,7 @@ export function DashboardPage() {
             )}
 
           </AnimatePresence>
+
         </div>
       </div>
     </div>

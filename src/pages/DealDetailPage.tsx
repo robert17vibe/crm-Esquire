@@ -7,6 +7,8 @@ import {
   Mic, ChevronDown, Plus, X, Pencil,
 } from 'lucide-react'
 import { useDealStore } from '@/store/useDealStore'
+import { useProposalStore } from '@/store/useProposalStore'
+import type { Proposal } from '@/services/proposal.service'
 import { useThemeStore } from '@/store/useThemeStore'
 import { useActivityStore } from '@/store/useActivityStore'
 import { useMeetingStore } from '@/store/useMeetingStore'
@@ -54,14 +56,10 @@ const ARR_LABELS: Record<string, string> = {
   '500k-1M': 'R$ 500k–1M', '>1M': '> R$ 1M',
 }
 
-const CHECKLIST_LABELS: Record<string, string> = {
-  apresentacao: 'Apresentação', dor: 'Identificou dor', decisor: 'Falou c/ decisor',
-  orcamento: 'Validou orçamento', timeline: 'Timeline definida',
-  concorrentes: 'Concorrentes', proximo_passo: 'Próximo passo',
-}
+
 
 const ACT_COLORS: Record<string, string> = {
-  call: '#4a90d9', email: '#78909c', meeting: '#b83535', task: '#2d9e6b', note: '#b45309',
+  call: '#4a90d9', email: '#78909c', meeting: '#b83535', task: '#2c5545', note: '#a88030',
 }
 const ACT_ICONS: Record<string, LucideIcon> = {
   call: Phone, email: Mail, meeting: Video, task: CheckSquare, note: FileText,
@@ -94,9 +92,12 @@ const ARR_OPTIONS: { value: ArrRange; label: string }[] = [
 
 // ─── Timeline helpers ─────────────────────────────────────────────────────────
 
+type MeetingRecord = { id: string; meeting_date: string; completed_items: string[]; score: number; notes: string | null }
+
 type TimelineEntry =
   | { kind: 'activity'; date: string; activity: DealActivity; meeting?: DealMeeting }
   | { kind: 'meeting';  date: string; meeting: DealMeeting }
+  | { kind: 'record';   date: string; record: MeetingRecord }
 
 function getGroupLabel(dateStr: string): string {
   const d    = new Date(dateStr + 'T00:00:00')
@@ -109,7 +110,7 @@ function getGroupLabel(dateStr: string): string {
   return new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(d)
 }
 
-function buildTimeline(activities: DealActivity[], meetings: DealMeeting[]): TimelineEntry[] {
+function buildTimeline(activities: DealActivity[], meetings: DealMeeting[], records: MeetingRecord[] = []): TimelineEntry[] {
   const actEntries: TimelineEntry[] = activities.map((a) => ({
     kind: 'activity',
     date: a.created_at.slice(0, 10),
@@ -122,7 +123,13 @@ function buildTimeline(activities: DealActivity[], meetings: DealMeeting[]): Tim
     .filter((m) => !linkedMeetingIds.has(m.id))
     .map((m) => ({ kind: 'meeting', date: m.scheduled_at.slice(0, 10), meeting: m }))
 
-  return [...actEntries, ...meetingEntries].sort((a, b) => b.date.localeCompare(a.date))
+  const recordEntries: TimelineEntry[] = records.map((r) => ({
+    kind: 'record',
+    date: r.meeting_date.slice(0, 10),
+    record: r,
+  }))
+
+  return [...actEntries, ...meetingEntries, ...recordEntries].sort((a, b) => b.date.localeCompare(a.date))
 }
 
 // ─── Standalone meeting entry ─────────────────────────────────────────────────
@@ -190,6 +197,59 @@ function StandaloneMeetingEntry({ meeting, isDark }: { meeting: DealMeeting; isD
           </div>
           <span style={{ fontSize: '10px', color: muted }}>{meeting.owner.name.split(' ')[0]}</span>
         </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Meeting record entry ─────────────────────────────────────────────────────
+
+const CHECKLIST_LABELS_TL: Record<string, string> = {
+  apresentacao: 'Apresentação', dor: 'Identificou dor', decisor: 'Falou c/ decisor',
+  orcamento: 'Validou orçamento', timeline: 'Timeline definida',
+  concorrentes: 'Concorrentes', proximo_passo: 'Próximo passo',
+}
+
+function MeetingRecordEntry({ record, isDark }: { record: MeetingRecord; isDark: boolean }) {
+  const scoreColor = record.score >= 7 ? '#2c5545' : record.score >= 4 ? '#a88030' : '#b83535'
+  const text   = isDark ? '#e8e4dc' : '#1a1814'
+  const muted  = isDark ? '#6b6560' : '#8a857d'
+  const cardBg = isDark ? '#1a1a18' : '#f8f7f4'
+  const border = isDark ? '#242422' : '#e4e0da'
+  return (
+    <div style={{ display: 'flex', gap: '12px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
+        <div style={{ width: '28px', height: '28px', borderRadius: '6px', backgroundColor: `${scoreColor}14`, border: `1px solid ${scoreColor}30`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <CheckSquare style={{ width: '12px', height: '12px', color: scoreColor }} />
+        </div>
+        <div style={{ width: '1px', flex: 1, backgroundColor: border, marginTop: '4px' }} />
+      </div>
+      <div style={{ flex: 1, paddingBottom: '16px', minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ fontSize: '9px', fontWeight: 700, color: scoreColor, backgroundColor: `${scoreColor}14`, borderRadius: '3px', padding: '1px 5px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              Reunião
+            </span>
+            <span style={{ fontSize: '9px', fontWeight: 700, color: scoreColor, backgroundColor: `${scoreColor}14`, borderRadius: '3px', padding: '1px 5px' }}>
+              {record.score.toFixed(1)} / 10
+            </span>
+          </div>
+          <span style={{ fontSize: '10px', color: muted, flexShrink: 0, marginTop: '2px' }}>{relativeDate(record.meeting_date)}</span>
+        </div>
+        {record.completed_items.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '6px' }}>
+            {record.completed_items.map((item) => (
+              <span key={item} style={{ fontSize: '10px', fontWeight: 500, color: '#2c5545', backgroundColor: '#2c554515', borderRadius: '3px', padding: '2px 6px' }}>
+                ✓ {CHECKLIST_LABELS_TL[item] ?? item}
+              </span>
+            ))}
+          </div>
+        )}
+        {record.notes && (
+          <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '6px', padding: '10px', marginTop: '8px' }}>
+            <p style={{ fontSize: '12px', color: text, lineHeight: 1.6 }}>{record.notes}</p>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -612,12 +672,32 @@ function ProposalTab({ deal, isDark, border, text, muted, inputBg }: {
 }) {
   const navigate   = useNavigate()
   const accent     = isDark ? '#e05050' : '#b83535'
-  const historyKey = `esq_proposals_v4_${deal.id}`
   const draftKey   = `esq_proposal_draft_v4_${deal.id}`
 
-  function loadHistory(): SavedProposal[] {
-    try { return JSON.parse(localStorage.getItem(historyKey) ?? '[]') } catch { return [] }
+  // Propostas vêm do store (DB) — draft continua em localStorage (é efémero)
+  const proposalStore  = useProposalStore()
+  const dbProposals    = proposalStore.getByDeal(deal.id)
+
+  // Converter DB Proposal → SavedProposal (UI usa camelCase herdado)
+  function dbToSaved(p: Proposal): SavedProposal {
+    return {
+      id: p.id,
+      createdAt: p.created_at,
+      title: p.title,
+      intro: p.intro,
+      scope: p.scope,
+      validity: p.validity,
+      payment: p.payment,
+      terms: p.terms,
+      lines: p.lines as ProposalLine[],
+      discountPct: p.discount_pct,
+      installments: p.installments,
+      status: p.status,
+    }
   }
+
+  const history = dbProposals.map(dbToSaved)
+
   function loadDraft<T>(key: string, fallback: T): T {
     try { const d = JSON.parse(localStorage.getItem(draftKey) ?? '{}'); return d[key] ?? fallback } catch { return fallback }
   }
@@ -632,9 +712,12 @@ function ProposalTab({ deal, isDark, border, text, muted, inputBg }: {
   const [discountPct,  setDiscountPct]  = useState<number>(() => loadDraft('discountPct', 0))
   const [installments, setInstallments] = useState<number>(() => loadDraft('installments', 1))
   const [saved,        setSaved]        = useState(false)
+  const [saving,       setSaving]       = useState(false)
   const [preview,      setPreview]      = useState<SavedProposal | null>(null)
-  const [history,      setHistory]      = useState<SavedProposal[]>(loadHistory)
   const [showForm,     setShowForm]     = useState(false)
+
+  // Carregar propostas do DB se ainda não estiverem no store
+  useEffect(() => { proposalStore.loadForDeal(deal.id) }, [deal.id])
 
   const subtotal   = lines.reduce((s, l) => s + l.qty * l.unit_price, 0)
   const discount   = subtotal * (discountPct / 100)
@@ -646,27 +729,29 @@ function ProposalTab({ deal, isDark, border, text, muted, inputBg }: {
   function updateLine(id: string, patch: Partial<ProposalLine>) { setLines((prev) => prev.map((l) => l.id === id ? { ...l, ...patch } : l)) }
   function removeLine(id: string) { setLines((prev) => prev.filter((l) => l.id !== id)) }
 
-  function handleSave() {
-    const p: SavedProposal = {
-      id: `p-${Date.now()}`,
-      createdAt: new Date().toISOString(),
-      title: propTitle.trim() || `Proposta Comercial — ${deal.company_name ?? deal.title}`,
-      intro, scope, validity, payment, terms, lines, discountPct, installments,
-      status: 'sent',
+  async function handleSave() {
+    setSaving(true)
+    try {
+      await proposalStore.saveProposal({
+        deal_id: deal.id,
+        title: propTitle.trim() || `Proposta Comercial — ${deal.company_name ?? deal.title}`,
+        intro, scope, validity, payment, terms,
+        lines: lines as Proposal['lines'],
+        discount_pct: discountPct,
+        installments,
+        status: 'sent',
+      })
+      localStorage.removeItem(draftKey)
+      setPropTitle(''); setIntro(''); setScope(''); setValidity(''); setPayment(''); setTerms('')
+      setLines([]); setDiscountPct(0); setInstallments(1)
+      setSaved(true); setShowForm(false)
+      setTimeout(() => setSaved(false), 2500)
+    } finally {
+      setSaving(false)
     }
-    const next = [p, ...history]
-    localStorage.setItem(historyKey, JSON.stringify(next))
-    localStorage.removeItem(draftKey)
-    setHistory(next)
-    setPropTitle(''); setIntro(''); setScope(''); setValidity(''); setPayment(''); setTerms('')
-    setLines([]); setDiscountPct(0); setInstallments(1)
-    setSaved(true); setShowForm(false)
-    setTimeout(() => setSaved(false), 2500)
   }
-  function deleteProposal(id: string) {
-    const next = history.filter((p) => p.id !== id)
-    localStorage.setItem(historyKey, JSON.stringify(next))
-    setHistory(next)
+  async function deleteProposal(id: string) {
+    await proposalStore.removeProposal(id, deal.id)
     if (preview?.id === id) setPreview(null)
   }
 
@@ -955,7 +1040,7 @@ function ProposalTab({ deal, isDark, border, text, muted, inputBg }: {
                 <input value={l.description} onChange={(e) => updateLine(l.id, { description: e.target.value })} placeholder="Descrição do serviço" style={inp} />
                 <input type="number" min={1} value={l.qty} onChange={(e) => updateLine(l.id, { qty: Number(e.target.value) })} style={{ ...inp, textAlign: 'right' }} />
                 <input type="number" min={0} value={l.unit_price || ''} onChange={(e) => updateLine(l.id, { unit_price: Number(e.target.value) })} placeholder="0,00" style={{ ...inp, textAlign: 'right' }} />
-                <p style={{ fontSize: '13px', fontWeight: 600, color: '#2a9a5a', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{fmtBRL(l.qty * l.unit_price)}</p>
+                <p style={{ fontSize: '13px', fontWeight: 600, color: '#2c5545', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{fmtBRL(l.qty * l.unit_price)}</p>
                 <button type="button" onClick={() => removeLine(l.id)}
                   style={{ background: 'none', border: 'none', cursor: 'pointer', color: muted, fontSize: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
               </div>
@@ -982,7 +1067,7 @@ function ProposalTab({ deal, isDark, border, text, muted, inputBg }: {
               <div style={{ display: 'flex', gap: '10px', alignItems: 'baseline', paddingLeft: '12px', borderLeft: `1px solid ${border}` }}>
                 {discountPct > 0 && <p style={{ fontSize: '12px', color: '#b83535' }}>−{fmtBRL(discount)}</p>}
                 <p style={{ fontSize: '11px', color: muted }}>Total</p>
-                <p style={{ fontSize: '22px', fontWeight: 700, color: '#2a9a5a', fontVariantNumeric: 'tabular-nums' }}>{fmtBRL(total)}</p>
+                <p style={{ fontSize: '22px', fontWeight: 700, color: '#2c5545', fontVariantNumeric: 'tabular-nums' }}>{fmtBRL(total)}</p>
               </div>
             </div>
           </div>
@@ -1017,9 +1102,9 @@ function ProposalTab({ deal, isDark, border, text, muted, inputBg }: {
           style={{ fontSize: '13px', fontWeight: 600, padding: '9px 18px', borderRadius: '7px', border: `1px solid ${border}`, backgroundColor: 'transparent', color: muted, cursor: 'pointer' }}>
           Cancelar
         </button>
-        <button type="button" onClick={handleSave}
-          style={{ fontSize: '13px', fontWeight: 700, padding: '9px 24px', borderRadius: '7px', border: 'none', backgroundColor: saved ? '#2a9a5a' : '#6b1212', color: '#fff', cursor: 'pointer', transition: 'background-color 0.2s ease' }}>
-          {saved ? '✓ Proposta guardada!' : 'Guardar Proposta'}
+        <button type="button" onClick={handleSave} disabled={saving}
+          style={{ fontSize: '13px', fontWeight: 700, padding: '9px 24px', borderRadius: '7px', border: 'none', backgroundColor: saved ? '#2c5545' : '#6b1212', color: '#fff', cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1, transition: 'background-color 0.2s ease' }}>
+          {saving ? 'A guardar…' : saved ? '✓ Proposta guardada!' : 'Guardar Proposta'}
         </button>
       </div>
     </div>
@@ -1131,10 +1216,13 @@ export function DealDetailPage() {
   const addActivity     = useActivityStore((s) => s.addActivity)
   const activities      = (id ? byDeal[id] : undefined) ?? []
   const allMeetings     = useMeetingStore((s) => s.meetings)
+  const initMeetings    = useMeetingStore((s) => s.initialize)
   const meetings        = useMemo(
     () => allMeetings.filter((m) => m.deal_id === id),
     [allMeetings, id],
   )
+
+  useEffect(() => { initMeetings() }, [initMeetings])
 
   const [activeTab, setActiveTab] = useState<'overview' | 'activity' | 'notes' | 'proposal' | 'tasks' | 'historico'>('overview')
   const [pendingLossStage, setPendingLossStage] = useState(false)
@@ -1179,7 +1267,6 @@ export function DealDetailPage() {
   }, [id])
 
   // ── Meeting records ───────────────────────────────────────────────────────────
-  type MeetingRecord = { id: string; meeting_date: string; completed_items: string[]; score: number; notes: string | null }
   const [meetingRecords, setMeetingRecords] = useState<MeetingRecord[]>([])
 
   function loadMeetingRecords() {
@@ -1402,7 +1489,7 @@ export function DealDetailPage() {
                       fontSize: '11px', fontWeight: 600, padding: '4px 10px', borderRadius: 'var(--radius-sm)', cursor: 'pointer',
                       border: `1px solid ${lossReasonDraft === r ? '#c53030' : (isDark ? '#3a2a2a' : '#fecaca')}`,
                       backgroundColor: lossReasonDraft === r ? '#c5303018' : 'transparent',
-                      color: lossReasonDraft === r ? '#c53030' : (isDark ? '#9a7070' : '#b45309'),
+                      color: lossReasonDraft === r ? '#c53030' : (isDark ? '#9a7070' : '#a88030'),
                     }}>{r}</button>
                 ))}
               </div>
@@ -1446,7 +1533,7 @@ export function DealDetailPage() {
         }}>
           {/* Aurea AI card */}
           {(() => {
-            const scoreColor = score >= 70 ? '#2a9a5a' : score >= 45 ? '#a88030' : '#b83535'
+            const scoreColor = score >= 70 ? '#2c5545' : score >= 45 ? '#a88030' : '#b83535'
             const scoreLabel = score >= 70 ? 'Saudável' : score >= 45 ? 'Atenção' : 'Crítico'
             const trackBg    = isDark ? '#1e1e1c' : '#eeece8'
             type ChipDef = { label: string; val: string; color: string }
@@ -1462,7 +1549,7 @@ export function DealDetailPage() {
                     <Zap style={{ width: '12px', height: '12px', color: '#a01818' }} />
                     <span style={{ fontSize: '12px', fontWeight: 700, color: '#a01818' }}>Aurea AI</span>
                   </div>
-                  <span style={{ fontSize: '10px', fontWeight: 600, color: '#2a9a5a', backgroundColor: isDark ? '#0d2318' : '#f0faf4', border: '1px solid #2a9a5a30', borderRadius: '999px', padding: '2px 8px' }}>Ativo</span>
+                  <span style={{ fontSize: '10px', fontWeight: 600, color: '#2c5545', backgroundColor: isDark ? '#0d2318' : '#f0faf4', border: '1px solid #2c554530', borderRadius: '999px', padding: '2px 8px' }}>Ativo</span>
                 </div>
                 <div style={{ marginBottom: '14px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '6px' }}>
@@ -1516,7 +1603,7 @@ export function DealDetailPage() {
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
                   width: '100%', height: '32px', borderRadius: '8px',
                   backgroundColor: isDark ? '#0a2e1a' : '#f0faf4',
-                  border: `1px solid #22c55e40`, color: '#2a9a5a',
+                  border: `1px solid #3d8a6e40`, color: '#2c5545',
                   fontSize: '11px', fontWeight: 600, textDecoration: 'none', cursor: 'pointer',
                   transition: 'opacity 0.15s ease', boxSizing: 'border-box',
                 }}
@@ -1575,7 +1662,7 @@ export function DealDetailPage() {
                 {deal.contact_phone && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <div style={{ width: '28px', height: '28px', borderRadius: '8px', backgroundColor: isDark ? '#0a2010' : '#f0faf4', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      <Phone style={{ width: '12px', height: '12px', color: '#2a9a5a' }} />
+                      <Phone style={{ width: '12px', height: '12px', color: '#2c5545' }} />
                     </div>
                     <span style={{ fontSize: '12px', fontWeight: 500, color: text }}>{deal.contact_phone}</span>
                   </div>
@@ -1613,11 +1700,12 @@ export function DealDetailPage() {
           {/* Tab bar */}
           <div style={{ padding: '0 20px', borderBottom: '1px solid var(--line)', flexShrink: 0, display: 'flex', alignItems: 'center', gap: '2px', height: '48px' }}>
             {([
-              { id: 'overview',  label: 'Visão geral' },
-              { id: 'notes',     label: 'Notas' },
-              { id: 'proposal',  label: 'Documentos' },
-              { id: 'tasks',     label: 'Tarefas' },
-              { id: 'historico', label: 'Histórico' },
+              { id: 'overview',  label: 'Resumo'     },
+              { id: 'activity',  label: 'Atividade'  },
+              { id: 'tasks',     label: 'Tarefas'    },
+              { id: 'proposal',  label: 'Proposta'   },
+              { id: 'notes',     label: 'Notas'      },
+              { id: 'historico', label: 'Histórico'  },
             ] as const).map((tab) => (
               <button key={tab.id} type="button" onClick={() => setActiveTab(tab.id)}
                 style={{
@@ -1694,19 +1782,21 @@ export function DealDetailPage() {
                 {/* Recent activity feed */}
                 <p style={{ fontSize: '10px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '12px' }}>Atividade Recente</p>
                 {(() => {
-                  const timeline = buildTimeline(activities, meetings).slice(0, 5)
+                  const timeline = buildTimeline(activities, meetings, meetingRecords).slice(0, 5)
                   if (timeline.length === 0) return <p style={{ fontSize: '12px', color: muted, fontStyle: 'italic' }}>Nenhuma atividade ainda</p>
                   return (
                     <div>
                       {timeline.map((entry) => (
-                        <div key={entry.kind === 'activity' ? entry.activity.id : entry.meeting.id}>
+                        <div key={entry.kind === 'activity' ? entry.activity.id : entry.kind === 'meeting' ? entry.meeting.id : entry.record.id}>
                           {entry.kind === 'activity'
                             ? <ActivityEntry activity={entry.activity} meeting={entry.meeting} isDark={isDark} />
-                            : <StandaloneMeetingEntry meeting={entry.meeting} isDark={isDark} />
+                            : entry.kind === 'meeting'
+                            ? <StandaloneMeetingEntry meeting={entry.meeting} isDark={isDark} />
+                            : null
                           }
                         </div>
                       ))}
-                      {buildTimeline(activities, meetings).length > 5 && (
+                      {buildTimeline(activities, meetings, meetingRecords).length > 5 && (
                         <button type="button" onClick={() => setActiveTab('activity')} style={{ fontSize: '12px', fontWeight: 600, color: 'var(--brand)', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0' }}>
                           Ver toda atividade →
                         </button>
@@ -1757,7 +1847,7 @@ export function DealDetailPage() {
                   // Tasks
                   for (const t of dealTasks) {
                     if (t.completed_at) {
-                      items.push({ key: `tc-${t.id}`, date: t.completed_at, badge: 'Tarefa concluída', badgeColor: '#2a9a5a', title: t.title })
+                      items.push({ key: `tc-${t.id}`, date: t.completed_at, badge: 'Tarefa concluída', badgeColor: '#2c5545', title: t.title })
                     } else {
                       items.push({ key: `tp-${t.id}`, date: t.created_at ?? t.due_date ?? '', badge: 'Tarefa criada', badgeColor: '#4d7aa8', title: t.title, detail: t.due_date ? `Vence ${formatDate(t.due_date)}` : undefined })
                     }
@@ -1771,7 +1861,7 @@ export function DealDetailPage() {
                       const sub = p.lines.reduce((s, l) => s + l.qty * l.unit_price, 0)
                       const val = sub - sub * ((p.discountPct ?? 0) / 100)
                       const statusLabel = p.status === 'accepted' ? 'Aceite' : p.status === 'rejected' ? 'Recusada' : 'Em análise'
-                      const color = p.status === 'accepted' ? '#2a9a5a' : p.status === 'rejected' ? '#b83535' : '#a88030'
+                      const color = p.status === 'accepted' ? '#2c5545' : p.status === 'rejected' ? '#b83535' : '#a88030'
                       items.push({ key: `prop-${i}`, date: p.created_at ?? '', badge: `Proposta — ${statusLabel}`, badgeColor: color, title: formatCurrency(val) })
                     })
                   } catch { /* ignore */ }
@@ -1895,7 +1985,7 @@ export function DealDetailPage() {
                   <AddActivityForm dealId={deal.id} owner={owner} onClose={() => setShowAddActivity(false)} isDark={isDark} />
                 )}
                 {(() => {
-                  const timeline = buildTimeline(activities, meetings)
+                  const timeline = buildTimeline(activities, meetings, meetingRecords)
                   if (timeline.length === 0 && !showAddActivity) return (
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '120px', textAlign: 'center', gap: '8px' }}>
                       <Zap style={{ width: '24px', height: '24px', color: border }} />
@@ -1911,7 +2001,7 @@ export function DealDetailPage() {
                         const showGroup = group !== lastGroup
                         lastGroup = group
                         return (
-                          <div key={entry.kind === 'activity' ? entry.activity.id : entry.meeting.id}>
+                          <div key={entry.kind === 'activity' ? entry.activity.id : entry.kind === 'meeting' ? entry.meeting.id : entry.record.id}>
                             {showGroup && (
                               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', marginTop: i > 0 ? '4px' : 0 }}>
                                 <span style={{ fontSize: '9px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.1em', whiteSpace: 'nowrap' }}>{group}</span>
@@ -1920,7 +2010,9 @@ export function DealDetailPage() {
                             )}
                             {entry.kind === 'activity'
                               ? <ActivityEntry activity={entry.activity} meeting={entry.meeting} isDark={isDark} />
-                              : <StandaloneMeetingEntry meeting={entry.meeting} isDark={isDark} />
+                              : entry.kind === 'meeting'
+                              ? <StandaloneMeetingEntry meeting={entry.meeting} isDark={isDark} />
+                              : <MeetingRecordEntry record={entry.record} isDark={isDark} />
                             }
                           </div>
                         )
@@ -1929,41 +2021,6 @@ export function DealDetailPage() {
                   )
                 })()}
                 </div>{/* end section 1 */}
-
-                {/* ── Section 1b: Registros de Reunião ── */}
-                {meetingRecords.length > 0 && (
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
-                      <span style={{ fontSize: '9px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Registros de Reunião</span>
-                      <div style={{ flex: 1, height: '1px', backgroundColor: border }} />
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                      {meetingRecords.map((rec) => {
-                        const scoreColor = rec.score >= 7 ? '#2a9a5a' : rec.score >= 4 ? '#a88030' : '#b83535'
-                        return (
-                          <div key={rec.id} style={{ padding: '12px 14px', borderRadius: '8px', border: `1px solid ${border}`, backgroundColor: isDark ? '#111110' : '#fafaf8' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                              <span style={{ fontSize: '11px', fontWeight: 600, color: text }}>{formatDate(rec.meeting_date)}</span>
-                              <span style={{ fontSize: '11px', fontWeight: 700, color: scoreColor, backgroundColor: `${scoreColor}15`, borderRadius: '4px', padding: '2px 8px' }}>
-                                {rec.score.toFixed(1)} / 10
-                              </span>
-                            </div>
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', marginBottom: rec.notes ? '8px' : 0 }}>
-                              {rec.completed_items.map((item) => (
-                                <span key={item} style={{ fontSize: '10px', fontWeight: 500, color: '#2a9a5a', backgroundColor: '#2a9a5a15', borderRadius: '3px', padding: '2px 6px' }}>
-                                  ✓ {CHECKLIST_LABELS[item] ?? item}
-                                </span>
-                              ))}
-                            </div>
-                            {rec.notes && (
-                              <p style={{ fontSize: '11px', color: muted, marginTop: '6px', fontStyle: 'italic', lineHeight: 1.5 }}>{rec.notes}</p>
-                            )}
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </div>
-                )}
 
                 {/* ── Section 2: Histórico de Pipeline ── */}
                 <div>
@@ -1983,7 +2040,7 @@ export function DealDetailPage() {
                             <span style={{ fontSize: '9px', color: muted, whiteSpace: 'nowrap', minWidth: '60px' }}>{relativeDate(entry.changed_at.slice(0, 10))}</span>
                             <span style={{ color: isDark ? '#fc8181' : '#c53030', fontWeight: 500 }}>{fromLabel}</span>
                             <span style={{ color: muted }}>→</span>
-                            <span style={{ color: '#2d9e6b', fontWeight: 600 }}>{toLabel}</span>
+                            <span style={{ color: '#2c5545', fontWeight: 600 }}>{toLabel}</span>
                             {entry.days_in_previous_stage > 0 && (
                               <span style={{ fontSize: '10px', color: muted, marginLeft: 'auto' }}>{entry.days_in_previous_stage}d na etapa</span>
                             )}
@@ -2066,7 +2123,7 @@ export function DealDetailPage() {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     {dealTasks.map((task) => (
                       <div key={task.id} className="card-sm" style={{ padding: '10px 14px', display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
-                        <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: task.completed_at ? '#2d9e6b' : (task.due_date && task.due_date < new Date().toISOString().slice(0, 10) ? '#c53030' : 'var(--ink-muted)'), flexShrink: 0, marginTop: '5px' }} />
+                        <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: task.completed_at ? '#2c5545' : (task.due_date && task.due_date < new Date().toISOString().slice(0, 10) ? '#c53030' : 'var(--ink-muted)'), flexShrink: 0, marginTop: '5px' }} />
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <p style={{ fontSize: '13px', fontWeight: 500, color: task.completed_at ? muted : text, textDecoration: task.completed_at ? 'line-through' : 'none' }}>{task.title}</p>
                           {task.due_date && <p style={{ fontSize: '11px', color: muted, marginTop: '2px' }}>{formatDate(task.due_date)}</p>}
@@ -2108,7 +2165,7 @@ export function DealDetailPage() {
               }
               for (const t of dealTasks) {
                 if (t.completed_at) {
-                  items.push({ key: `tc-${t.id}`, date: t.completed_at, badge: 'Tarefa concluída', badgeColor: '#2a9a5a', title: t.title })
+                  items.push({ key: `tc-${t.id}`, date: t.completed_at, badge: 'Tarefa concluída', badgeColor: '#2c5545', title: t.title })
                 } else {
                   items.push({ key: `tp-${t.id}`, date: t.created_at ?? t.due_date ?? '', badge: 'Tarefa criada', badgeColor: '#4d7aa8', title: t.title, detail: t.due_date ? `Vence ${formatDate(t.due_date)}` : undefined })
                 }
@@ -2120,7 +2177,7 @@ export function DealDetailPage() {
                   const sub = p.lines.reduce((s, l) => s + l.qty * l.unit_price, 0)
                   const val = sub - sub * ((p.discountPct ?? 0) / 100)
                   const statusLabel = p.status === 'accepted' ? 'Aceite' : p.status === 'rejected' ? 'Recusada' : 'Em análise'
-                  const color = p.status === 'accepted' ? '#2a9a5a' : p.status === 'rejected' ? '#b83535' : '#a88030'
+                  const color = p.status === 'accepted' ? '#2c5545' : p.status === 'rejected' ? '#b83535' : '#a88030'
                   items.push({ key: `prop-${i}`, date: p.created_at ?? '', badge: `Proposta — ${statusLabel}`, badgeColor: color, title: formatCurrency(val) })
                 })
               } catch { /* ignore */ }

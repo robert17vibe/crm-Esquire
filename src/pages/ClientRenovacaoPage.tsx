@@ -171,8 +171,8 @@ function PropostaRenovacao({ deal, isDark, border, text, muted, inputBg }: {
                     <span style={{ fontSize: '11px', color: muted, fontFamily: "'Geist Mono', monospace" }}>{fmtBRL(prevSubtotal)}</span>
                   </div>
                   <div style={{ display: 'flex', gap: '32px' }}>
-                    <span style={{ fontSize: '11px', color: '#15803d' }}>Desconto {preview.discountPct}%</span>
-                    <span style={{ fontSize: '11px', color: '#15803d', fontFamily: "'Geist Mono', monospace" }}>-{fmtBRL(prevDiscount)}</span>
+                    <span style={{ fontSize: '11px', color: '#2c5545' }}>Desconto {preview.discountPct}%</span>
+                    <span style={{ fontSize: '11px', color: '#2c5545', fontFamily: "'Geist Mono', monospace" }}>-{fmtBRL(prevDiscount)}</span>
                   </div>
                 </>
               )}
@@ -434,7 +434,7 @@ function MateriaisEntrega({ dealId, isDark, border, text, muted, inputBg }: {
   const totalCount  = deliverables.length
   const progress    = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0
 
-  const TYPE_COLORS: Record<string, string> = { link: '#2563eb', doc: '#6b1212', video: '#7c3aed' }
+  const TYPE_COLORS: Record<string, string> = { link: '#4d7aa8', doc: '#6b1212', video: '#7c5cbf' }
 
   return (
     <div style={{ padding: '20px 24px' }}>
@@ -445,16 +445,16 @@ function MateriaisEntrega({ dealId, isDark, border, text, muted, inputBg }: {
           <div style={{ flex: 1 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
               <span style={{ fontSize: '11px', fontWeight: 600, color: text }}>Progresso de entrega</span>
-              <span style={{ fontSize: '11px', fontWeight: 700, color: progress === 100 ? '#15803d' : muted, fontFamily: "'Geist Mono', monospace" }}>
+              <span style={{ fontSize: '11px', fontWeight: 700, color: progress === 100 ? '#2c5545' : muted, fontFamily: "'Geist Mono', monospace" }}>
                 {doneCount}/{totalCount}
               </span>
             </div>
             <div style={{ height: '6px', borderRadius: '3px', backgroundColor: isDark ? '#1e1e1c' : '#f3f4f6', overflow: 'hidden' }}>
-              <div style={{ height: '100%', width: `${progress}%`, backgroundColor: progress === 100 ? '#15803d' : '#6b1212', borderRadius: '3px', transition: 'width 0.3s ease' }} />
+              <div style={{ height: '100%', width: `${progress}%`, backgroundColor: progress === 100 ? '#2c5545' : '#6b1212', borderRadius: '3px', transition: 'width 0.3s ease' }} />
             </div>
           </div>
           <div style={{ flexShrink: 0, textAlign: 'right' }}>
-            <p style={{ fontSize: '22px', fontWeight: 700, color: progress === 100 ? '#15803d' : '#6b1212', fontFamily: "'Geist Mono', monospace", letterSpacing: '-0.04em', lineHeight: 1 }}>{progress}%</p>
+            <p style={{ fontSize: '22px', fontWeight: 700, color: progress === 100 ? '#2c5545' : '#6b1212', fontFamily: "'Geist Mono', monospace", letterSpacing: '-0.04em', lineHeight: 1 }}>{progress}%</p>
             <p style={{ fontSize: '10px', color: muted, marginTop: '2px' }}>concluído</p>
           </div>
         </div>
@@ -471,8 +471,8 @@ function MateriaisEntrega({ dealId, isDark, border, text, muted, inputBg }: {
             <button type="button" onClick={() => toggleDeliverable(d.id)}
               style={{
                 width: '18px', height: '18px', borderRadius: '4px', flexShrink: 0,
-                border: `1.5px solid ${d.done ? '#15803d' : border}`,
-                backgroundColor: d.done ? '#15803d' : 'transparent',
+                border: `1.5px solid ${d.done ? '#2c5545' : border}`,
+                backgroundColor: d.done ? '#2c5545' : 'transparent',
                 cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}>
               {d.done && <Check size={10} color="#fff" strokeWidth={3} />}
@@ -680,7 +680,7 @@ function DadosCliente({ deal, isDark, border, text, muted }: {
           {[
             { label: 'Valor do contrato', value: fmtBRL(deal.value ?? 0), color: '#6b1212' },
             { label: 'Dias como cliente', value: `${daysSinceWon}d`, color: muted },
-            { label: 'Renovação em', value: daysToClose !== null ? `${daysToClose}d` : '—', color: daysToClose !== null && daysToClose <= 30 ? '#b45309' : muted },
+            { label: 'Renovação em', value: daysToClose !== null ? `${daysToClose}d` : '—', color: daysToClose !== null && daysToClose <= 30 ? '#a88030' : muted },
             { label: 'Data de fecho', value: fmtDate(deal.expected_close), color: muted },
           ].map((s) => (
             <div key={s.label} style={{ backgroundColor: isDark ? '#111110' : '#ffffff', padding: '14px 16px' }}>
@@ -819,7 +819,7 @@ export function ClientRenovacaoPage() {
               </h1>
               <span style={{
                 display: 'inline-flex', alignItems: 'center', gap: '4px',
-                fontSize: '10px', fontWeight: 700, color: '#15803d',
+                fontSize: '10px', fontWeight: 700, color: '#2c5545',
                 backgroundColor: isDark ? '#0a1f0e' : '#f0fdf4',
                 border: `1px solid ${isDark ? '#14532d' : '#bbf7d0'}`,
                 borderRadius: '999px', padding: '2px 8px',

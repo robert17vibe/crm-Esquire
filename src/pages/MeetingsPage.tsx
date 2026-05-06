@@ -80,7 +80,7 @@ function MeetingRecordModal({ onClose, onSaved, isDark }: { onClose: () => void;
   }
 
   const score      = computeScore(checked)
-  const scoreColor = score >= 7 ? '#2a9a5a' : score >= 4 ? '#a88030' : '#b83535'
+  const scoreColor = score >= 7 ? '#2c5545' : score >= 4 ? '#a88030' : '#b83535'
   const done       = checked.size
 
   return (
@@ -150,13 +150,13 @@ function MeetingRecordModal({ onClose, onSaved, isDark }: { onClose: () => void;
                   key={item.id}
                   type="button"
                   onClick={() => toggle(item.id)}
-                  style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '8px', border: `1px solid ${isChecked ? '#2a9a5a40' : border}`, backgroundColor: isChecked ? (isDark ? '#14532d18' : '#f0fdf4') : inputBg, cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s ease' }}
+                  style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '8px', border: `1px solid ${isChecked ? '#2c554540' : border}`, backgroundColor: isChecked ? (isDark ? '#14532d18' : '#f0fdf4') : inputBg, cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s ease' }}
                 >
                   {isChecked
-                    ? <CheckSquare style={{ width: '15px', height: '15px', color: '#2a9a5a', flexShrink: 0 }} />
+                    ? <CheckSquare style={{ width: '15px', height: '15px', color: '#2c5545', flexShrink: 0 }} />
                     : <Square style={{ width: '15px', height: '15px', color: muted, flexShrink: 0 }} />
                   }
-                  <span style={{ flex: 1, fontSize: '12px', fontWeight: 500, color: isChecked ? (isDark ? '#86efac' : '#15803d') : text }}>{item.text}</span>
+                  <span style={{ flex: 1, fontSize: '12px', fontWeight: 500, color: isChecked ? (isDark ? '#86efac' : '#2c5545') : text }}>{item.text}</span>
                   <span style={{ fontSize: '9px', fontWeight: 700, color: muted, backgroundColor: isDark ? '#ffffff10' : '#00000008', borderRadius: '3px', padding: '2px 5px', flexShrink: 0 }}>×{item.weight}</span>
                 </button>
               )
@@ -350,7 +350,7 @@ function MeetingCard({ meeting, isDark }: { meeting: DealMeeting; isDark: boolea
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                   {meeting.action_items.map((item, i) => (
                     <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '7px' }}>
-                      <CheckSquare style={{ width: '11px', height: '11px', color: '#2a9a5a', flexShrink: 0, marginTop: '2px' }} />
+                      <CheckSquare style={{ width: '11px', height: '11px', color: '#2c5545', flexShrink: 0, marginTop: '2px' }} />
                       <p style={{ fontSize: '12px', color: text, lineHeight: 1.5 }}>{item}</p>
                     </div>
                   ))}
@@ -459,7 +459,7 @@ export function MeetingsPage() {
             { label: 'Total Reuniões', value: meetings.length, sub: 'registadas',          icon: <Mic size={14} />,         color: '#6b1212' },
             { label: 'Hoje',           value: todayCount,       sub: 'agendadas hoje',       icon: <Clock size={14} />,       color: '#a88030' },
             { label: 'Com Plaud',      value: withPlaud,        sub: 'com transcrição',      icon: <Users size={14} />,       color: '#4d7aa8' },
-            { label: 'Score Médio',    value: avgScore > 0 ? `${avgScore}` : '—', sub: 'qualidade da reunião', icon: <CheckSquare size={14} />, color: '#15803d' },
+            { label: 'Score Médio',    value: avgScore > 0 ? `${avgScore}` : '—', sub: 'qualidade da reunião', icon: <CheckSquare size={14} />, color: '#2c5545' },
           ].map((s) => (
             <div key={s.label} style={{
               backgroundColor: cardBg, border: `1px solid ${border}`,

@@ -44,7 +44,7 @@ function deriveStatus(createdAt: string, validity: string, manual?: PayStatus): 
 }
 
 const STATUS_CFG: Record<PayStatus, { label: string; color: string; bg: string; icon: typeof CheckCircle }> = {
-  pago:     { label: 'Pago',     color: '#2a9a5a', bg: 'rgba(42,154,90,0.10)',   icon: CheckCircle },
+  pago:     { label: 'Pago',     color: '#2c5545', bg: 'rgba(42,154,90,0.10)',   icon: CheckCircle },
   pendente: { label: 'Pendente', color: '#a88030', bg: 'rgba(168,128,48,0.10)',  icon: Clock },
   atrasado: { label: 'Atrasado', color: '#b83535', bg: 'rgba(184,53,53,0.10)',   icon: AlertCircle },
 }
