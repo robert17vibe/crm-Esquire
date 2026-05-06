@@ -1,6 +1,7 @@
 import { create } from 'zustand'
-import { MOCK_DEALS, MOCK_OWNERS } from '@/lib/mock-data'
+import { MOCK_OWNERS } from '@/lib/mock-data'
 import { DEFAULT_PROBABILITIES, STAGES } from '@/constants/pipeline'
+import { useAuthStore } from '@/store/useAuthStore'
 import { useToastStore } from '@/store/useToastStore'
 import { useNotificationStore } from '@/store/useNotificationStore'
 import { useOwnerStore } from '@/store/useOwnerStore'
@@ -8,11 +9,13 @@ import { useWebhookStore } from '@/store/useWebhookStore'
 import { fetchDeals, insertDeal, patchDeal, removeDeal } from '@/services/deal.service'
 import { logDistribution } from '@/services/distribution.service'
 import { supabase } from '@/lib/supabase'
-import type { Deal, NextActivity } from '@/types/deal.types'
+import type { Deal, DealPatch, NextActivity } from '@/types/deal.types'
 import type { StageId } from '@/constants/pipeline'
 import type { NewLeadFormValues } from '@/lib/schemas/deal.schema'
 
 const DEALS_KEY = 'esq_deals_v2'
+const DEALS_TS_KEY = 'esq_deals_v2_ts'
+const CACHE_TTL_MS = 60 * 60 * 1000 // 1 hora
 
 function _runStaleAlerts(deals: Deal[]) {
   const { addAlertIfNew } = useNotificationStore.getState()
@@ -38,21 +41,27 @@ function _runStaleAlerts(deals: Deal[]) {
 }
 
 function persistDeals(deals: Deal[]) {
-  try { localStorage.setItem(DEALS_KEY, JSON.stringify(deals)) } catch { /* ignore */ }
+  try {
+    localStorage.setItem(DEALS_KEY, JSON.stringify(deals))
+    localStorage.setItem(DEALS_TS_KEY, String(Date.now()))
+  } catch { /* ignore */ }
 }
 
 function loadLocalDeals(): Deal[] {
   try {
+    const rawTs = localStorage.getItem(DEALS_TS_KEY)
+    // Só aplica TTL se o timestamp já foi escrito (evita invalidar cache existente na primeira execução)
+    if (rawTs !== null && Date.now() - Number(rawTs) > CACHE_TTL_MS) return []
     const raw = localStorage.getItem(DEALS_KEY)
-    if (!raw) return MOCK_DEALS
+    if (!raw) return []
     const parsed = JSON.parse(raw) as Deal[]
-    if (!Array.isArray(parsed) || parsed.length === 0) return MOCK_DEALS
+    if (!Array.isArray(parsed) || parsed.length === 0) return []
     return parsed.map((d) => ({
       ...d,
       owner: MOCK_OWNERS.find((o) => o.id === d.owner_id) ?? MOCK_OWNERS[0],
     }))
   } catch {
-    return MOCK_DEALS
+    return []
   }
 }
 
@@ -71,7 +80,7 @@ interface DealStore {
   moveDeal: (id: string, stageId: StageId) => Promise<void>
   setLossReason: (id: string, reason: string) => void
   setNextActivity: (id: string, nextActivity: NextActivity | null) => Promise<void>
-  patchDealFields: (id: string, patch: Partial<Deal>) => Promise<void>
+  patchDealFields: (id: string, patch: DealPatch) => Promise<void>
   getNextRoundRobinOwner: (teamId: string) => Promise<string | null>
 }
 
@@ -88,9 +97,9 @@ function _computeStale(deals: Deal[]): Deal[] {
 }
 
 export const useDealStore = create<DealStore>((set, get) => {
-  // Helper: set deals + recompute stale derived state
   function setDeals(next: Deal[]) {
-    set({ deals: next, staleDeals: _computeStale(next), staleCount: _computeStale(next).length })
+    const staleDeals = _computeStale(next)
+    set({ deals: next, staleDeals, staleCount: staleDeals.length })
   }
 
   return ({
@@ -98,19 +107,30 @@ export const useDealStore = create<DealStore>((set, get) => {
   isLoading: false,
   initialized: false,
   error: null,
-  staleDeals: _computeStale(loadLocalDeals()),
-  staleCount: _computeStale(loadLocalDeals()).length,
+  staleDeals: [],
+  staleCount: 0,
 
   initialize: async () => {
     if (get().isLoading || get().initialized) return
     set({ isLoading: true, error: null })
+    const timeout = setTimeout(() => {
+      if (!get().initialized) set({ isLoading: false, initialized: true, error: 'Tempo de carregamento excedido. A usar dados em cache.' })
+    }, 8000)
     try {
       const deals = await fetchDeals()
-      set({ deals, isLoading: false, initialized: true, staleDeals: _computeStale(deals), staleCount: _computeStale(deals).length })
+      clearTimeout(timeout)
+      const staleDeals = _computeStale(deals)
+      set({ deals, isLoading: false, initialized: true, staleDeals, staleCount: staleDeals.length })
       persistDeals(deals)
       _runStaleAlerts(deals)
+      // Pré-carregar propostas para todos os deals (evita N+1 nos cards)
+      const { useProposalStore } = await import('@/store/useProposalStore')
+      const dealIds = deals.map((d) => d.id).filter((id) => !id.startsWith('opt-'))
+      if (dealIds.length) useProposalStore.getState().loadForDeals(dealIds)
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Erro ao carregar deals'
+      clearTimeout(timeout)
+      const msg = (err as { message?: string })?.message || 'Erro ao carregar deals'
+      console.error('[useDealStore] fetchDeals failed:', err)
       set({ isLoading: false, initialized: true, error: msg })
     }
   },
@@ -149,8 +169,8 @@ export const useDealStore = create<DealStore>((set, get) => {
   },
 
   createDeal: async (values) => {
-    const { data: { user } } = await supabase.auth.getUser()
-    const resolvedOwnerId = user?.id || values.owner_id || MOCK_OWNERS[0].id
+    const authUser = useAuthStore.getState().user
+    const resolvedOwnerId = authUser?.id || values.owner_id || MOCK_OWNERS[0].id
     const foundOwner = useOwnerStore.getState().getById(resolvedOwnerId)
     const owner = foundOwner ?? { ...MOCK_OWNERS[0], id: resolvedOwnerId }
     const now = new Date().toISOString()
@@ -214,12 +234,10 @@ export const useDealStore = create<DealStore>((set, get) => {
       useToastStore.getState().addToast(`Lead criado — ${displayName}`, 'success')
       useNotificationStore.getState().addNotification(confirmed.id, displayName)
       useWebhookStore.getState().fire('deal.created', { id: confirmed.id, title: confirmed.title, company_name: confirmed.company_name, stage_id: confirmed.stage_id, owner_id: confirmed.owner_id, value: confirmed.value })
-      // Log da atribuição inicial no histórico de distribuição
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user && confirmed.owner_id) {
+      if (authUser && confirmed.owner_id) {
         logDistribution({
           dealIds: [confirmed.id],
-          distributedBy: user.id,
+          distributedBy: authUser.id,
           distributionType: 'manual',
           assignments: { [confirmed.owner_id]: [confirmed.id] },
           notes: 'Atribuição automática na criação do lead',
@@ -227,7 +245,6 @@ export const useDealStore = create<DealStore>((set, get) => {
       }
       return confirmed
     } catch (err) {
-      // Revert optimistic
       const reverted = get().deals.filter((d) => d.id !== optimistic.id)
       setDeals(reverted)
       persistDeals(reverted)
