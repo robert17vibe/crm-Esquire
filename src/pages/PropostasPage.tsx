@@ -747,8 +747,38 @@ export function PropostasPage() {
                     {p.value > 0 ? fmt(p.value) : '—'}
                   </div>
 
-                  <div style={{ fontSize: '12px', color: muted }}>
-                    {dateLabel(p.createdAt)}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                    <span style={{ fontSize: '12px', color: muted }}>{dateLabel(p.createdAt)}</span>
+                    {p.isLatest && (
+                      <button
+                        type="button"
+                        onClick={async (e) => {
+                          e.stopPropagation()
+                          const { data } = await supabase
+                            .from('contracts')
+                            .select('signing_token')
+                            .eq('deal_id', p.dealId)
+                            .eq('status', 'active')
+                            .order('created_at', { ascending: false })
+                            .limit(1)
+                            .single()
+                          if (data?.signing_token) {
+                            window.open(`/assinar/${data.signing_token}`, '_blank')
+                          } else {
+                            alert('Contrato ainda não gerado. Mova o deal para "Fechado Ganho" para criar o contrato.')
+                          }
+                        }}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: '4px',
+                          height: '24px', padding: '0 10px', borderRadius: '6px',
+                          fontSize: '10px', fontWeight: 700, cursor: 'pointer',
+                          border: 'none', backgroundColor: '#2c5545', color: '#fff',
+                          flexShrink: 0, whiteSpace: 'nowrap',
+                        }}
+                      >
+                        ↓ Baixar
+                      </button>
+                    )}
                   </div>
                 </button>
               )
