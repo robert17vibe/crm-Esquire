@@ -300,29 +300,28 @@ function DetailPanel({
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
           <span style={{ fontSize: '10px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Detalhes do Contrato</span>
           <div style={{ display: 'flex', gap: '6px' }}>
-            {group.contractId && (
+            {group.signingToken ? (
               <>
                 <button type="button"
                   onClick={() => {
-                    if (!group.signingToken) { alert('Token de assinatura não disponível. Recarregue a página.'); return }
                     const url = `${window.location.origin}/assinar/${group.signingToken}`
-                    navigator.clipboard.writeText(url).then(() => {
-                      setCopied(true)
-                      setTimeout(() => setCopied(false), 2000)
-                    })
+                    navigator.clipboard.writeText(url).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000) })
                   }}
                   style={{ display: 'flex', alignItems: 'center', gap: '5px', height: '28px', padding: '0 10px', borderRadius: '7px', fontSize: '11px', fontWeight: 600, cursor: 'pointer', border: `1px solid ${copied ? '#2c5545' : border}`, backgroundColor: copied ? 'rgba(44,85,69,0.1)' : 'transparent', color: copied ? '#2c5545' : muted, transition: 'all 0.2s' }}>
                   {copied ? '✓ Copiado' : 'Copiar link'}
                 </button>
                 <button type="button"
-                  onClick={() => {
-                    if (!group.signingToken) { alert('Token de assinatura não disponível. Recarregue a página.'); return }
-                    window.open(`/assinar/${group.signingToken}`, '_blank')
-                  }}
-                  style={{ display: 'flex', alignItems: 'center', gap: '5px', height: '28px', padding: '0 10px', borderRadius: '7px', fontSize: '11px', fontWeight: 600, cursor: 'pointer', border: `1px solid ${border}`, backgroundColor: 'transparent', color: muted }}>
-                  <Download style={{ width: '11px', height: '11px' }} /> Ver contrato
+                  onClick={() => window.open(`/assinar/${group.signingToken}`, '_blank')}
+                  style={{ display: 'flex', alignItems: 'center', gap: '5px', height: '28px', padding: '0 10px', borderRadius: '7px', fontSize: '11px', fontWeight: 600, cursor: 'pointer', border: 'none', backgroundColor: '#2c5545', color: '#fff' }}>
+                  <Download style={{ width: '11px', height: '11px' }} /> Baixar contrato
                 </button>
               </>
+            ) : (
+              <button type="button"
+                onClick={() => alert('Recarregue a página para obter o link de assinatura.')}
+                style={{ display: 'flex', alignItems: 'center', gap: '5px', height: '28px', padding: '0 10px', borderRadius: '7px', fontSize: '11px', fontWeight: 600, cursor: 'pointer', border: 'none', backgroundColor: '#2c5545', color: '#fff' }}>
+                <Download style={{ width: '11px', height: '11px' }} /> Baixar contrato
+              </button>
             )}
             <button type="button" onClick={() => navigate(`/deal/${group.dealId}`)}
               style={{ display: 'flex', alignItems: 'center', gap: '5px', height: '28px', padding: '0 12px', borderRadius: '7px', fontSize: '11px', fontWeight: 600, cursor: 'pointer', border: `1px solid ${border}`, backgroundColor: 'transparent', color: muted }}>

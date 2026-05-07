@@ -290,9 +290,26 @@ export function AssinaturaPage() {
           </div>
         )}
 
-        <p style={{ textAlign: 'center', fontSize: '11px', color: muted, marginTop: '24px' }}>
+        {/* Print/download button */}
+        <div style={{ textAlign: 'center', marginTop: '16px' }}>
+          <button
+            onClick={() => window.print()}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 20px', borderRadius: '8px', border: `1px solid ${border}`, background: card, color: muted, fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
+            🖨 Baixar / Imprimir contrato
+          </button>
+        </div>
+
+        <p style={{ textAlign: 'center', fontSize: '11px', color: muted, marginTop: '16px' }}>
           Esquire CRM · Documento gerado automaticamente
         </p>
+
+        <style>{`
+          @media print {
+            button { display: none !important; }
+            body { background: #fff !important; }
+            input[type="checkbox"] { display: none !important; }
+          }
+        `}</style>
       </div>
     </div>
   )
