@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { supabase } from '@/lib/supabase'
 
-export type WebhookEvent = 'deal.created' | 'deal.stage_changed' | 'deal.deleted'
+export type WebhookEvent = 'deal.created' | 'deal.stage_changed' | 'deal.deleted' | 'payment.received'
 
 export interface WebhookConfig {
   id: string

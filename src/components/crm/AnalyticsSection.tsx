@@ -138,7 +138,6 @@ export function AnalyticsSection() {
   const activeDeals  = useMemo(() => periodDeals.filter((d) => !['closed_won', 'closed_lost'].includes(d.stage_id)), [periodDeals])
 
   const wonTotal      = useMemo(() => closedWon.reduce((s, d) => s + Number(d.value), 0), [closedWon])
-  const lostTotal     = useMemo(() => closedLost.reduce((s, d) => s + Number(d.value), 0), [closedLost])
   const pipelineTotal = useMemo(() => activeDeals.filter((d) => d.value > 0).reduce((s, d) => s + d.value, 0), [activeDeals])
   const winRate       = closedWon.length + closedLost.length > 0 ? Math.round((closedWon.length / (closedWon.length + closedLost.length)) * 100) : 0
   const avgTicketWon  = closedWon.length > 0 ? wonTotal / closedWon.length : 0
@@ -163,13 +162,6 @@ export function AnalyticsSection() {
     label, key,
     value: deals.filter((d) => d.created_at.slice(0, 7) === key && d.value > 0).reduce((s, d) => s + d.value, 0),
   })), [months, deals])
-
-  const funnelData = useMemo(() => STAGES.filter((s) => !s.is_closed).map((stage) => {
-    const sd  = activeDeals.filter((d) => d.stage_id === stage.id)
-    const val = sd.reduce((s, d) => s + d.value, 0)
-    return { stage, count: sd.length, value: val }
-  }), [activeDeals])
-  const maxFunnel = Math.max(...funnelData.map((f) => f.value), 1)
 
   const ownerRanking = useMemo(() => {
     const map = new Map<string, { name: string; color: string; initials: string; wonCount: number; wonValue: number; active: number }>()
@@ -223,7 +215,7 @@ export function AnalyticsSection() {
             </div>
             <span style={{ fontSize: '14px', fontWeight: 700, color: '#2c5545', fontVariantNumeric: 'tabular-nums' }}>{fmtFull(wonTotal)}</span>
           </div>
-          <AnimatedBars data={monthlyWon} color="#2c5545" isDark={isDark} height={110} />
+          <AnimatedBars data={monthlyWon} color="#2c5545" isDark={isDark} height={80} />
         </div>
         <div style={{ backgroundColor: card, border: `1px solid ${border}`, borderRadius: '12px', padding: '20px', boxShadow: shadow }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
@@ -233,57 +225,28 @@ export function AnalyticsSection() {
             </div>
             <span style={{ fontSize: '14px', fontWeight: 700, color: text, fontVariantNumeric: 'tabular-nums' }}>{fmt(pipelineTotal)}</span>
           </div>
-          <AreaChart data={monthlyPipeline} color="#6b1212" height={120} isDark={isDark} />
+          <AreaChart data={monthlyPipeline} color="#6b1212" height={80} isDark={isDark} />
         </div>
       </div>
 
-      {/* Funil + Ranking */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-        <div style={{ backgroundColor: card, border: `1px solid ${border}`, borderRadius: '12px', padding: '20px', boxShadow: shadow }}>
-          <p style={{ fontSize: '13px', fontWeight: 600, color: text, marginBottom: '16px' }}>Distribuição do Pipeline</p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            {funnelData.map(({ stage, count, value }) => (
-              <div key={stage.id}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ width: '8px', height: '8px', borderRadius: '2px', backgroundColor: stage.color }} />
-                    <span style={{ fontSize: '12px', color: text }}>{stage.label}</span>
-                    <span style={{ fontSize: '10px', color: muted, backgroundColor: track, border: `1px solid ${border}`, borderRadius: '4px', padding: '0 5px' }}>{count}</span>
-                  </div>
-                  <span style={{ fontSize: '12px', fontWeight: 600, color: value > 0 ? text : muted, fontVariantNumeric: 'tabular-nums' }}>{value > 0 ? fmt(value) : '—'}</span>
-                </div>
-                <div style={{ height: '5px', borderRadius: '99px', backgroundColor: track, overflow: 'hidden' }}>
-                  <div style={{ height: '100%', borderRadius: '99px', width: `${value > 0 ? Math.round((value / maxFunnel) * 100) : (count > 0 ? 4 : 0)}%`, backgroundColor: stage.color, transition: 'width 0.6s cubic-bezier(0.16,1,0.3,1)' }} />
-                </div>
-              </div>
-            ))}
-          </div>
-          <div style={{ marginTop: '16px', paddingTop: '14px', borderTop: `1px solid ${border}`, display: 'flex', gap: '20px' }}>
-            {[{ label: 'Pipeline', v: fmt(pipelineTotal), c: text }, { label: 'Ganhos', v: fmtFull(wonTotal), c: '#2c5545' }, { label: 'Perdidos', v: fmt(lostTotal), c: '#6b1212' }].map(({ label, v, c }) => (
-              <div key={label}>
-                <p style={{ fontSize: '10px', color: muted, marginBottom: '2px' }}>{label}</p>
-                <p style={{ fontSize: '13px', fontWeight: 700, color: c, fontVariantNumeric: 'tabular-nums' }}>{v}</p>
-              </div>
-            ))}
-          </div>
+      {/* Ranking por Operador — full width */}
+      <div style={{ backgroundColor: card, border: `1px solid ${border}`, borderRadius: '12px', overflow: 'hidden', boxShadow: shadow }}>
+        <div style={{ padding: '16px 20px', borderBottom: `1px solid ${border}`, display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <BarChart2 style={{ width: '14px', height: '14px', color: muted }} />
+          <p style={{ fontSize: '13px', fontWeight: 600, color: text }}>Ranking por Operador</p>
         </div>
-
-        <div style={{ backgroundColor: card, border: `1px solid ${border}`, borderRadius: '12px', overflow: 'hidden', boxShadow: shadow }}>
-          <div style={{ padding: '16px 20px', borderBottom: `1px solid ${border}`, display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <BarChart2 style={{ width: '14px', height: '14px', color: muted }} />
-            <p style={{ fontSize: '13px', fontWeight: 600, color: text }}>Ranking por Operador</p>
+        {ownerRanking.length === 0 ? (
+          <div style={{ padding: '32px', textAlign: 'center' }}>
+            <p style={{ fontSize: '12px', color: muted }}>Sem dados no período</p>
           </div>
-          {ownerRanking.length === 0 ? (
-            <div style={{ padding: '32px', textAlign: 'center' }}>
-              <p style={{ fontSize: '12px', color: muted }}>Sem dados no período</p>
+        ) : (
+          <div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 52px 64px 76px', gap: '8px', padding: '8px 20px', borderBottom: `1px solid ${border}` }}>
+              {['Operador', 'Ativos', 'Ganhos', 'Receita'].map((h) => (
+                <span key={h} style={{ fontSize: '10px', fontWeight: 600, color: muted, textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: h === 'Operador' ? 'left' : 'right' }}>{h}</span>
+              ))}
             </div>
-          ) : (
-            <div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 52px 64px 76px', gap: '8px', padding: '8px 20px', borderBottom: `1px solid ${border}` }}>
-                {['Operador', 'Ativos', 'Ganhos', 'Receita'].map((h) => (
-                  <span key={h} style={{ fontSize: '10px', fontWeight: 600, color: muted, textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: h === 'Operador' ? 'left' : 'right' }}>{h}</span>
-                ))}
-              </div>
+            <div style={{ maxHeight: '280px', overflowY: 'auto' }}>
               {ownerRanking.map((o, rank) => {
                 const maxWon = Math.max(...ownerRanking.map((x) => x.wonValue), 1)
                 return (
@@ -305,8 +268,8 @@ export function AnalyticsSection() {
                 )
               })}
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Velocidade do Pipeline */}

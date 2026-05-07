@@ -43,7 +43,10 @@ export async function insertProposal(payload: ProposalInsert): Promise<Proposal>
     .insert(payload)
     .select()
     .single()
-  if (error) throw error
+  if (error) {
+    console.error('[insertProposal]', error.code, error.message, error.details, 'deal_id:', payload.deal_id)
+    throw error
+  }
   return data as Proposal
 }
 

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Activity, ArrowRight, CheckCircle2, Clock, TrendingUp, UserPlus, Zap, Filter } from 'lucide-react'
+import { Activity, ArrowRight, CheckCircle2, CheckSquare, Clock, TrendingUp, UserPlus, Zap, Filter } from 'lucide-react'
 import { useThemeStore } from '@/store/useThemeStore'
 import { useVisibleDeals } from '@/hooks/useVisibleDeals'
 import { STAGES } from '@/constants/pipeline'
@@ -118,16 +118,38 @@ export function AtividadesPage() {
       <div style={{ maxWidth: '900px', margin: '0 auto' }}>
 
         {/* Header */}
-        <div style={{ marginBottom: '28px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
-            <Activity size={18} color={isDark ? '#fff' : '#101828'} />
-            <h1 style={{ fontSize: '20px', fontWeight: 600, color: text, letterSpacing: '-0.03em', margin: 0 }}>
-              Atividades
-            </h1>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '28px' }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
+              <Activity size={18} color={isDark ? '#fff' : '#101828'} />
+              <h1 style={{ fontSize: '20px', fontWeight: 600, color: text, letterSpacing: '-0.03em', margin: 0 }}>
+                Atividades
+              </h1>
+            </div>
+            <p style={{ fontSize: '13px', color: muted, margin: 0 }}>
+              Feed em tempo real de movimentos no pipeline
+            </p>
           </div>
-          <p style={{ fontSize: '13px', color: muted, margin: 0 }}>
-            Feed em tempo real de movimentos no pipeline
-          </p>
+          {/* Tab switcher */}
+          <div style={{ display: 'flex', gap: '2px', backgroundColor: isDark ? '#1a1a18' : '#f0eeea', borderRadius: '10px', padding: '3px' }}>
+            {[
+              { label: 'Tarefas',    icon: CheckSquare, to: '/tarefas'    },
+              { label: 'Atividades', icon: Activity,    to: '/atividades' },
+            ].map(({ label, icon: Icon, to }) => (
+              <button key={to} type="button" onClick={() => navigate(to)} style={{
+                display: 'flex', alignItems: 'center', gap: '6px',
+                height: '30px', padding: '0 14px', borderRadius: '8px', border: 'none', cursor: 'pointer',
+                fontSize: '12px', fontWeight: to === '/atividades' ? 700 : 500,
+                backgroundColor: to === '/atividades' ? (isDark ? '#2a2a28' : '#ffffff') : 'transparent',
+                color: to === '/atividades' ? text : muted,
+                boxShadow: to === '/atividades' ? '0 1px 3px rgba(0,0,0,0.12)' : 'none',
+                transition: 'all 0.15s ease',
+              }}>
+                <Icon style={{ width: '13px', height: '13px' }} />
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Summary cards */}

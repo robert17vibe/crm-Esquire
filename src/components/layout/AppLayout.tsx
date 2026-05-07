@@ -140,7 +140,7 @@ export function AppLayout() {
         <Header onOpenSearch={() => setCmdOpen(true)} />
         <main className="flex-1 overflow-y-auto p-5">
           <ErrorBoundary key={location.pathname}>
-            <div className="page-fade h-full">
+            <div key={location.pathname} className="page-fade h-full">
               <Outlet />
             </div>
           </ErrorBoundary>

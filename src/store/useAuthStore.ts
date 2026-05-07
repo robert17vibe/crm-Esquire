@@ -65,7 +65,18 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         set({ loading: false })
       }
     })
-    return () => subscription.unsubscribe()
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && get().session) {
+        void get().loadProfile()
+      }
+    }
+    document.addEventListener('visibilitychange', onVisibilityChange)
+
+    return () => {
+      subscription.unsubscribe()
+      document.removeEventListener('visibilitychange', onVisibilityChange)
+    }
   },
 
   signIn: async (email, password) => {

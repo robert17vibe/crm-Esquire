@@ -104,8 +104,9 @@ export function NewLeadModal({ open, onClose, onCreated }: Props) {
     }
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent | React.MouseEvent) {
     e.preventDefault()
+    if (submitting) return
 
     const name = fields.contact_name.trim()
     if (!name) {
@@ -302,7 +303,7 @@ export function NewLeadModal({ open, onClose, onCreated }: Props) {
               style={{ height: '38px', borderRadius: '8px', padding: '0 20px', fontSize: '13px', fontWeight: 600, background: 'transparent', cursor: 'pointer' }}>
               Cancelar
             </button>
-            <button type="submit" form="" onClick={handleSubmit} disabled={submitting}
+            <button type="button" onClick={handleSubmit} disabled={submitting}
               className="flex items-center gap-2 transition-opacity duration-150 disabled:opacity-60 disabled:cursor-not-allowed"
               style={{ height: '38px', borderRadius: '8px', padding: '0 24px', fontSize: '13px', fontWeight: 700, backgroundColor: 'var(--ink-base)', color: 'var(--surface-base)', border: 'none', cursor: submitting ? 'not-allowed' : 'pointer' }}>
               {submitting && <Loader2 style={{ width: '13px', height: '13px' }} className="animate-spin" />}

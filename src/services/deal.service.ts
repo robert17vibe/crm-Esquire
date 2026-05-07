@@ -13,16 +13,34 @@ const LIST_COLUMNS = [
   'created_at', 'updated_at',
 ].join(',')
 
-export async function fetchDeals(opts: { limit?: number; offset?: number } = {}): Promise<Deal[]> {
-  const { limit = 300, offset = 0 } = opts
-  const { data, error } = await supabase
+export const DEALS_PAGE_SIZE = 50
+
+export interface DealCursor { updated_at: string; id: string }
+
+export async function fetchDeals(opts: { cursor?: DealCursor; limit?: number } = {}): Promise<{ deals: Deal[]; hasMore: boolean; nextCursor: DealCursor | null }> {
+  const { cursor, limit = DEALS_PAGE_SIZE } = opts
+  let query = supabase
     .from('deals')
     .select(LIST_COLUMNS)
     .is('deleted_at', null)
     .order('updated_at', { ascending: false })
-    .range(offset, offset + limit - 1)
+    .order('id', { ascending: false })
+    .limit(limit + 1) // fetch one extra to detect hasMore
+
+  if (cursor) {
+    query = query.or(
+      `updated_at.lt.${cursor.updated_at},and(updated_at.eq.${cursor.updated_at},id.lt.${cursor.id})`
+    )
+  }
+
+  const { data, error } = await query
   if (error) throw error
-  return (data ?? []) as unknown as Deal[]
+  const rows = (data ?? []) as unknown as Deal[]
+  const hasMore = rows.length > limit
+  const deals = hasMore ? rows.slice(0, limit) : rows
+  const last = deals[deals.length - 1]
+  const nextCursor: DealCursor | null = last ? { updated_at: last.updated_at, id: last.id } : null
+  return { deals, hasMore, nextCursor }
 }
 
 export async function insertDeal(
@@ -43,6 +61,17 @@ export async function patchDeal(id: string, patch: DealPatch): Promise<void> {
     .update(patch)
     .eq('id', id)
   if (error) throw error
+}
+
+export async function fetchWonDeals(): Promise<Deal[]> {
+  const { data, error } = await supabase
+    .from('deals')
+    .select(LIST_COLUMNS)
+    .is('deleted_at', null)
+    .eq('stage_id', 'closed_won')
+    .order('updated_at', { ascending: false })
+  if (error) throw error
+  return (data ?? []) as unknown as Deal[]
 }
 
 export async function removeDeal(id: string): Promise<void> {

@@ -138,10 +138,12 @@ function NotificationPanel({ onClose, isDark }: { onClose: () => void; isDark: b
                   overdue_activity: { color: '#c94444', bg: isDark ? '#1e0d0d' : '#fee2e2', label: 'Actividade vencida' },
                   sla_breach:       { color: '#a88030', bg: isDark ? '#1e1508' : '#fef3c7', label: 'SLA em risco'      },
                   meeting_invite:   { color: '#4d7aa8', bg: isDark ? '#0d1e30' : '#eff6ff', label: 'Convite reunião'   },
+                  payment_received: { color: '#2c5545', bg: isDark ? '#0c1e18' : '#ecfdf5', label: 'Pagamento recebido' },
                 }
                 const IconMap: Record<NotificationType, typeof Bell> = {
                   new_deal: Bell, overdue_activity: AlertTriangle,
                   sla_breach: Clock, meeting_invite: Bell,
+                  payment_received: Bell,
                 }
                 const { color, bg: ibg, label } = cfgMap[n.type] ?? cfgMap.new_deal
                 const Icon = IconMap[n.type] ?? Bell

@@ -1,30 +1,28 @@
-import { useState, useMemo, useRef, useCallback } from 'react'
+import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
-import { Plus, Zap, LayoutGrid, List, RefreshCcw, CheckSquare, ChevronDown, ChevronRight, Clock, Kanban, FileText } from 'lucide-react'
+import { Plus, LayoutGrid, RefreshCcw, ChevronDown, Clock, Kanban, FileText, Users } from 'lucide-react'
 
-import { useTaskStore } from '@/store/useTaskStore'
-import { useAuthStore } from '@/store/useAuthStore'
+
+
 import { KanbanBoard } from '@/components/pipeline/KanbanBoard'
 import { NewLeadModal } from '@/components/pipeline/NewLeadModal'
 import { EditDealModal } from '@/components/pipeline/EditDealModal'
-import { PageEmptyState, PageLoadingState } from '@/components/ui/PageState'
+import { PageLoadingState } from '@/components/ui/PageState'
 import { useDealStore } from '@/store/useDealStore'
 import { useThemeStore } from '@/store/useThemeStore'
 import { useNotificationStore } from '@/store/useNotificationStore'
+import { usePaymentStore } from '@/store/usePaymentStore'
 import { useVisibleDeals } from '@/hooks/useVisibleDeals'
 import { STAGES } from '@/constants/pipeline'
+import { ClientsPage } from '@/pages/ClientsPage'
 import type { Deal } from '@/types/deal.types'
 
-type ViewMode = 'kanban' | 'list' | 'renovacao'
+type ViewMode = 'kanban' | 'clientes' | 'renovacao'
 
 function fmt(v: number) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', notation: 'compact', maximumFractionDigits: 1 }).format(v)
 }
 
-function getInitials(name?: string | null) {
-  if (!name) return '?'
-  return name.split(' ').map((p) => p[0]).slice(0, 2).join('').toUpperCase()
-}
 
 const STAGE_LABEL: Record<string, string> = Object.fromEntries(STAGES.map((s) => [s.id, s.label]))
 const STAGE_COLOR: Record<string, string> = Object.fromEntries(STAGES.map((s) => [s.id, s.color]))
@@ -442,90 +440,22 @@ interface RenovClient {
   material: RenovMaterial[]
 }
 
-const MOCK_RENOV_CLIENTS: RenovClient[] = [
-  {
-    id: 'rc-1', company: 'Itaú Unibanco', contact: 'Mariana Costa', sector: 'Financeiro',
-    value: 84000, contractStart: '2026-01-10', contractEnd: '2026-12-10',
-    col: 'ativo', ownerName: 'Rafael Mendes', ownerColor: '#4d7aa8',
-    notes: 'Cliente VIP — contrato ativo e saudável. Foco em branded content financeiro para Q3.',
-    material: [
-      { id: 'm1', type: 'briefing',  label: 'Briefing Q1 2026',          date: '2026-01-12', status: 'aprovado' },
-      { id: 'm2', type: 'conteudo',  label: 'Especial Investimentos',     date: '2026-02-08', status: 'aprovado' },
-      { id: 'm3', type: 'relatorio', label: 'Relatório de Performance Q1',date: '2026-04-02', status: 'enviado'  },
-    ],
-  },
-  {
-    id: 'rc-2', company: 'BTG Pactual', contact: 'Rodrigo Alves', sector: 'Financeiro',
-    value: 62000, contractStart: '2025-08-01', contractEnd: '2026-01-31',
-    col: 'renovar', ownerName: 'Camila Nunes', ownerColor: '#a16207',
-    notes: 'Contrato encerrou em jan/2026. Reunião de renegociação marcada para 10/05. Interesse em ampliar escopo para canais digitais.',
-    material: [
-      { id: 'm4', type: 'briefing',  label: 'Briefing Lançamento BTG+',   date: '2025-08-10', status: 'aprovado' },
-      { id: 'm5', type: 'relatorio', label: 'Relatório Final de Entregas', date: '2026-02-05', status: 'enviado'  },
-      { id: 'm6', type: 'proposta',  label: 'Proposta Renovação 2026/2',  date: '2026-04-20', status: 'pendente' },
-    ],
-  },
-  {
-    id: 'rc-8', company: 'Magazine Luiza', contact: 'Thiago Barros', sector: 'Varejo',
-    value: 45000, contractStart: '2025-06-01', contractEnd: '2025-11-30',
-    col: 'renovar', ownerName: 'Ana Beatriz', ownerColor: '#7c5cbf',
-    notes: 'Parceria muito bem-sucedida em conteúdo de performance. Interesse em renovar com foco em vídeo e social. Budget aprovado internamente.',
-    material: [
-      { id: 'm17', type: 'relatorio', label: 'Relatório de Resultados H2/25',date: '2025-12-10', status: 'enviado'  },
-      { id: 'm18', type: 'proposta',  label: 'Proposta Renovação + Vídeo',   date: '2026-04-15', status: 'pendente' },
-    ],
-  },
-  {
-    id: 'rc-3', company: 'BMW Brasil', contact: 'Stefan Kruger', sector: 'Automotivo',
-    value: 96000, contractStart: '2026-03-01', contractEnd: '2027-02-28',
-    col: 'producao', ownerName: 'Ana Beatriz', ownerColor: '#7c5cbf',
-    notes: 'Campanha premium — 4 editoriais por trimestre. Material visual de alto padrão.',
-    material: [
-      { id: 'm7', type: 'briefing',  label: 'Briefing Série BMW M',       date: '2026-03-05', status: 'aprovado' },
-      { id: 'm8', type: 'conteudo',  label: 'Editorial BMW M4 Competition', date: '2026-04-15', status: 'pendente' },
-    ],
-  },
-  {
-    id: 'rc-4', company: 'Amaro Fashion', contact: 'Juliana Rego', sector: 'Moda',
-    value: 38000, contractStart: '2026-04-01', contractEnd: '2026-09-30',
-    col: 'revisao', ownerName: 'Pedro Lima', ownerColor: '#a88030',
-    notes: 'Aguardando aprovação do lookbook de inverno. 2ª revisão solicitada.',
-    material: [
-      { id: 'm9',  type: 'briefing',  label: 'Briefing Coleção Inverno 26', date: '2026-04-03', status: 'aprovado' },
-      { id: 'm10', type: 'conteudo',  label: 'Lookbook Inverno — draft 2',  date: '2026-04-22', status: 'pendente' },
-    ],
-  },
-  {
-    id: 'rc-5', company: 'XP Investimentos', contact: 'Fernanda Souza', sector: 'Financeiro',
-    value: 55000, contractStart: '2026-04-15', contractEnd: '2027-04-14',
-    col: 'integracao', ownerName: 'Lucas Moreira', ownerColor: '#2c5545',
-    notes: 'Novo cliente. Primeira reunião de kickoff realizada. Aguardando briefing completo.',
-    material: [
-      { id: 'm11', type: 'contrato', label: 'Contrato Assinado',           date: '2026-04-14', status: 'aprovado' },
-    ],
-  },
-  {
-    id: 'rc-6', company: 'Natura &Co', contact: 'Beatriz Andrade', sector: 'Beleza & Bem-estar',
-    value: 72000, contractStart: '2025-01-01', contractEnd: '2025-12-31',
-    col: 'encerrado', ownerName: 'Rafael Mendes', ownerColor: '#4d7aa8',
-    notes: 'Contrato encerrado em dez/2025. Relacionamento muito positivo — diretor de marketing aberto a conversar sobre nova proposta. Foco em conteúdo institucional e ESG.',
-    material: [
-      { id: 'm12', type: 'relatorio', label: 'Relatório Anual 2025',        date: '2026-01-08', status: 'enviado'  },
-      { id: 'm13', type: 'proposta',  label: 'Proposta Reativação 2026',    date: '2026-03-15', status: 'pendente' },
-      { id: 'm14', type: 'briefing',  label: 'Briefing ESG — rascunho',     date: '2026-04-10', status: 'pendente' },
-    ],
-  },
-  {
-    id: 'rc-7', company: 'Localiza Rent a Car', contact: 'Carlos Menezes', sector: 'Mobilidade',
-    value: 48000, contractStart: '2025-03-01', contractEnd: '2025-08-31',
-    col: 'encerrado', ownerName: 'Camila Nunes', ownerColor: '#6b1212',
-    notes: 'Encerrado por restrição orçamentária interna. CFO sinalizou revisão de budget em Q3/2026. Manter contato mensal.',
-    material: [
-      { id: 'm15', type: 'relatorio', label: 'Relatório de Entregas H1/25', date: '2025-09-05', status: 'enviado'  },
-      { id: 'm16', type: 'proposta',  label: 'Proposta Reduzida Q3/2026',   date: '2026-04-18', status: 'pendente' },
-    ],
-  },
-]
+function dealToRenovClient(deal: Deal): RenovClient {
+  return {
+    id: deal.id,
+    company: deal.company_name,
+    contact: deal.contact_name ?? '',
+    sector: deal.company_sector ?? '—',
+    value: deal.value ?? 0,
+    contractStart: deal.stage_changed_at?.slice(0, 10) ?? deal.created_at.slice(0, 10),
+    contractEnd: deal.expected_close ?? '',
+    col: getRenovCol(deal),
+    ownerName: deal.owner?.name ?? '',
+    ownerColor: deal.owner?.avatar_color ?? '#2c5545',
+    notes: deal.notes ?? '',
+    material: [],
+  }
+}
 
 const MATERIAL_ICON: Record<string, string> = {
   briefing: '📋', conteudo: '✏️', relatorio: '📊', proposta: '📄', contrato: '✅',
@@ -1156,10 +1086,40 @@ function RenovacaoDetailPanel({ client, isDark, border, onClose, onMoveClient, o
   )
 }
 
-function RenovacaoView({ isDark, border, muted }: { deals: Deal[]; isDark: boolean; border: string; muted: string }) {
-  const text   = isDark ? '#e8e4dc' : '#101828'
+function RenovacaoView({ deals, isDark, border, muted }: { deals: Deal[]; isDark: boolean; border: string; muted: string }) {
+  const text           = isDark ? '#e8e4dc' : '#101828'
+  const contracts      = usePaymentStore((s) => s.contracts)
+  const initPayments   = usePaymentStore((s) => s.initialize)
   const [selected, setSelected] = useState<RenovClient | null>(null)
-  const [clients, setClients]   = useState<RenovClient[]>(MOCK_RENOV_CLIENTS)
+
+  useEffect(() => { initPayments() }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  function buildClients(currentContracts: typeof contracts): RenovClient[] {
+    const contractMap = new Map(currentContracts.map((c) => [c.deal_id, c]))
+    return deals
+      .filter((d) => {
+        if (d.stage_id !== 'closed_won') return false
+        const contract = contractMap.get(d.id)
+        if (contract) return contract.delivery_status === 'delivered'
+        return true // sem contrato: compatibilidade
+      })
+      .map(dealToRenovClient)
+  }
+
+  const [clients, setClients] = useState<RenovClient[]>(() => buildClients(contracts))
+
+  // Re-sincronizar quando contratos carregam (useEffect, não durante render)
+  useEffect(() => {
+    setClients((prev) => {
+      const fresh = buildClients(contracts)
+      const freshIds = new Set(fresh.map((c) => c.id))
+      const merged = fresh.map((f) => {
+        const existing = prev.find((p) => p.id === f.id)
+        return existing ? { ...f, col: existing.col, notes: existing.notes, material: existing.material } : f
+      })
+      return merged.filter((c) => freshIds.has(c.id))
+    })
+  }, [contracts]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleMoveClient(clientId: string, col: RenovColId) {
     setClients((prev) => prev.map((c) => c.id === clientId ? { ...c, col } : c))
@@ -1179,7 +1139,15 @@ function RenovacaoView({ isDark, border, muted }: { deals: Deal[]; isDark: boole
   }, [clients])
 
   return (
-    <div style={{ flex: 1, minHeight: 0, display: 'flex', overflow: 'hidden', position: 'relative' }}>
+    <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
+      {clients.length === 0 && (
+        <div style={{ padding: '12px 20px', display: 'flex', alignItems: 'center', gap: '10px', backgroundColor: isDark ? 'rgba(44,85,69,0.08)' : 'rgba(44,85,69,0.06)', borderBottom: `1px solid rgba(44,85,69,0.15)` }}>
+          <span style={{ fontSize: '13px' }}>🔄</span>
+          <p style={{ fontSize: '12px', color: isDark ? '#8fb89f' : '#2c5545', lineHeight: 1.4 }}>
+            <strong>Nenhum cliente em renovação ainda.</strong> Clientes chegam aqui automaticamente quando a entrega é marcada como <em>Entregue</em> na Cobrança.
+          </p>
+        </div>
+      )}
       <div style={{ flex: 1, minHeight: 0, overflowX: 'auto', overflowY: 'hidden', padding: '16px 20px', display: 'flex', gap: '14px' }}>
         {RENOV_COLUMNS.map((col) => {
           const clients   = grouped[col.id] ?? []
@@ -1322,208 +1290,6 @@ function RenovacaoView({ isDark, border, muted }: { deals: Deal[]; isDark: boole
   )
 }
 
-// ─── List Row ─────────────────────────────────────────────────────────────────
-
-function ListRow({ deal, isDark, border, text, muted, taskCount, isAdmin, onMove }: {
-  deal: Deal; isDark: boolean; border: string; text: string; muted: string
-  taskCount: number; isAdmin: boolean; onMove: (dealId: string, stageId: string) => void
-}) {
-  const navigate         = useNavigate()
-  const stageColor       = STAGE_COLOR[deal.stage_id] ?? '#94a3b8'
-  const isWon            = deal.stage_id === 'closed_won'
-  const isLost           = deal.stage_id === 'closed_lost'
-  const [showMenu, setShowMenu] = useState(false)
-
-  const daysColor = deal.days_in_stage > 21 ? '#b83535'
-                  : deal.days_in_stage > 10 ? '#a88030'
-                  : muted
-
-  return (
-    <div
-      style={{
-        display: 'grid',
-        gridTemplateColumns: '1fr 160px 120px 160px 150px 36px',
-        columnGap: '0px',
-        alignItems: 'center',
-        padding: '14px 20px 14px 23px',
-        borderBottom: `1px solid ${border}`,
-        transition: 'background-color 0.1s ease',
-        borderLeft: `3px solid ${stageColor}`,
-        backgroundColor: isDark ? `${stageColor}1c` : `${stageColor}16`,
-        opacity: isLost ? 0.55 : 1,
-        position: 'relative',
-      }}
-      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = isDark ? `${stageColor}30` : `${stageColor}22` }}
-      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = isDark ? `${stageColor}1c` : `${stageColor}16` }}
-    >
-      {/* Col 1 — Lead / Empresa */}
-      <div
-        role="button" tabIndex={0}
-        onClick={() => navigate(`/deal/${deal.id}`)}
-        onKeyDown={(e) => e.key === 'Enter' && navigate(`/deal/${deal.id}`)}
-        style={{ minWidth: 0, cursor: 'pointer' }}
-      >
-        <div style={{
-          fontSize: '13px', fontWeight: 600, color: text,
-          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-          textDecoration: isLost ? 'line-through' : 'none',
-          marginBottom: '4px',
-        }}>
-          {deal.company_name || deal.title}
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          {deal.contact_name && (
-            <span style={{ fontSize: '11px', color: muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {deal.contact_name}
-            </span>
-          )}
-          {/* Admin only: show owner */}
-          {isAdmin && deal.owner?.name && (
-            <>
-              {deal.contact_name && <span style={{ color: isDark ? '#2a2a28' : '#d1ccc6', fontSize: '10px' }}>·</span>}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
-                <div style={{
-                  width: '16px', height: '16px', borderRadius: '4px',
-                  backgroundColor: deal.owner.avatar_color ?? '#667085',
-                  color: '#fff', fontSize: '7px', fontWeight: 700,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}>
-                  {getInitials(deal.owner.name)}
-                </div>
-                <span style={{ fontSize: '11px', color: muted }}>{deal.owner.name.split(' ')[0]}</span>
-              </div>
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* Col 2 — Tarefas pendentes */}
-      <div style={{ paddingLeft: '32px' }}>
-        {taskCount > 0 ? (
-          <span style={{
-            display: 'inline-flex', alignItems: 'center', gap: '5px',
-            fontSize: '11px', fontWeight: 600, color: '#2c5545',
-            backgroundColor: isDark ? '#0d2318' : '#f0faf4',
-            border: '1px solid #2c554528', borderRadius: '6px', padding: '3px 10px',
-          }}>
-            <CheckSquare size={11} />
-            {taskCount} tarefa{taskCount !== 1 ? 's' : ''}
-          </span>
-        ) : (
-          <span style={{ fontSize: '12px', color: isDark ? '#252522' : '#d8d3cc' }}>—</span>
-        )}
-      </div>
-
-      {/* Col 3 — Dias na etapa */}
-      <div style={{ paddingLeft: '32px' }}>
-        {!isWon && !isLost && deal.days_in_stage > 0 ? (
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: '3px' }}>
-            <span style={{
-              fontSize: '18px', fontWeight: 700, lineHeight: 1,
-              color: daysColor, fontVariantNumeric: 'tabular-nums',
-              fontFamily: "'Geist Mono', monospace",
-            }}>
-              {deal.days_in_stage}
-            </span>
-            <span style={{ fontSize: '10px', color: daysColor, fontWeight: 500 }}>dias</span>
-          </div>
-        ) : (
-          <span style={{ fontSize: '12px', color: isDark ? '#252522' : '#d8d3cc' }}>—</span>
-        )}
-      </div>
-
-      {/* Col 4 — Probabilidade */}
-      <div style={{ paddingLeft: '32px', paddingRight: '12px' }}>
-        {!isWon && !isLost && (deal.probability ?? 0) > 0 ? (
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
-              <span style={{ fontSize: '11px', fontWeight: 600, color: (deal.probability ?? 0) >= 70 ? '#2c5545' : (deal.probability ?? 0) >= 40 ? '#a88030' : '#b83535', fontVariantNumeric: 'tabular-nums' }}>
-                {deal.probability}%
-              </span>
-            </div>
-            <div style={{ height: '5px', borderRadius: '999px', backgroundColor: isDark ? '#1e1e1c' : '#e8e5e0', overflow: 'hidden' }}>
-              <div style={{
-                height: '100%', width: `${deal.probability}%`,
-                background: (deal.probability ?? 0) >= 70 ? 'linear-gradient(90deg,#2c5545,#3d8a6e)' : (deal.probability ?? 0) >= 40 ? 'linear-gradient(90deg,#a88030,#f59e0b)' : 'linear-gradient(90deg,#8b2020,#b83535)',
-                borderRadius: '999px', transition: 'width 0.3s ease',
-              }} />
-            </div>
-          </div>
-        ) : isWon ? (
-          <span style={{ fontSize: '11px', fontWeight: 700, color: '#2c5545' }}>✓ Ganho</span>
-        ) : isLost ? (
-          <span style={{ fontSize: '11px', fontWeight: 700, color: '#b83535' }}>✗ Perdido</span>
-        ) : (
-          <span style={{ fontSize: '12px', color: isDark ? '#252522' : '#d8d3cc' }}>—</span>
-        )}
-      </div>
-
-      {/* Col 5 — Valor */}
-      <div style={{ textAlign: 'right', paddingRight: '16px' }}>
-        <span style={{
-          fontSize: '13px', fontWeight: 700,
-          color: isWon ? '#2c5545' : deal.value ? text : muted,
-          fontFamily: "'Geist Mono', monospace", letterSpacing: '-0.01em',
-        }}>
-          {deal.value ? fmt(deal.value) : '—'}
-        </span>
-      </div>
-
-      {/* Col 6 — Mover etapa */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
-        <button
-          type="button"
-          onClick={(e) => { e.stopPropagation(); setShowMenu((v) => !v) }}
-          title="Mover para outra etapa"
-          style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            width: '26px', height: '26px', borderRadius: '7px', border: 'none',
-            backgroundColor: showMenu ? (isDark ? '#2a2a28' : '#f0eee8') : 'transparent',
-            cursor: 'pointer', color: isDark ? '#3a3a38' : '#b8b4ac',
-          }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = stageColor }}
-          onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = isDark ? '#3a3a38' : '#b8b4ac' }}
-        >
-          <ChevronDown size={13} />
-        </button>
-        {showMenu && (
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              position: 'absolute', right: 0, top: '100%', zIndex: 50,
-              backgroundColor: isDark ? '#1a1a18' : '#ffffff',
-              border: `1px solid ${border}`,
-              borderRadius: '10px', overflow: 'hidden',
-              boxShadow: isDark ? '0 8px 24px rgba(0,0,0,0.5)' : '0 8px 24px rgba(16,24,40,0.14)',
-              minWidth: '160px',
-            }}
-          >
-            {STAGES.filter((s) => s.id !== deal.stage_id).map((s) => (
-              <button
-                key={s.id}
-                type="button"
-                onClick={() => { onMove(deal.id, s.id); setShowMenu(false) }}
-                style={{
-                  width: '100%', textAlign: 'left', padding: '9px 14px',
-                  display: 'flex', alignItems: 'center', gap: '8px',
-                  border: 'none', cursor: 'pointer',
-                  backgroundColor: 'transparent', fontSize: '12px', fontWeight: 500,
-                  color: text,
-                }}
-                onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = isDark ? '#242422' : '#f5f4f0' }}
-                onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'transparent' }}
-              >
-                <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: s.color, flexShrink: 0, display: 'inline-block' }} />
-                {s.label}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
-
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export function PipelinePage() {
@@ -1532,63 +1298,40 @@ export function PipelinePage() {
   const deleteDeal       = useDealStore((s) => s.deleteDeal)
   const moveDeal         = useDealStore((s) => s.moveDeal)
   const setLossReason    = useDealStore((s) => s.setLossReason)
+  const handleStageChange = useCallback(moveDeal, [moveDeal])
   const dealsLoading     = useDealStore((s) => s.isLoading)
   const dealsInitialized = useDealStore((s) => s.initialized)
   const dealsError       = useDealStore((s) => s.error)
   const isDark           = useThemeStore((s) => s.isDark)
   const notifications    = useNotificationStore((s) => s.notifications)
-  const isAdmin          = useAuthStore((s) => s.profile?.is_admin ?? false)
 
-  const [searchParams, setSearchParams] = useSearchParams()
+  const [searchParams] = useSearchParams()
   const searchQuery    = searchParams.get('search') ?? ''
   const selectedOwners = useMemo(() => {
     const raw = searchParams.get('owners')
     return raw ? raw.split(',').filter(Boolean) : []
   }, [searchParams])
 
-  const allTasks = useTaskStore((s) => s.tasks)
 
-  const [viewFlash, setViewFlash]               = useState<ViewMode | null>(null)
+
+  const [_viewFlash, setViewFlash]               = useState<ViewMode | null>(null)
   const [showNewModal, setShowNewModal]         = useState(false)
-  const [prioritizeNew, setPrioritizeNew]       = useState(false)
+  const [prioritizeNew]                         = useState(false)
   const [sortMode, _setSortMode]                 = useState<'manual' | 'score'>('manual')
   const [editingDeal, setEditingDeal]           = useState<Deal | null>(null)
-  const [viewMode, setViewMode]                 = useState<ViewMode>(() => (localStorage.getItem('esq_pipeline_view') as ViewMode) ?? 'kanban')
-  const [listSort, setListSort]                 = useState<'date' | 'value' | 'stage'>('stage')
-  const [collapsedStages, setCollapsedStages]   = useState<Set<string>>(new Set())
-  const zapRef                                  = useRef<HTMLButtonElement>(null)
-  const [zapAnimating, setZapAnimating]         = useState(false)
+  const [viewMode, setViewMode]                 = useState<ViewMode>(() => {
+    const v = localStorage.getItem('esq_pipeline_view') as ViewMode
+    return (v === 'clientes' || v === 'renovacao') ? v : 'kanban'
+  })
   const [pendingNewDeal, setPendingNewDeal]     = useState<Deal | null>(null)
   const [updatedDeal, setUpdatedDeal]           = useState<Deal | null>(null)
-
-  function toggleStageCollapse(stageId: string) {
-    setCollapsedStages((prev) => {
-      const next = new Set(prev)
-      if (next.has(stageId)) next.delete(stageId)
-      else next.add(stageId)
-      return next
-    })
-  }
 
   const newDealIds = useMemo(
     () => new Set(notifications.filter((n) => !n.read).map((n) => n.dealId)),
     [notifications],
   )
 
-  const handleZapClick = useCallback(() => {
-    setPrioritizeNew((v) => !v)
-    setZapAnimating(false)
-    requestAnimationFrame(() => setZapAnimating(true))
-  }, [])
 
-  function clearFilters() {
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev)
-      next.delete('owners')
-      next.delete('search')
-      return next
-    }, { replace: true })
-  }
 
   const displayDeals = useMemo<Deal[]>(() => {
     let result = deals
@@ -1621,33 +1364,22 @@ export function PipelinePage() {
     return result
   }, [deals, selectedOwners, searchQuery, prioritizeNew, newDealIds])
 
-  const sortedListDeals = useMemo(() => {
-    return [...displayDeals].sort((a, b) => {
-      if (listSort === 'value') return (b.value ?? 0) - (a.value ?? 0)
-      if (listSort === 'stage') {
-        return STAGES.findIndex((s) => s.id === a.stage_id) - STAGES.findIndex((s) => s.id === b.stage_id)
-      }
-      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-    })
-  }, [displayDeals, listSort])
 
   const activeCount = useMemo(
     () => deals.filter((d) => d.stage_id !== 'closed_won' && d.stage_id !== 'closed_lost').length,
     [deals],
   )
 
-  const hasFilter    = selectedOwners.length > 0 || !!searchQuery
   const headerBorder = isDark ? '#242424' : '#e8e6e1'
   const filterBg     = isDark ? '#111111' : '#f5f4f1'
   const filterBorder = isDark ? '#2a2a2a' : '#e0ddd8'
   const filterText   = isDark ? '#888888' : '#6b6560'
   const border       = isDark ? '#242422' : '#eaecf0'
-  const text         = isDark ? '#e8e4dc' : '#101828'
   const muted        = isDark ? '#6b6560' : '#667085'
 
   const VIEW_MODES: { id: ViewMode; icon: React.ReactNode; label: string }[] = [
-    { id: 'kanban',    icon: <LayoutGrid size={13} />,  label: 'Kanban' },
-    { id: 'list',      icon: <List size={13} />,        label: 'Lista' },
+    { id: 'kanban',    icon: <LayoutGrid size={13} />,  label: 'Jornada' },
+    { id: 'clientes',  icon: <Users size={13} />,       label: 'Clientes' },
     { id: 'renovacao', icon: <RefreshCcw size={13} />,  label: 'Renovação' },
   ]
 
@@ -1664,7 +1396,7 @@ export function PipelinePage() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
             <Kanban size={18} color={isDark ? '#e8e4dc' : '#1a1814'} />
             <p style={{ fontSize: '20px', fontWeight: 600, color: isDark ? '#e8e4dc' : '#1a1814', letterSpacing: '-0.03em', margin: 0 }}>
-              Jornada
+              {VIEW_MODES.find((v) => v.id === viewMode)?.label ?? 'Jornada'}
             </p>
           </div>
           <p style={{ fontSize: '13px', color: isDark ? '#6b6560' : '#8a857d', margin: 0 }}>
@@ -1674,78 +1406,56 @@ export function PipelinePage() {
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
 
-          {/* View toggle */}
+          {/* View toggle + Propostas */}
           <div style={{
             display: 'flex', backgroundColor: filterBg,
-            border: `1px solid ${filterBorder}`, borderRadius: '9px', padding: '3px', gap: '2px',
+            border: `1px solid ${filterBorder}`, borderRadius: '9px', padding: '3px', gap: '1px',
           }}>
-            {VIEW_MODES.map(({ id, icon, label }) => (
-              <button
-                key={id}
-                type="button"
-                onClick={() => { setViewMode(id); setViewFlash(id); localStorage.setItem('esq_pipeline_view', id) }}
-                onAnimationEnd={() => setViewFlash(null)}
-                title={label}
-                className={viewFlash === id ? 'view-btn-active' : ''}
-                style={{
-                  height: '28px', padding: '0 10px', borderRadius: '7px', cursor: 'pointer',
-                  border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px',
-                  backgroundColor: viewMode === id ? (isDark ? '#2a2a28' : '#fff') : 'transparent',
-                  color: viewMode === id ? (isDark ? '#e8e4dc' : '#101828') : filterText,
-                  boxShadow: viewMode === id ? (isDark ? '0 1px 4px rgba(0,0,0,0.35)' : '0 1px 3px rgba(16,24,40,0.10)') : 'none',
-                  transition: 'background-color 0.15s ease, color 0.15s ease',
-                  fontSize: '11px', fontWeight: viewMode === id ? 600 : 400,
-                }}
-              >
-                {icon}
-                <span>{label}</span>
-              </button>
-            ))}
-          </div>
+            {VIEW_MODES.map(({ id, icon, label }) => {
+              const active = viewMode === id
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => { setViewMode(id); setViewFlash(id); localStorage.setItem('esq_pipeline_view', id) }}
+                  onAnimationEnd={() => setViewFlash(null)}
+                  title={label}
+                  style={{
+                    width: '32px', height: '28px', borderRadius: '7px', cursor: 'pointer',
+                    border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    backgroundColor: active ? (isDark ? '#2a2a28' : '#fff') : 'transparent',
+                    color: active ? (isDark ? '#e8e4dc' : '#101828') : filterText,
+                    boxShadow: active ? (isDark ? '0 1px 4px rgba(0,0,0,0.4)' : '0 1px 3px rgba(16,24,40,0.12)') : 'none',
+                    transform: active ? 'scale(1)' : 'scale(0.95)',
+                    opacity: active ? 1 : 0.6,
+                    transition: 'background-color 0.15s, color 0.15s, opacity 0.15s, transform 0.15s, box-shadow 0.15s',
+                  }}
+                  onMouseEnter={(e) => { if (!active) { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'scale(1)' } }}
+                  onMouseLeave={(e) => { if (!active) { e.currentTarget.style.opacity = '0.6'; e.currentTarget.style.transform = 'scale(0.95)' } }}
+                >
+                  {icon}
+                </button>
+              )
+            })}
 
-          {/* Zap — destaca leads novos */}
-          <button
-            ref={zapRef}
-            type="button"
-            onClick={handleZapClick}
-            className={prioritizeNew ? 'zap-pulse' : zapAnimating ? 'zap-shock' : ''}
-            onAnimationEnd={() => setZapAnimating(false)}
-            title={prioritizeNew ? 'Desativar destaque de novos leads' : 'Destacar leads dos últimos 7 dias'}
-            style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              width: '32px', height: '30px', borderRadius: '8px', cursor: 'pointer',
-              backgroundColor: prioritizeNew ? (isDark ? 'rgba(107,18,18,0.18)' : 'rgba(107,18,18,0.08)') : filterBg,
-              border: `1px solid ${prioritizeNew ? '#6b1212' : filterBorder}`,
-              color: prioritizeNew ? '#6b1212' : filterText,
-              flexShrink: 0, transition: 'background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease',
-            }}
-          >
-            <Zap
-              className={prioritizeNew ? 'zap-icon-active' : ''}
+            {/* Propostas */}
+            <button
+              type="button"
+              onClick={() => navigate('/propostas')}
+              title="Arquivo Comercial"
               style={{
-                width: '13px', height: '13px',
-                fill: prioritizeNew ? '#6b1212' : 'none',
-                transition: 'fill 0.15s ease',
+                width: '32px', height: '28px', borderRadius: '7px', cursor: 'pointer',
+                border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                backgroundColor: 'transparent', color: filterText,
+                opacity: 0.6, transform: 'scale(0.95)',
+                transition: 'background-color 0.15s, color 0.15s, opacity 0.15s, transform 0.15s',
               }}
-            />
-          </button>
-
-          {/* Propostas */}
-          <button
-            type="button"
-            onClick={() => navigate('/propostas')}
-            title="Ver todas as propostas"
-            style={{
-              display: 'flex', alignItems: 'center', gap: '5px',
-              height: '30px', padding: '0 12px', borderRadius: '8px',
-              border: `1px solid ${filterBorder}`, backgroundColor: filterBg,
-              color: filterText, fontSize: '11px', fontWeight: 500,
-              cursor: 'pointer', flexShrink: 0,
-            }}
-          >
-            <FileText style={{ width: '13px', height: '13px' }} />
-            Propostas
-          </button>
+              onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.color = isDark ? '#e8e4dc' : '#101828' }}
+              onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.6'; e.currentTarget.style.transform = 'scale(0.95)'; e.currentTarget.style.color = filterText }}
+            >
+              <FileText size={13} />
+            </button>
+          </div>
 
           {/* Divider */}
           <div style={{ width: '1px', height: '20px', backgroundColor: filterBorder, flexShrink: 0 }} />
@@ -1754,19 +1464,18 @@ export function PipelinePage() {
           <button
             type="button"
             onClick={() => setShowNewModal(true)}
+            title="Novo lead"
             style={{
-              display: 'flex', alignItems: 'center', gap: '6px',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              width: '32px', height: '32px', borderRadius: '8px',
               backgroundColor: '#6b1212', color: '#fff',
-              borderRadius: '8px', padding: '0 16px', height: '32px',
-              fontSize: '12px', fontWeight: 600,
               border: 'none', cursor: 'pointer', flexShrink: 0,
               transition: 'opacity 0.15s ease',
             }}
-            onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.85')}
+            onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.82')}
             onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
           >
-            <Plus style={{ width: '13px', height: '13px' }} />
-            Novo lead
+            <Plus style={{ width: '15px', height: '15px', strokeWidth: 2.5 }} />
           </button>
         </div>
       </div>
@@ -1775,11 +1484,15 @@ export function PipelinePage() {
       {/* Content */}
       {dealsLoading && !dealsInitialized ? (
         <PageLoadingState title="Carregando pipeline" description="Estamos buscando os leads e organizando a jornada." />
+      ) : viewMode === 'clientes' ? (
+        <div key="clientes" className="view-enter" style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
+          <ClientsPage embedded />
+        </div>
       ) : viewMode === 'renovacao' ? (
         <div key="renovacao" className="view-enter" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
           <RenovacaoView deals={displayDeals} isDark={isDark} border={border} muted={muted} />
         </div>
-      ) : viewMode === 'kanban' ? (
+      ) : (
         <div key="kanban" className="view-enter" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
           {dealsError && (
             <div style={{
@@ -1800,168 +1513,13 @@ export function PipelinePage() {
               onUpdatedDealConsumed={() => setUpdatedDeal(null)}
               onEditDeal={setEditingDeal}
               onDeleteDeal={(id) => { deleteDeal(id) }}
-              onStageChange={(id, stageId) => { moveDeal(id, stageId) }}
+              onStageChange={handleStageChange}
               onLossReasonConfirmed={(id, reason) => { setLossReason(id, reason) }}
               showScore={prioritizeNew || sortMode === 'score'}
               highlightNew={prioritizeNew}
               sortMode={sortMode}
               onAddDeal={() => setShowNewModal(true)}
             />
-          </div>
-        </div>
-      ) : displayDeals.length === 0 ? (
-        hasFilter ? (
-          <PageEmptyState
-            icon={<Zap style={{ width: '28px', height: '28px', color: '#6b1212' }} />}
-            title="Nenhum lead encontrado"
-            description={dealsError || 'Tente ajustar a busca ou limpar os filtros.'}
-            action={
-              <button type="button" onClick={clearFilters}
-                style={{ fontSize: '12px', fontWeight: 600, color: '#6b1212', background: 'none', border: 'none', cursor: 'pointer', marginTop: '4px' }}>
-                Limpar filtros
-              </button>
-            }
-          />
-        ) : (
-          <PageEmptyState
-            icon={<Plus style={{ width: '28px', height: '28px', color: '#6b1212' }} />}
-            title="Sem leads"
-            description={dealsError || 'Crie o primeiro lead para começar.'}
-            action={
-              <button type="button" onClick={() => setShowNewModal(true)}
-                style={{ fontSize: '12px', fontWeight: 600, color: '#6b1212', background: 'none', border: 'none', cursor: 'pointer', marginTop: '4px' }}>
-                Novo lead
-              </button>
-            }
-          />
-        )
-      ) : (
-        <div key="list" className="view-enter" style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
-          {/* Sticky header row */}
-          <div style={{
-            position: 'sticky', top: 0, zIndex: 10,
-            display: 'grid', gridTemplateColumns: '1fr 160px 120px 160px 150px 52px',
-            columnGap: '0px',
-            padding: '0 20px 0 23px',
-            borderBottom: `2px solid ${isDark ? '#1e1e1c' : '#e2e0db'}`,
-            borderLeft: '3px solid transparent',
-            backgroundColor: isDark ? '#111110' : '#f8f7f5',
-            boxShadow: isDark ? '0 4px 12px rgba(0,0,0,0.3)' : '0 3px 8px rgba(16,24,40,0.07)',
-          }}>
-            {[
-              { label: 'Lead / Empresa', align: 'left' as const },
-              { label: 'Tarefas',        align: 'left' as const },
-              { label: 'Dias na Etapa',  align: 'left' as const },
-              { label: 'Probabilidade',  align: 'left' as const },
-              { label: 'Valor',          align: 'right' as const, sort: true },
-              { label: '',               align: 'center' as const },
-            ].map(({ label, align, sort }, i) => (
-              <div key={i} style={{
-                display: 'flex', alignItems: 'center',
-                justifyContent: align === 'right' ? 'flex-end' : align === 'center' ? 'center' : 'flex-start',
-                gap: 6, padding: '13px 0',
-                paddingLeft: i > 0 ? '32px' : 0,
-                paddingRight: align === 'right' ? '16px' : 0,
-              }}>
-                <span style={{
-                  fontSize: '10px', fontWeight: 700,
-                  color: isDark ? '#4a4540' : '#a3a8b2',
-                  letterSpacing: '0.08em', textTransform: 'uppercase',
-                  userSelect: 'none',
-                }}>
-                  {label}
-                </span>
-                {sort && (
-                  <div style={{ display: 'flex', gap: '4px', marginLeft: '6px' }}>
-                    {(['stage', 'value'] as const).map((s) => (
-                      <button key={s} type="button" onClick={() => setListSort(s)}
-                        style={{
-                          padding: '3px 8px', borderRadius: '6px', fontSize: '9px', fontWeight: 700,
-                          border: `1px solid ${listSort === s ? '#6b1212' : (isDark ? '#2a2a28' : '#d8d4ce')}`,
-                          backgroundColor: listSort === s ? (isDark ? 'rgba(107,18,18,0.22)' : 'rgba(107,18,18,0.08)') : 'transparent',
-                          color: listSort === s ? '#6b1212' : muted, cursor: 'pointer',
-                          letterSpacing: '0.05em', textTransform: 'uppercase', lineHeight: 1,
-                        }}
-                      >
-                        {s === 'value' ? 'Valor' : 'Etapa'}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-
-          {/* Grouped by stage */}
-          {STAGES.map((stage) => {
-            const stageDeals = sortedListDeals.filter((d) => d.stage_id === stage.id)
-            if (stageDeals.length === 0) return null
-            const isCollapsed = collapsedStages.has(stage.id)
-            const stageTotal  = stageDeals.reduce((s, d) => s + (d.value ?? 0), 0)
-
-            return (
-              <div key={stage.id}>
-                {/* Stage group header */}
-                <button
-                  type="button"
-                  onClick={() => toggleStageCollapse(stage.id)}
-                  style={{
-                    width: '100%', display: 'flex', alignItems: 'center', gap: '8px',
-                    padding: '7px 18px 7px 21px',
-                    borderBottom: `1px solid ${border}`,
-                    borderLeft: `3px solid ${stage.color}`,
-                    backgroundColor: isDark ? `${stage.color}0d` : `${stage.color}08`,
-                    cursor: 'pointer', border: 'none',
-                    textAlign: 'left',
-                  }}
-                >
-                  <span style={{ color: muted, flexShrink: 0, display: 'flex', alignItems: 'center' }}>
-                    {isCollapsed ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
-                  </span>
-                  <span style={{ fontSize: '11px', fontWeight: 700, color: stage.color, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
-                    {stage.label}
-                  </span>
-                  <span style={{
-                    fontSize: '10px', fontWeight: 700, color: stage.color,
-                    backgroundColor: `${stage.color}18`,
-                    borderRadius: '999px', padding: '0 6px',
-                    fontFamily: "'Geist Mono', monospace",
-                  }}>
-                    {stageDeals.length}
-                  </span>
-                  {stageTotal > 0 && (
-                    <span style={{ fontSize: '10px', color: muted, fontFamily: "'Geist Mono', monospace", marginLeft: 'auto' }}>
-                      {fmt(stageTotal)}
-                    </span>
-                  )}
-                </button>
-
-                {/* Stage rows */}
-                {!isCollapsed && stageDeals.map((deal) => (
-                  <ListRow
-                    key={deal.id}
-                    deal={deal}
-                    isDark={isDark}
-                    border={border}
-                    text={text}
-                    muted={muted}
-                    taskCount={allTasks.filter((t) => t.deal_id === deal.id && !t.completed_at).length}
-                    isAdmin={isAdmin}
-                    onMove={(dealId, stageId) => moveDeal(dealId, stageId as Parameters<typeof moveDeal>[1])}
-                  />
-                ))}
-              </div>
-            )
-          })}
-
-          {/* Footer totals */}
-          <div style={{ padding: '10px 18px', borderTop: `1px solid ${border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '11px', color: muted }}>
-              {sortedListDeals.length} leads
-            </span>
-            <span style={{ fontSize: '11px', fontWeight: 600, color: muted, fontFamily: "'Geist Mono', monospace" }}>
-              {fmt(sortedListDeals.reduce((s, d) => s + (d.value ?? 0), 0))} total
-            </span>
           </div>
         </div>
       )}

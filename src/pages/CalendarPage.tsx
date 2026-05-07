@@ -3,10 +3,11 @@ import { useNavigate } from 'react-router-dom'
 import {
   ChevronLeft, ChevronRight, Plus, X,
   Phone, Mail, CheckSquare, Bell, Mic, CalendarDays, Clock,
-  Link, Trash2, ExternalLink, Copy, Check, Activity,
+  Link, Trash2, ExternalLink, Copy, Check,
 } from 'lucide-react'
 import { MeetingsPage } from '@/pages/MeetingsPage'
-import { AtividadesPage } from '@/pages/AtividadesPage'
+
+
 import { useMeetingStore } from '@/store/useMeetingStore'
 import { useDealStore } from '@/store/useDealStore'
 import { useThemeStore } from '@/store/useThemeStore'
@@ -865,8 +866,11 @@ function EventModal({ state, onClose, isDark, deals, onSaved, onLogActivity }: {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export function CalendarPage() {
-  const [tab, setTab] = useState<'calendar' | 'meetings' | 'atividades'>(
-    () => (localStorage.getItem('esq_calendar_tab') as 'calendar' | 'meetings' | 'atividades') ?? 'calendar'
+  const [tab, setTab] = useState<'calendar' | 'meetings'>(
+    () => {
+      const v = localStorage.getItem('esq_calendar_tab')
+      return (v === 'meetings' ? 'meetings' : 'calendar') as 'calendar' | 'meetings'
+    }
   )
   const isDark         = useThemeStore((s) => s.isDark)
   const allMeetings    = useMeetingStore((s) => s.meetings)
@@ -962,12 +966,11 @@ export function CalendarPage() {
   function openNewEvent(date: string, time?: string) { setModalState({ open: true, date, startTime: time }) }
 
   const TABS = [
-    { key: 'calendar'   as const, label: 'Calendário', icon: CalendarDays },
-    { key: 'meetings'   as const, label: 'Reuniões',   icon: Mic          },
-    { key: 'atividades' as const, label: 'Atividades', icon: Activity     },
+    { key: 'calendar' as const, label: 'Calendário', icon: CalendarDays },
+    { key: 'meetings' as const, label: 'Reuniões',   icon: Mic          },
   ]
 
-  function switchTab(next: 'calendar' | 'meetings' | 'atividades') {
+  function switchTab(next: 'calendar' | 'meetings') {
     setTab(next)
     localStorage.setItem('esq_calendar_tab', next)
   }
@@ -980,10 +983,14 @@ export function CalendarPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
-              <CalendarDays size={18} color={text} />
-              <p style={{ fontSize: '20px', fontWeight: 600, color: text, letterSpacing: '-0.03em', margin: 0 }}>Calendário</p>
+              {tab === 'meetings' ? <Mic size={18} color={text} /> : <CalendarDays size={18} color={text} />}
+              <p style={{ fontSize: '20px', fontWeight: 600, color: text, letterSpacing: '-0.03em', margin: 0 }}>
+                {tab === 'meetings' ? 'Reuniões' : 'Calendário'}
+              </p>
             </div>
-            <p style={{ fontSize: '13px', color: muted, marginTop: '2px' }}>{upcoming.length} eventos nos próximos 30 dias</p>
+            <p style={{ fontSize: '13px', color: muted, marginTop: '2px' }}>
+              {tab === 'meetings' ? 'Registo de reuniões por deal' : `${upcoming.length} eventos nos próximos 30 dias`}
+            </p>
           </div>
           {tab === 'calendar' && (<div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <button type="button" onClick={prevWeek} style={{ display: 'flex', background: 'none', border: `1px solid ${border}`, borderRadius: '6px', cursor: 'pointer', padding: '4px 7px', color: muted, transition: 'color 0.12s' }}
@@ -1027,8 +1034,7 @@ export function CalendarPage() {
         </div>
       </div>
 
-      {tab === 'meetings'   && <div key="meetings"   className="view-enter" style={{ flex: 1, minHeight: 0, overflow: 'auto' }}><MeetingsPage /></div>}
-      {tab === 'atividades' && <div key="atividades" className="view-enter" style={{ flex: 1, minHeight: 0, overflow: 'auto' }}><AtividadesPage /></div>}
+      {tab === 'meetings' && <div key="meetings" className="view-enter" style={{ flex: 1, minHeight: 0, overflow: 'auto' }}><MeetingsPage /></div>}
 
       {/* Body */}
       <div style={{ flex: 1, minHeight: 0, display: tab === 'calendar' ? 'flex' : 'none', overflow: 'hidden' }}>

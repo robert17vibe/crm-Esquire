@@ -164,6 +164,7 @@
 | useImpersonationStore | Simulação de owner por admin (sessionStorage `esq_impersonate_id`) |
 | useWebhookStore | Webhooks outbound (`fire(event, payload)`) |
 | useProposalStore | Cache de propostas por deal (`byDeal`), CRUD com optimistic updates |
+| usePaymentStore | Contratos + parcelas: initialize, refresh, payInstallment, getContractByDeal, getPaymentsByDeal, overduePayments |
 | useToastStore | Toasts (`addToast(msg, type)`) |
 | useSettingsStore | Configurações da app |
 | useThemeStore | Dark/light mode (`isDark`) |
@@ -185,6 +186,7 @@
 | distribution.service.ts | Distribuição de leads |
 | teams.service.ts | Equipas |
 | proposal.service.ts | CRUD de propostas comerciais (fetchProposalsByDeals, insertProposal, updateProposalStatus, deleteProposal) |
+| payment.service.ts | CRUD de contratos e parcelas; fetchAllPaymentsWithDealInfo (join deals); fetchReceivableStats (view v_receivable) |
 
 ---
 
@@ -265,6 +267,11 @@
 | 20260505155431_proposals.sql | ✅ Aplicada | Tabela proposals (migração do localStorage) |
 | 20260505160000_fix_rls_permissive_policies.sql | ✅ Aplicada | Remove política "auth" permissiva de deals/activities/meetings + fix is_admin |
 | 20260505170000_fix_rls_all_tables.sql | ✅ Aplicada | RLS ownership em deal_relations, stakeholders, stage_history, meeting_records, renewal_proposals, deal_materials, deal_deliverables, deal_delivery_notes, proposals |
+| 20260507000001_contracts_and_payments.sql | ⚠️ Pendente aplicar no Supabase | Tabelas contracts + payments, trigger auto-cria contrato em closed_won, views v_mrr/v_arr/v_receivable/v_collection_rate |
+| 20260506195524_security_and_flow_improvements.sql | ⚠️ Pendente aplicar no Supabase | Fix search_path em funções (segurança), trigger melhorado handle_deal_closed_won (parcelas reais), fluxo completo Kanban→Proposta→Cobrança→Renovação |
+| 20260507000002_fix_trigger_delivery_events.sql | ⚠️ Pendente aplicar no Supabase | Fix jsonb bug `(l->>'qty')::numeric`; add delivery_status+signing_status a contracts; tabela payment_events (outbox para API externa futura); triggers handle_payment_paid, handle_contract_signed, handle_delivery_updated |
+| 20260507000003_deal_left_won_and_declined.sql | ⚠️ Pendente aplicar no Supabase | Trigger handle_deal_left_won (pausa contrato ao sair de closed_won); trigger reactivate (reversão em 3 dias); view v_declined_contracts |
+| 20260507100000_fix_contract_redecline_flow.sql | ⚠️ Pendente aplicar no Supabase | **Fix crítico**: trigger handle_deal_closed_won verifica só contratos ACTIVE (não paused); novo contrato criado após declínio com proposta mais recente; trigger reactivate corrigido |
 
 ---
 
@@ -312,6 +319,7 @@ useToastStore.getState().addToast('Mensagem', 'success' | 'error' | 'info');
 4. Soft delete: deals com `deleted_at` preenchido ignorados em todas as queries
 5. `useVisibleDeals` filtra por `impersonatedId` — respeitar em todas as vistas
 6. IDs com prefixo `opt-*` ou não-UUID saltam o Supabase (deals offline/demo)
+7. `closed_won` → trigger Supabase cria `contract` automaticamente a partir da proposta aceite + gera parcelas. `usePaymentStore.initialize()` deve ser chamado em páginas que mostram dados financeiros.
 
 ---
 

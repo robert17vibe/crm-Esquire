@@ -472,9 +472,21 @@ export function EmailPage() {
   }
 
   return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', backgroundColor: isDark ? '#0d0c0a' : '#f5f4f0' }}>
+
+      {/* Banner — dados de demonstração */}
+      <div style={{
+        flexShrink: 0, padding: '7px 20px', fontSize: '11px', fontWeight: 600,
+        backgroundColor: isDark ? '#1a150a' : '#fef3c7',
+        color: isDark ? '#a88030' : '#92400e',
+        borderBottom: `1px solid ${isDark ? '#2a1f0a' : '#fde68a'}`,
+        display: 'flex', alignItems: 'center', gap: '6px',
+      }}>
+        ⚠ Módulo em desenvolvimento — a exibir dados de demonstração
+      </div>
+
     <div style={{
-      display: 'flex', height: '100%', overflow: 'hidden',
-      backgroundColor: isDark ? '#0d0c0a' : '#f5f4f0',
+      display: 'flex', flex: 1, overflow: 'hidden',
     }}>
 
       {/* ── Left panel ── */}
@@ -969,6 +981,7 @@ export function EmailPage() {
         </div>
       )}
 
+    </div>
     </div>
   )
 }

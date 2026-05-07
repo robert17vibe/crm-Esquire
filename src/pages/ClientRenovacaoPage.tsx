@@ -3,10 +3,12 @@ import { useParams, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, Building2, Mail, Phone, Globe, Users,
   CheckSquare, Plus, X, FileText, Link2, Pencil, Check, RefreshCcw,
+  CreditCard, Pen, Truck, CheckCircle2, Clock,
 } from 'lucide-react'
 import { useDealStore } from '@/store/useDealStore'
 import { useThemeStore } from '@/store/useThemeStore'
 import { useActivityStore } from '@/store/useActivityStore'
+import { usePaymentStore } from '@/store/usePaymentStore'
 import { PageLoadingState } from '@/components/ui/PageState'
 import { supabase } from '@/lib/supabase'
 import type { Deal } from '@/types/deal.types'
@@ -728,9 +730,185 @@ function DadosCliente({ deal, isDark, border, text, muted }: {
   )
 }
 
+// ─── Tab: Cobrança & Entrega ──────────────────────────────────────────────────
+
+function CobrancaTab({ dealId, isDark, border, text, muted }: {
+  dealId: string; isDark: boolean; border: string; text: string; muted: string
+}) {
+  const contract     = usePaymentStore((s) => s.getContractByDeal(dealId))
+  const payments     = usePaymentStore((s) => s.getPaymentsByDeal(dealId))
+  const signContract = usePaymentStore((s) => s.signContract)
+  const setDelivery  = usePaymentStore((s) => s.setDeliveryStatus)
+  const initialize   = usePaymentStore((s) => s.initialize)
+
+  useEffect(() => { initialize() }, [initialize])
+
+  const card: React.CSSProperties = {
+    backgroundColor: isDark ? '#111110' : '#ffffff',
+    border: `1px solid ${border}`, borderRadius: '10px', padding: '18px 20px', marginBottom: '14px',
+  }
+  const label: React.CSSProperties = {
+    fontSize: '10px', fontWeight: 600, color: muted, textTransform: 'uppercase', letterSpacing: '0.07em',
+  }
+
+  if (!contract) {
+    return (
+      <div style={{ padding: '40px 24px', textAlign: 'center' }}>
+        <CreditCard size={32} color={muted} style={{ marginBottom: '12px' }} />
+        <p style={{ fontSize: '14px', fontWeight: 600, color: text, marginBottom: '6px' }}>Sem contrato</p>
+        <p style={{ fontSize: '12px', color: muted }}>O contrato é gerado automaticamente quando o deal vai para Ganho.</p>
+      </div>
+    )
+  }
+
+  const paidCount   = payments.filter((p) => p.status === 'paid').length
+  const totalCount  = payments.length
+  const paidAmount  = payments.filter((p) => p.status === 'paid').reduce((s, p) => s + p.amount, 0)
+  const totalAmount = contract.value
+  const progress    = totalCount > 0 ? Math.round((paidCount / totalCount) * 100) : 0
+
+  const DELIVERY_OPTS: { key: import('@/types/payment.types').DeliveryStatus; label: string; icon: React.ReactNode; color: string }[] = [
+    { key: 'pending',     label: 'Aguardando',  icon: <Clock size={11} />,       color: muted },
+    { key: 'in_progress', label: 'Em entrega',  icon: <Truck size={11} />,       color: '#a88030' },
+    { key: 'delivered',   label: 'Entregue',    icon: <CheckCircle2 size={11} />, color: '#2c5545' },
+  ]
+
+  return (
+    <div style={{ padding: '20px 24px' }}>
+
+      {/* Progresso financeiro */}
+      <div style={card}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+          <p style={{ ...label }}>Parcelas pagas</p>
+          <span style={{ fontSize: '11px', fontWeight: 700, fontFamily: "'Geist Mono', monospace", color: progress === 100 ? '#2c5545' : text }}>
+            {paidCount}/{totalCount}
+          </span>
+        </div>
+        <div style={{ height: '6px', borderRadius: '3px', backgroundColor: isDark ? '#1e1e1c' : '#f3f4f6', overflow: 'hidden', marginBottom: '10px' }}>
+          <div style={{ height: '100%', width: `${progress}%`, backgroundColor: progress === 100 ? '#2c5545' : '#6b1212', borderRadius: '3px', transition: 'width 0.3s ease' }} />
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+          <span style={{ fontSize: '11px', color: muted }}>Recebido</span>
+          <span style={{ fontSize: '11px', fontWeight: 700, fontFamily: "'Geist Mono', monospace", color: '#2c5545' }}>{fmtBRL(paidAmount)}</span>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '2px' }}>
+          <span style={{ fontSize: '11px', color: muted }}>Valor total</span>
+          <span style={{ fontSize: '11px', fontFamily: "'Geist Mono', monospace", color: muted }}>{fmtBRL(totalAmount)}</span>
+        </div>
+      </div>
+
+      {/* Assinatura */}
+      <div style={card}>
+        <p style={{ ...label, marginBottom: '10px' }}>Assinatura do contrato</p>
+        {contract.signed_at ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <CheckCircle2 size={16} color="#2c5545" />
+            <span style={{ fontSize: '12px', fontWeight: 600, color: '#2c5545' }}>Assinado a {fmtDate(contract.signed_at)}</span>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <span style={{ fontSize: '12px', color: muted }}>Aguardando assinatura</span>
+            <button
+              type="button"
+              onClick={() => signContract(contract.id)}
+              style={{ display: 'flex', alignItems: 'center', gap: '5px', height: '28px', padding: '0 12px', borderRadius: '6px', border: 'none', backgroundColor: '#6b1212', color: '#fff', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}
+            >
+              <Pen size={10} /> Registar assinatura
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Estado de entrega */}
+      <div style={card}>
+        <p style={{ ...label, marginBottom: '12px' }}>Estado de entrega das peças</p>
+        <div style={{ display: 'flex', gap: '6px' }}>
+          {DELIVERY_OPTS.map((opt) => {
+            const active = contract.delivery_status === opt.key
+            return (
+              <button
+                key={opt.key}
+                type="button"
+                onClick={() => setDelivery(contract.id, opt.key)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '5px',
+                  height: '32px', padding: '0 14px', borderRadius: '7px', cursor: 'pointer',
+                  fontSize: '11px', fontWeight: 600,
+                  backgroundColor: active ? `${opt.color}18` : 'transparent',
+                  border: `1.5px solid ${active ? opt.color : border}`,
+                  color: active ? opt.color : muted,
+                  transition: 'all 0.15s',
+                }}
+              >
+                {opt.icon} {opt.label}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Lista de parcelas */}
+      {payments.length > 0 && (
+        <div style={card}>
+          <p style={{ ...label, marginBottom: '12px' }}>Parcelas</p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', borderRadius: '8px', overflow: 'hidden', border: `1px solid ${border}` }}>
+            {payments.map((p) => {
+              const isPaid    = p.status === 'paid'
+              const isOverdue = p.status === 'overdue'
+              return (
+                <div key={p.id} style={{
+                  display: 'flex', alignItems: 'center', gap: '12px',
+                  padding: '9px 12px',
+                  backgroundColor: isDark ? '#111110' : '#ffffff',
+                  borderBottom: `1px solid ${border}`,
+                }}>
+                  <div style={{
+                    width: '22px', height: '22px', borderRadius: '50%', flexShrink: 0,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    backgroundColor: isPaid ? '#0a1f0e' : isOverdue ? '#2a0a0a' : isDark ? '#1e1e1c' : '#f3f4f6',
+                    border: `1.5px solid ${isPaid ? '#2c5545' : isOverdue ? '#6b1212' : border}`,
+                  }}>
+                    {isPaid
+                      ? <Check size={10} color="#2c5545" strokeWidth={3} />
+                      : <span style={{ fontSize: '9px', fontWeight: 700, color: isOverdue ? '#a83535' : muted }}>{p.installment_no}</span>
+                    }
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <p style={{ fontSize: '12px', fontWeight: 500, color: text }}>Parcela {p.installment_no}</p>
+                    <p style={{ fontSize: '10px', color: muted }}>Vence {fmtDate(p.due_date)}</p>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <p style={{ fontSize: '12px', fontWeight: 700, fontFamily: "'Geist Mono', monospace", color: isPaid ? '#2c5545' : isOverdue ? '#a83535' : text }}>{fmtBRL(p.amount)}</p>
+                    {isPaid && p.paid_at && (
+                      <p style={{ fontSize: '10px', color: muted }}>Pago {fmtDate(p.paid_at)}</p>
+                    )}
+                    {isOverdue && (
+                      <p style={{ fontSize: '10px', color: '#a83535', fontWeight: 600 }}>Em atraso</p>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {progress === 100 && (
+        <div style={{ ...card, backgroundColor: isDark ? '#0a1f0e' : '#f0fdf4', border: `1px solid ${isDark ? '#14532d' : '#bbf7d0'}`, display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <CheckCircle2 size={20} color="#2c5545" />
+          <div>
+            <p style={{ fontSize: '13px', fontWeight: 700, color: '#2c5545' }}>Contrato quitado</p>
+            <p style={{ fontSize: '11px', color: '#2c5545', opacity: 0.7 }}>Todas as parcelas foram pagas. Contrato marcado como concluído.</p>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
-type RenewalTab = 'dados' | 'proposta' | 'materiais'
+type RenewalTab = 'dados' | 'proposta' | 'materiais' | 'cobranca'
 
 export function ClientRenovacaoPage() {
   const { id }           = useParams<{ id: string }>()
@@ -779,6 +957,7 @@ export function ClientRenovacaoPage() {
   const TABS: { id: RenewalTab; label: string; icon: React.ReactNode }[] = [
     { id: 'dados',      label: 'Dados',              icon: <Users size={13} /> },
     { id: 'proposta',   label: 'Proposta',            icon: <FileText size={13} /> },
+    { id: 'cobranca',   label: 'Cobrança',            icon: <CreditCard size={13} /> },
     { id: 'materiais',  label: 'Materiais & Entrega', icon: <CheckSquare size={13} /> },
   ]
 
@@ -888,6 +1067,9 @@ export function ClientRenovacaoPage() {
         )}
         {tab === 'proposta' && (
           <PropostaRenovacao deal={deal} isDark={isDark} border={border} text={text} muted={muted} inputBg={inputBg} />
+        )}
+        {tab === 'cobranca' && (
+          <CobrancaTab dealId={deal.id} isDark={isDark} border={border} text={text} muted={muted} />
         )}
         {tab === 'materiais' && (
           <MateriaisEntrega dealId={deal.id} isDark={isDark} border={border} text={text} muted={muted} inputBg={inputBg} />

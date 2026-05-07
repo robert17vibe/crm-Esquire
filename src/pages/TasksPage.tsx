@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   CheckSquare, Plus, X, Clock, AlertTriangle, Calendar,
   ArrowRight, Check, Trash2, Phone, Mail, Video, Users, MoreHorizontal, Pencil, TrendingUp,
+  Activity,
 } from 'lucide-react'
 import { useTaskStore } from '@/store/useTaskStore'
 import { useThemeStore } from '@/store/useThemeStore'
@@ -611,6 +612,27 @@ export function TasksPage() {
                 : `${pendingCount} pendente${pendingCount !== 1 ? 's' : ''} no pipeline`}
             </p>
           </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            {/* Tab switcher */}
+            <div style={{ display: 'flex', gap: '2px', backgroundColor: isDark ? '#1a1a18' : '#f0eeea', borderRadius: '10px', padding: '3px' }}>
+              {[
+                { label: 'Tarefas',    icon: CheckSquare, to: '/tarefas'    },
+                { label: 'Atividades', icon: Activity,    to: '/atividades' },
+              ].map(({ label, icon: Icon, to }) => (
+                <button key={to} type="button" onClick={() => navigate(to)} style={{
+                  display: 'flex', alignItems: 'center', gap: '6px',
+                  height: '30px', padding: '0 14px', borderRadius: '8px', border: 'none', cursor: 'pointer',
+                  fontSize: '12px', fontWeight: to === '/tarefas' ? 700 : 500,
+                  backgroundColor: to === '/tarefas' ? (isDark ? '#2a2a28' : '#ffffff') : 'transparent',
+                  color: to === '/tarefas' ? text : muted,
+                  boxShadow: to === '/tarefas' ? '0 1px 3px rgba(0,0,0,0.12)' : 'none',
+                  transition: 'all 0.15s ease',
+                }}>
+                  <Icon style={{ width: '13px', height: '13px' }} />
+                  {label}
+                </button>
+              ))}
+            </div>
           <button type="button" onClick={() => setShowForm((v) => !v)} style={{
             height: '36px', padding: '0 18px', borderRadius: '8px',
             backgroundColor: showForm ? 'transparent' : '#6b1212',
@@ -621,33 +643,77 @@ export function TasksPage() {
           }}>
             {showForm ? <><X style={{ width: '11px', height: '11px' }} />Cancelar</> : <><Plus style={{ width: '12px', height: '12px' }} />Nova tarefa</>}
           </button>
+          </div>
         </div>
 
-        {/* KPI cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '24px' }}>
-          {[
-            { label: 'Atrasadas', value: grouped.overdue.length, sub: 'requerem atenção',    color: '#b83535', Icon: AlertTriangle },
-            { label: 'Hoje',      value: grouped.today.length,   sub: 'para hoje',           color: '#a88030', Icon: Clock         },
-            { label: 'Pendentes', value: pendingCount,           sub: 'no total',            color: '#6b1212', Icon: CheckSquare   },
-            { label: 'Concluídas',value: grouped.done.length,    sub: 'finalizadas',         color: '#2c5545', Icon: TrendingUp    },
-          ].map((s) => (
-            <div key={s.label} style={{
+        {/* Funnel */}
+        {(() => {
+          const total = pendingCount + grouped.done.length || 1
+          const stages = [
+            { label: 'Atrasadas', value: grouped.overdue.length, color: '#b83535', Icon: AlertTriangle, bg: '#b8353514' },
+            { label: 'Hoje',      value: grouped.today.length,   color: '#a88030', Icon: Clock,         bg: '#a8803014' },
+            { label: 'Pendentes', value: pendingCount,           color: '#6b1212', Icon: CheckSquare,   bg: '#6b121214' },
+            { label: 'Concluídas',value: grouped.done.length,    color: '#2c5545', Icon: TrendingUp,    bg: '#2c554514' },
+          ]
+          return (
+            <div style={{
               backgroundColor: isDark ? '#161614' : '#ffffff',
-              border: `1px solid ${border}`,
-              borderRadius: '10px', padding: '16px',
-              boxShadow: isDark ? 'none' : '0 1px 3px rgba(16,24,40,0.06)',
+              border: `1px solid ${border}`, borderRadius: '12px',
+              padding: '18px 20px', marginBottom: '24px',
+              boxShadow: isDark ? 'none' : '0 1px 4px rgba(16,24,40,0.06)',
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
-                <s.Icon size={14} color={s.color} />
-                <span style={{ fontSize: '11px', fontWeight: 500, color: muted }}>{s.label}</span>
+              {/* Bar track */}
+              <div style={{ display: 'flex', height: '5px', borderRadius: '99px', overflow: 'hidden', marginBottom: '18px', gap: '2px' }}>
+                {stages.map((s) => (
+                  <div key={s.label} style={{
+                    flex: Math.max(s.value / total, 0.02),
+                    backgroundColor: s.color,
+                    opacity: s.value === 0 ? 0.15 : 0.85,
+                    borderRadius: '99px',
+                    transition: 'flex 0.4s ease',
+                  }} />
+                ))}
               </div>
-              <div style={{ fontSize: '24px', fontWeight: 600, color: s.value > 0 && s.label === 'Atrasadas' ? '#b83535' : text, fontFamily: "'Geist Mono', monospace", letterSpacing: '-0.04em' }}>
-                {s.value}
+              {/* Stage columns */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
+                {stages.map((s) => (
+                  <div key={s.label} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
+                      <div style={{
+                        width: '26px', height: '26px', borderRadius: '8px',
+                        backgroundColor: s.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                      }}>
+                        <s.Icon style={{ width: '12px', height: '12px', color: s.color }} />
+                      </div>
+                      <span style={{ fontSize: '11px', fontWeight: 500, color: muted, lineHeight: 1.2 }}>{s.label}</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '5px' }}>
+                      <span style={{
+                        fontSize: '22px', fontWeight: 700, letterSpacing: '-0.04em', lineHeight: 1,
+                        color: s.label === 'Atrasadas' && s.value > 0 ? '#b83535' : text,
+                        fontVariantNumeric: 'tabular-nums',
+                      }}>{s.value}</span>
+                      {total > 0 && (
+                        <span style={{ fontSize: '10px', color: muted, fontWeight: 500 }}>
+                          {Math.round((s.value / total) * 100)}%
+                        </span>
+                      )}
+                    </div>
+                    {/* Mini bar */}
+                    <div style={{ height: '3px', borderRadius: '99px', backgroundColor: isDark ? '#222220' : '#f0eeea', overflow: 'hidden' }}>
+                      <div style={{
+                        height: '100%', borderRadius: '99px',
+                        backgroundColor: s.color,
+                        width: `${Math.max((s.value / total) * 100, s.value > 0 ? 4 : 0)}%`,
+                        transition: 'width 0.4s ease',
+                      }} />
+                    </div>
+                  </div>
+                ))}
               </div>
-              <div style={{ fontSize: '11px', color: muted, marginTop: '2px' }}>{s.sub}</div>
             </div>
-          ))}
-        </div>
+          )
+        })()}
 
         {/* Filter bar */}
         <div style={{

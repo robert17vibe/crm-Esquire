@@ -6,7 +6,7 @@ import { useToastStore } from '@/store/useToastStore'
 import { useNotificationStore } from '@/store/useNotificationStore'
 import { useOwnerStore } from '@/store/useOwnerStore'
 import { useWebhookStore } from '@/store/useWebhookStore'
-import { fetchDeals, insertDeal, patchDeal, removeDeal } from '@/services/deal.service'
+import { fetchDeals, fetchWonDeals, insertDeal, patchDeal, removeDeal, type DealCursor } from '@/services/deal.service'
 import { logDistribution } from '@/services/distribution.service'
 import { supabase } from '@/lib/supabase'
 import type { Deal, DealPatch, NextActivity } from '@/types/deal.types'
@@ -68,11 +68,15 @@ function loadLocalDeals(): Deal[] {
 interface DealStore {
   deals: Deal[]
   isLoading: boolean
+  isLoadingMore: boolean
   initialized: boolean
+  hasMore: boolean
+  nextCursor: DealCursor | null
   error: string | null
   staleDeals: Deal[]
   staleCount: number
   initialize: () => Promise<void>
+  loadMore: () => Promise<void>
   subscribeRealtime: () => () => void
   createDeal: (values: NewLeadFormValues) => Promise<Deal>
   updateDeal: (id: string, values: NewLeadFormValues) => Promise<void>
@@ -105,7 +109,10 @@ export const useDealStore = create<DealStore>((set, get) => {
   return ({
   deals: loadLocalDeals(),
   isLoading: false,
+  isLoadingMore: false,
   initialized: false,
+  hasMore: false,
+  nextCursor: null,
   error: null,
   staleDeals: [],
   staleCount: 0,
@@ -117,10 +124,18 @@ export const useDealStore = create<DealStore>((set, get) => {
       if (!get().initialized) set({ isLoading: false, initialized: true, error: 'Tempo de carregamento excedido. A usar dados em cache.' })
     }, 8000)
     try {
-      const deals = await fetchDeals()
+      // Fetch paginated + always all closed_won (to avoid them falling off the first page)
+      const [{ deals: paginated, hasMore, nextCursor }, wonDeals] = await Promise.all([
+        fetchDeals(),
+        fetchWonDeals().catch(() => [] as Deal[]),
+      ])
       clearTimeout(timeout)
+      // Merge: paginated first, then add won deals not already in the list
+      const paginatedIds = new Set(paginated.map((d) => d.id))
+      const extra = wonDeals.filter((d) => !paginatedIds.has(d.id))
+      const deals = [...paginated, ...extra]
       const staleDeals = _computeStale(deals)
-      set({ deals, isLoading: false, initialized: true, staleDeals, staleCount: staleDeals.length })
+      set({ deals, hasMore, nextCursor, isLoading: false, initialized: true, staleDeals, staleCount: staleDeals.length })
       persistDeals(deals)
       _runStaleAlerts(deals)
       // Pré-carregar propostas para todos os deals (evita N+1 nos cards)
@@ -135,25 +150,61 @@ export const useDealStore = create<DealStore>((set, get) => {
     }
   },
 
+  loadMore: async () => {
+    const { isLoadingMore, hasMore, nextCursor } = get()
+    if (isLoadingMore || !hasMore || !nextCursor) return
+    set({ isLoadingMore: true })
+    try {
+      const { deals: newDeals, hasMore: moreLeft, nextCursor: newCursor } = await fetchDeals({ cursor: nextCursor })
+      const merged = [...get().deals, ...newDeals]
+      const staleDeals = _computeStale(merged)
+      set({ deals: merged, hasMore: moreLeft, nextCursor: newCursor, isLoadingMore: false, staleDeals, staleCount: staleDeals.length })
+      persistDeals(merged)
+      // Pré-carregar propostas para os novos deals
+      const { useProposalStore } = await import('@/store/useProposalStore')
+      const ids = newDeals.map((d) => d.id).filter((id) => !id.startsWith('opt-'))
+      if (ids.length) useProposalStore.getState().loadForDeals(ids)
+    } catch (err) {
+      const msg = (err as { message?: string })?.message || 'Erro ao carregar mais deals'
+      console.error('[useDealStore] loadMore failed:', err)
+      useToastStore.getState().addToast(msg, 'error')
+      set({ isLoadingMore: false })
+    }
+  },
+
   subscribeRealtime: () => {
+    function enrichOwner(deal: Deal): Deal {
+      const owners = useOwnerStore.getState().owners
+      const owner = owners.find((o) => o.id === deal.owner_id)
+      return owner ? { ...deal, owner } : deal
+    }
+
     const channel = supabase
       .channel('deals-realtime')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'deals' }, (payload) => {
-        const deal = payload.new as Deal
+        const deal = enrichOwner(payload.new as Deal)
+        // Ignorar se já existe (inclui deals optimistas opt-* que serão substituídos pelo createDeal)
         if (get().deals.some((d) => d.id === deal.id)) return
+        // Ignorar se ainda há um optimista pendente com mesmo owner+company+timestamp próximo
+        const hasPending = get().deals.some((d) =>
+          d.id.startsWith('opt-') &&
+          d.company_name === deal.company_name &&
+          Math.abs(new Date(d.created_at).getTime() - new Date(deal.created_at).getTime()) < 5000
+        )
+        if (hasPending) return
         const next = [deal, ...get().deals]
         persistDeals(next)
         setDeals(next)
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'deals' }, (payload) => {
-        const deal = payload.new as Deal & { deleted_at?: string | null }
-        if (deal.deleted_at) {
+        const deal = enrichOwner(payload.new as Deal & { deleted_at?: string | null })
+        if ((deal as Deal & { deleted_at?: string | null }).deleted_at) {
           const next = get().deals.filter((d) => d.id !== deal.id)
           persistDeals(next)
           setDeals(next)
           return
         }
-        const next = get().deals.map((d) => (d.id === deal.id ? deal : d))
+        const next = get().deals.map((d) => (d.id === deal.id ? { ...d, ...deal } : d))
         persistDeals(next)
         setDeals(next)
       })
@@ -227,7 +278,10 @@ export const useDealStore = create<DealStore>((set, get) => {
         tags:             optimistic.tags ?? null,
       }
       const confirmed = await insertDeal(dbPayload as Parameters<typeof insertDeal>[0])
-      const next = get().deals.map((d) => (d.id === optimistic.id ? confirmed : d))
+      // Substituir optimista + deduplicar (o realtime pode ter chegado antes)
+      const next = get().deals
+        .map((d) => (d.id === optimistic.id ? { ...confirmed, owner: optimistic.owner } : d))
+        .filter((d, i, arr) => arr.findIndex((x) => x.id === d.id) === i)
       setDeals(next)
       persistDeals(next)
       const displayName = values.company_name ?? values.contact_name
@@ -287,7 +341,7 @@ export const useDealStore = create<DealStore>((set, get) => {
     persistDeals(optimisticList)
 
     try {
-      const { id: _id, company_id: _cid, created_at: _ca, owner: _owner, days_in_stage: _ds, ...patch } = updated
+      const { id: _id, company_id: _cid, created_at: _ca, days_in_stage: _ds, ...patch } = updated
       await patchDeal(id, patch)
       useToastStore.getState().addToast(`Lead atualizado — ${values.company_name}`, 'success')
     } catch {

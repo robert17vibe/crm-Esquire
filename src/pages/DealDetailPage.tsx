@@ -1,5 +1,5 @@
 ﻿import React, { useState, useEffect, useMemo } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import type { LucideIcon } from 'lucide-react'
 import {
   ArrowLeft, Mail, Phone, Linkedin, Globe,
@@ -21,6 +21,8 @@ import { useNotificationStore } from '@/store/useNotificationStore'
 import type { Deal, DealActivity, DealMeeting, CompanySize, ArrRange, DealEvent } from '@/types/deal.types'
 import { PageLoadingState } from '@/components/ui/PageState'
 import { evaluateDealScore } from '@/lib/dealScore'
+import { usePaymentStore } from '@/store/usePaymentStore'
+import { useToastStore } from '@/store/useToastStore'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -667,8 +669,108 @@ function TemplatePicker({ isDark, border, text, muted, onPick }: {
   )
 }
 
-function ProposalTab({ deal, isDark, border, text, muted, inputBg }: {
-  deal: Deal; isDark: boolean; border: string; text: string; muted: string; inputBg: string
+// 'declined-latest' = contrato pausado, esta é a proposta mais recente (será usada no reactivar)
+// 'declined-old'    = contrato pausado, proposta antiga
+// 'paid'            = contrato concluído (todas as parcelas pagas → renovação)
+type ProposalRole = 'declined-latest' | 'declined-old' | 'paid' | null
+
+function ProposalList({ history, role, isDark, border, text, muted, accent, onOpen, onDelete }: {
+  history: SavedProposal[]
+  role: ProposalRole         // papel do deal: null = normal, 'paid', 'declined-*' calculado por proposta
+  isDark: boolean; border: string; text: string; muted: string; accent: string
+  onOpen: (p: SavedProposal) => void
+  onDelete: (id: string) => void
+}) {
+  const isDeclined = role === 'declined-latest' || role === 'declined-old'
+  const isPaid     = role === 'paid'
+  const latestTs   = isDeclined && history.length > 0
+    ? Math.max(...history.map(p => new Date(p.createdAt).getTime()))
+    : 0
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+      {history.map((p, i) => {
+        const sub = p.lines.reduce((s, l) => s + l.qty * l.unit_price, 0)
+        const tot = sub - sub * (p.discountPct / 100)
+        const ts       = new Date(p.createdAt).getTime()
+        const isLatest = isDeclined && ts === latestTs
+        const isOld    = isDeclined && !isLatest
+
+        // cores por estado
+        const cardBorder  = isPaid    ? 'rgba(44,85,69,0.35)'   : isLatest ? 'rgba(44,85,69,0.40)'   : isOld ? 'rgba(107,18,18,0.25)' : border
+        const hoverBorder = isPaid    ? 'rgba(44,85,69,0.60)'   : isLatest ? 'rgba(44,85,69,0.65)'   : isOld ? 'rgba(107,18,18,0.45)' : (isDark ? '#3a3a38' : '#c4bfb8')
+        const numColor    = isPaid    ? '#2c5545'                : isLatest ? '#2c5545'                : isOld ? '#6b1212'              : accent
+        const numBg       = isPaid    ? 'rgba(44,85,69,0.10)'   : isLatest ? 'rgba(44,85,69,0.10)'   : isOld ? 'rgba(107,18,18,0.08)' : 'rgba(184,53,53,0.09)'
+        const numBorder2  = isPaid    ? 'rgba(44,85,69,0.30)'   : isLatest ? 'rgba(44,85,69,0.30)'   : isOld ? 'rgba(107,18,18,0.22)' : 'rgba(184,53,53,0.22)'
+        const valColor    = isPaid    ? '#2c5545'                : isLatest ? '#2c5545'                : isOld ? '#6b1212'              : (tot > 0 ? (isDark ? '#6ee7b7' : '#2a7a4a') : muted)
+
+        return (
+          <div key={p.id}
+            style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '16px 18px', borderRadius: '10px', backgroundColor: isDark ? '#111110' : '#ffffff', border: `1px solid ${cardBorder}`, transition: 'border-color 0.12s ease', cursor: 'default' }}
+            onMouseEnter={(e) => { e.currentTarget.style.borderColor = hoverBorder }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = cardBorder }}>
+
+            <div style={{ width: '32px', height: '32px', borderRadius: '8px', backgroundColor: numBg, border: `1px solid ${numBorder2}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <span style={{ fontSize: '11px', fontWeight: 700, color: numColor, fontFamily: "'Geist Mono', monospace" }}>#{history.length - i}</span>
+            </div>
+
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '7px', marginBottom: '3px' }}>
+                <p style={{ fontSize: '13px', fontWeight: 600, color: text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: 0 }}>{p.title}</p>
+                {isPaid && (
+                  <span style={{ flexShrink: 0, fontSize: '9px', fontWeight: 700, color: '#2c5545', backgroundColor: 'rgba(44,85,69,0.10)', border: '1px solid rgba(44,85,69,0.30)', borderRadius: '999px', padding: '1px 7px', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                    ✓ Paga
+                  </span>
+                )}
+                {isLatest && !isPaid && (
+                  <span style={{ flexShrink: 0, fontSize: '9px', fontWeight: 700, color: '#2c5545', backgroundColor: 'rgba(44,85,69,0.10)', border: '1px solid rgba(44,85,69,0.30)', borderRadius: '999px', padding: '1px 7px', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                    ✓ Será usada
+                  </span>
+                )}
+                {isOld && (
+                  <span style={{ flexShrink: 0, fontSize: '9px', fontWeight: 700, color: '#6b1212', backgroundColor: 'rgba(107,18,18,0.08)', border: '1px solid rgba(107,18,18,0.22)', borderRadius: '999px', padding: '1px 7px', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                    Declinada
+                  </span>
+                )}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <p style={{ fontSize: '11px', color: muted }}>
+                  {new Date(p.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}
+                </p>
+                {p.lines.length > 0 && (
+                  <span style={{ fontSize: '10px', color: muted }}>· {p.lines.length} item{p.lines.length !== 1 ? 's' : ''}</span>
+                )}
+                {p.validity && (
+                  <span style={{ fontSize: '10px', color: muted }}>
+                    · válida até {new Date(p.validity + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <p style={{ fontSize: '16px', fontWeight: 700, color: valColor, fontFamily: "'Geist Mono', monospace", letterSpacing: '-0.02em', flexShrink: 0 }}>
+              {tot > 0 ? formatCurrency(tot) : '—'}
+            </p>
+
+            <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+              <button type="button" onClick={() => onOpen(p)}
+                style={{ fontSize: '11px', fontWeight: 600, color: accent, backgroundColor: 'rgba(184,53,53,0.08)', border: '1px solid rgba(184,53,53,0.22)', borderRadius: '6px', padding: '5px 14px', cursor: 'pointer' }}>
+                Abrir
+              </button>
+              <button type="button" onClick={() => onDelete(p.id)}
+                style={{ fontSize: '13px', fontWeight: 400, color: muted, backgroundColor: 'transparent', border: `1px solid ${border}`, borderRadius: '6px', width: '30px', height: '30px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                ×
+              </button>
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+function ProposalTab({ deal, isDark, border, text, muted, inputBg, initialProposalId }: {
+  deal: Deal; isDark: boolean; border: string; text: string; muted: string; inputBg: string; initialProposalId?: string
 }) {
   const navigate   = useNavigate()
   const accent     = isDark ? '#e05050' : '#b83535'
@@ -676,7 +778,7 @@ function ProposalTab({ deal, isDark, border, text, muted, inputBg }: {
 
   // Propostas vêm do store (DB) — draft continua em localStorage (é efémero)
   const proposalStore  = useProposalStore()
-  const dbProposals    = proposalStore.getByDeal(deal.id)
+  const dbProposals    = useProposalStore((s) => s.byDeal[deal.id]) ?? []
 
   // Converter DB Proposal → SavedProposal (UI usa camelCase herdado)
   function dbToSaved(p: Proposal): SavedProposal {
@@ -719,6 +821,29 @@ function ProposalTab({ deal, isDark, border, text, muted, inputBg }: {
   // Carregar propostas do DB se ainda não estiverem no store
   useEffect(() => { proposalStore.loadForDeal(deal.id) }, [deal.id])
 
+  // Calcular role directamente do store — independente de timing do pai
+  const dealContracts  = usePaymentStore((s) => s.contracts)
+  const dealRole = useMemo((): ProposalRole => {
+    const priority = (s: string) => s === 'active' ? 0 : s === 'completed' ? 1 : 2
+    const cs = dealContracts.filter(c => c.deal_id === deal.id)
+    if (!cs.length) return null
+    const primary = cs.reduce((best, c) =>
+      priority(c.status) < priority(best.status)
+      || (c.status === best.status && new Date(c.created_at) > new Date(best.created_at))
+        ? c : best
+    )
+    if (primary.status === 'completed') return 'paid'
+    if (primary.status === 'paused')    return 'declined-latest' // role final resolvido em ProposalList
+    return null
+  }, [dealContracts, deal.id])
+
+  // Abrir proposta específica se vier do Arquivo Comercial
+  useEffect(() => {
+    if (!initialProposalId || !dbProposals.length) return
+    const target = dbProposals.find((p) => p.id === initialProposalId)
+    if (target) setPreview(dbToSaved(target))
+  }, [initialProposalId, dbProposals])
+
   const subtotal   = lines.reduce((s, l) => s + l.qty * l.unit_price, 0)
   const discount   = subtotal * (discountPct / 100)
   const total      = subtotal - discount
@@ -730,6 +855,10 @@ function ProposalTab({ deal, isDark, border, text, muted, inputBg }: {
   function removeLine(id: string) { setLines((prev) => prev.filter((l) => l.id !== id)) }
 
   async function handleSave() {
+    if (deal.id.startsWith('opt-')) {
+      useToastStore.getState().addToast('Este deal foi criado offline — recarrega a página antes de guardar propostas', 'error')
+      return
+    }
     setSaving(true)
     try {
       await proposalStore.saveProposal({
@@ -746,6 +875,8 @@ function ProposalTab({ deal, isDark, border, text, muted, inputBg }: {
       setLines([]); setDiscountPct(0); setInstallments(1)
       setSaved(true); setShowForm(false)
       setTimeout(() => setSaved(false), 2500)
+    } catch {
+      // erro já mostrado pelo store via toast
     } finally {
       setSaving(false)
     }
@@ -1141,59 +1272,17 @@ function ProposalTab({ deal, isDark, border, text, muted, inputBg }: {
           </button>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {history.map((p, i) => {
-            const sub = p.lines.reduce((s, l) => s + l.qty * l.unit_price, 0)
-            const tot = sub - sub * (p.discountPct / 100)
-            return (
-              <div key={p.id}
-                style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '16px 18px', borderRadius: '10px', backgroundColor: isDark ? '#111110' : '#ffffff', border: `1px solid ${border}`, transition: 'border-color 0.12s ease', cursor: 'default' }}
-                onMouseEnter={(e) => { e.currentTarget.style.borderColor = isDark ? '#3a3a38' : '#c4bfb8' }}
-                onMouseLeave={(e) => { e.currentTarget.style.borderColor = border }}>
-
-                {/* Index */}
-                <div style={{ width: '32px', height: '32px', borderRadius: '8px', backgroundColor: 'rgba(184,53,53,0.09)', border: '1px solid rgba(184,53,53,0.22)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <span style={{ fontSize: '11px', fontWeight: 700, color: accent, fontFamily: "'Geist Mono', monospace" }}>#{history.length - i}</span>
-                </div>
-
-                {/* Info */}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ fontSize: '13px', fontWeight: 600, color: text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: '3px' }}>{p.title}</p>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <p style={{ fontSize: '11px', color: muted }}>
-                      {new Date(p.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}
-                    </p>
-                    {p.lines.length > 0 && (
-                      <span style={{ fontSize: '10px', color: muted }}>· {p.lines.length} item{p.lines.length !== 1 ? 's' : ''}</span>
-                    )}
-                    {p.validity && (
-                      <span style={{ fontSize: '10px', color: muted }}>
-                        · válida até {new Date(p.validity + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Value */}
-                <p style={{ fontSize: '16px', fontWeight: 700, color: tot > 0 ? (isDark ? '#6ee7b7' : '#2a7a4a') : muted, fontFamily: "'Geist Mono', monospace", letterSpacing: '-0.02em', flexShrink: 0 }}>
-                  {tot > 0 ? fmtBRL(tot) : '—'}
-                </p>
-
-                {/* Actions */}
-                <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
-                  <button type="button" onClick={() => setPreview(p)}
-                    style={{ fontSize: '11px', fontWeight: 600, color: accent, backgroundColor: 'rgba(184,53,53,0.08)', border: '1px solid rgba(184,53,53,0.22)', borderRadius: '6px', padding: '5px 14px', cursor: 'pointer' }}>
-                    Abrir
-                  </button>
-                  <button type="button" onClick={() => deleteProposal(p.id)}
-                    style={{ fontSize: '13px', fontWeight: 400, color: muted, backgroundColor: 'transparent', border: `1px solid ${border}`, borderRadius: '6px', width: '30px', height: '30px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-                    ×
-                  </button>
-                </div>
-              </div>
-            )
-          })}
-        </div>
+        <ProposalList
+          history={history}
+          role={dealRole}
+          isDark={isDark}
+          border={border}
+          text={text}
+          muted={muted}
+          accent={accent}
+          onOpen={setPreview}
+          onDelete={deleteProposal}
+        />
       )}
     </div>
   )
@@ -1205,10 +1294,24 @@ function ProposalTab({ deal, isDark, border, text, muted, inputBg }: {
 export function DealDetailPage() {
   const { id }   = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const location = useLocation()
+  const locationState = location.state as { tab?: string; proposalId?: string } | null
   const isDark   = useThemeStore((s) => s.isDark)
-  const deal     = useDealStore((s) => s.deals.find((d) => d.id === id))
+  const storeDeal    = useDealStore((s) => s.deals.find((d) => d.id === id))
   const dealsLoading = useDealStore((s) => s.isLoading)
   const dealsInitialized = useDealStore((s) => s.initialized)
+
+  // Fallback: deal not in paginated store — fetch directly (e.g. closed_won on page 2+)
+  const [fetchedDeal, setFetchedDeal] = useState<Deal | null>(null)
+  const [fetchingDeal, setFetchingDeal] = useState(false)
+  useEffect(() => {
+    if (!id || !dealsInitialized || storeDeal) return
+    setFetchingDeal(true)
+    supabase.from('deals').select('*').eq('id', id).single()
+      .then(({ data }) => { setFetchedDeal(data as Deal | null); setFetchingDeal(false) }, () => setFetchingDeal(false))
+  }, [id, dealsInitialized, storeDeal])
+
+  const deal = storeDeal ?? fetchedDeal
 
   const moveDeal        = useDealStore((s) => s.moveDeal)
   const fetchActivities = useActivityStore((s) => s.fetchForDeal)
@@ -1222,9 +1325,23 @@ export function DealDetailPage() {
     [allMeetings, id],
   )
 
-  useEffect(() => { initMeetings() }, [initMeetings])
+  const allContracts   = usePaymentStore((s) => s.contracts)
+  const allPayments    = usePaymentStore((s) => s.payments)
+  const initPayments   = usePaymentStore((s) => s.initialize)
+  const payInstallment = usePaymentStore((s) => s.payInstallment)
+  const contract       = useMemo(() => allContracts.find((c) => c.deal_id === id), [allContracts, id])
+  const dealPayments   = useMemo(() => allPayments.filter((p) => p.deal_id === id), [allPayments, id])
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'activity' | 'notes' | 'proposal' | 'tasks' | 'historico'>('overview')
+  const dbProposals    = useProposalStore((s) => s.byDeal[id ?? '']) ?? []
+  const loadProposals  = useProposalStore((s) => s.loadForDeal)
+
+  useEffect(() => { initMeetings() }, [initMeetings])
+  useEffect(() => { initPayments() }, [initPayments])
+  useEffect(() => { if (id) loadProposals(id) }, [id, loadProposals])
+
+  const [activeTab, setActiveTab] = useState<'overview' | 'activity' | 'proposal' | 'tasks'>(
+    locationState?.tab === 'proposal' ? 'proposal' : 'overview'
+  )
   const [pendingLossStage, setPendingLossStage] = useState(false)
   const [lossReasonDraft, setLossReasonDraft]   = useState('')
 
@@ -1336,7 +1453,7 @@ export function DealDetailPage() {
   const inputBg = isDark ? '#111110' : '#f8f7f4'
   const accent  = isDark ? '#e05050' : '#b83535'
 
-  if (dealsLoading || !dealsInitialized) {
+  if (dealsLoading || !dealsInitialized || fetchingDeal) {
     return (
       <PageLoadingState
         title="Carregando lead"
@@ -1368,12 +1485,10 @@ export function DealDetailPage() {
     id: '', name: 'Desconhecido', initials: '?', avatar_color: '#6b6560',
   }
 
-  const proposalCtx = (() => {
-    try {
-      const list: { status: string }[] = JSON.parse(localStorage.getItem(`esq_proposals_v4_${deal.id}`) ?? '[]')
-      return { proposalCount: list.length, hasAcceptedProposal: list.some((p) => p.status === 'accepted') }
-    } catch { return { proposalCount: 0, hasAcceptedProposal: false } }
-  })()
+  const proposalCtx = {
+    proposalCount: dbProposals.length,
+    hasAcceptedProposal: dbProposals.some((p) => p.status === 'accepted'),
+  }
   const completedTaskCount = dealTasks.filter((t) => !!t.completed_at).length
   const pendingTaskCount   = dealTasks.filter((t) => !t.completed_at).length
   const score = evaluateDealScore(deal, {
@@ -1520,6 +1635,23 @@ export function DealDetailPage() {
           )}
         </div>
       </div>
+
+      {/* ── Declined banner ── */}
+      {contract?.status === 'paused' && (
+        <div style={{
+          flexShrink: 0, display: 'flex', alignItems: 'center', gap: '10px',
+          padding: '10px 20px',
+          backgroundColor: isDark ? '#1a0f0f' : '#fff1f1',
+          borderBottom: `1px solid ${isDark ? '#4a1818' : '#fecaca'}`,
+        }}>
+          <span style={{ fontSize: '10px', fontWeight: 700, color: '#6b1212', backgroundColor: 'rgba(107,18,18,0.12)', border: '1px solid rgba(107,18,18,0.3)', borderRadius: '999px', padding: '2px 8px', letterSpacing: '0.05em', textTransform: 'uppercase', flexShrink: 0 }}>
+            Declinado
+          </span>
+          <span style={{ fontSize: '12px', color: isDark ? '#c97070' : '#7f1d1d' }}>
+            Contrato pausado. Cria uma nova proposta e clica <strong>Reactivar</strong> em <strong>Admin → Cobrança → Declinados</strong> para voltar a activos.
+          </span>
+        </div>
+      )}
 
       {/* ── Main body: tab area + right sidebar ── */}
       <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', justifyContent: 'center' }}>
@@ -1700,12 +1832,10 @@ export function DealDetailPage() {
           {/* Tab bar */}
           <div style={{ padding: '0 20px', borderBottom: '1px solid var(--line)', flexShrink: 0, display: 'flex', alignItems: 'center', gap: '2px', height: '48px' }}>
             {([
-              { id: 'overview',  label: 'Resumo'     },
-              { id: 'activity',  label: 'Atividade'  },
-              { id: 'tasks',     label: 'Tarefas'    },
-              { id: 'proposal',  label: 'Proposta'   },
-              { id: 'notes',     label: 'Notas'      },
-              { id: 'historico', label: 'Histórico'  },
+              { id: 'overview',  label: 'Resumo'    },
+              { id: 'activity',  label: 'Atividade' },
+              { id: 'tasks',     label: 'Tarefas'   },
+              { id: 'proposal',  label: 'Proposta'  },
             ] as const).map((tab) => (
               <button key={tab.id} type="button" onClick={() => setActiveTab(tab.id)}
                 style={{
@@ -1853,18 +1983,14 @@ export function DealDetailPage() {
                     }
                   }
 
-                  // Proposals from localStorage
-                  try {
-                    const propList: { status: string; created_at?: string; lines: { qty: number; unit_price: number }[]; discountPct: number }[] =
-                      JSON.parse(localStorage.getItem(`esq_proposals_v4_${deal.id}`) ?? '[]')
-                    propList.forEach((p, i) => {
-                      const sub = p.lines.reduce((s, l) => s + l.qty * l.unit_price, 0)
-                      const val = sub - sub * ((p.discountPct ?? 0) / 100)
-                      const statusLabel = p.status === 'accepted' ? 'Aceite' : p.status === 'rejected' ? 'Recusada' : 'Em análise'
-                      const color = p.status === 'accepted' ? '#2c5545' : p.status === 'rejected' ? '#b83535' : '#a88030'
-                      items.push({ key: `prop-${i}`, date: p.created_at ?? '', badge: `Proposta — ${statusLabel}`, badgeColor: color, title: formatCurrency(val) })
-                    })
-                  } catch { /* ignore */ }
+                  // Proposals from store (DB)
+                  dbProposals.forEach((p, i) => {
+                    const sub = p.lines.reduce((s, l) => s + l.qty * l.unit_price, 0)
+                    const val = sub - sub * ((p.discount_pct ?? 0) / 100)
+                    const statusLabel = p.status === 'accepted' ? 'Aceite' : p.status === 'rejected' ? 'Recusada' : 'Em análise'
+                    const color = p.status === 'accepted' ? '#2c5545' : p.status === 'rejected' ? '#b83535' : '#a88030'
+                    items.push({ key: `prop-${i}`, date: p.created_at ?? '', badge: `Proposta — ${statusLabel}`, badgeColor: color, title: formatCurrency(val) })
+                  })
 
                   // Stage changes from stageHistory
                   for (const sh of stageHistory) {
@@ -1915,6 +2041,7 @@ export function DealDetailPage() {
                     </div>
                   )
                 })()}
+
               </div>
             )}
 
@@ -2054,14 +2181,9 @@ export function DealDetailPage() {
               </div>
             )}
 
-            {/* ── Notas tab ── */}
-            {activeTab === 'notes' && (
-              <NotesSection dealId={deal.id} owner={owner} isDark={isDark} border={border} text={text} muted={muted} />
-            )}
-
             {/* ── Propostas tab ── */}
             {activeTab === 'proposal' && (
-              <ProposalTab deal={deal} isDark={isDark} border={border} text={text} muted={muted} inputBg={inputBg} />
+              <ProposalTab deal={deal} isDark={isDark} border={border} text={text} muted={muted} inputBg={inputBg} initialProposalId={locationState?.proposalId} />
             )}
 
             {/* ── Tarefas tab ── */}
@@ -2121,115 +2243,39 @@ export function DealDetailPage() {
                   <p style={{ fontSize: '12px', color: muted, fontStyle: 'italic' }}>Nenhuma tarefa associada a este lead</p>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    {dealTasks.map((task) => (
-                      <div key={task.id} className="card-sm" style={{ padding: '10px 14px', display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
-                        <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: task.completed_at ? '#2c5545' : (task.due_date && task.due_date < new Date().toISOString().slice(0, 10) ? '#c53030' : 'var(--ink-muted)'), flexShrink: 0, marginTop: '5px' }} />
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <p style={{ fontSize: '13px', fontWeight: 500, color: task.completed_at ? muted : text, textDecoration: task.completed_at ? 'line-through' : 'none' }}>{task.title}</p>
-                          {task.due_date && <p style={{ fontSize: '11px', color: muted, marginTop: '2px' }}>{formatDate(task.due_date)}</p>}
+                    {dealTasks.map((task) => {
+                      const isOverdue = !task.completed_at && task.due_date && task.due_date < new Date().toISOString().slice(0, 10)
+                      const dotColor = task.completed_at ? '#2c5545' : isOverdue ? '#c53030' : 'var(--ink-muted)'
+                      const PRIORITY_CFG: Record<string, { label: string; color: string; bg: string }> = {
+                        high:   { label: 'Alta',   color: '#b83535', bg: 'rgba(184,53,53,0.10)' },
+                        medium: { label: 'Média',  color: '#a88030', bg: 'rgba(168,128,48,0.10)' },
+                        low:    { label: 'Baixa',  color: '#4d8fa8', bg: 'rgba(77,143,168,0.10)' },
+                      }
+                      const pcfg = PRIORITY_CFG[task.priority] ?? PRIORITY_CFG.medium
+                      return (
+                        <div key={task.id} className="card-sm" style={{ padding: '10px 14px', display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                          <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: dotColor, flexShrink: 0, marginTop: '5px' }} />
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
+                              <p style={{ fontSize: '13px', fontWeight: 500, color: task.completed_at ? muted : text, textDecoration: task.completed_at ? 'line-through' : 'none', flex: 1 }}>{task.title}</p>
+                              <span style={{ fontSize: '9px', fontWeight: 700, color: pcfg.color, backgroundColor: pcfg.bg, borderRadius: '4px', padding: '2px 6px', textTransform: 'uppercase', letterSpacing: '0.06em', flexShrink: 0 }}>{pcfg.label}</span>
+                            </div>
+                            {task.due_date && <p style={{ fontSize: '11px', color: isOverdue ? '#c53030' : muted, marginTop: '2px' }}>{isOverdue ? '⚠ ' : ''}{formatDate(task.due_date)}</p>}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 )}
+
+                {/* Anotações — agrupadas com tarefas */}
+                <div style={{ marginTop: '24px', borderTop: `1px solid ${border}`, paddingTop: '20px' }}>
+                  <p style={{ fontSize: '10px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '12px' }}>Anotações</p>
+                  <NotesSection dealId={deal.id} owner={owner} isDark={isDark} border={border} text={text} muted={muted} />
+                </div>
               </div>
             )}
 
-            {/* ── Histórico tab ── */}
-            {activeTab === 'historico' && (() => {
-              function fmtVal(v: unknown, field?: string): string {
-                if (v === null || v === undefined || v === '') return '—'
-                if (field === 'value' && typeof v === 'number') return formatCurrency(v)
-                if (typeof v === 'boolean') return v ? 'Sim' : 'Não'
-                if (Array.isArray(v)) return `${v.length} item${v.length !== 1 ? 's' : ''}`
-                if (typeof v === 'object') return 'actualizado'
-                return String(v)
-              }
-
-              type HistItem = { key: string; date: string; badge: string; badgeColor: string; title: string; detail?: string }
-              const items: HistItem[] = []
-
-              for (const m of meetings) {
-                items.push({ key: `m-${m.id}`, date: m.scheduled_at, badge: 'Reunião', badgeColor: '#b83535', title: m.title, detail: `${m.duration_minutes}min · ${m.attendees?.length ?? 0} participantes` })
-              }
-              const ACT_BADGE: Record<string, { label: string; color: string }> = {
-                email:   { label: 'Email enviado', color: '#4d7aa8' },
-                call:    { label: 'Ligação',        color: '#4d8fa8' },
-                note:    { label: 'Nota',           color: '#a88030' },
-                meeting: { label: 'Reunião',        color: accent },
-                task:    { label: 'Actividade',     color: '#7678b0' },
-              }
-              for (const a of activities) {
-                const cfg = ACT_BADGE[a.type] ?? { label: a.type, color: '#6b6560' }
-                items.push({ key: `act-${a.id}`, date: a.created_at, badge: cfg.label, badgeColor: cfg.color, title: a.subject, detail: a.body ? a.body.slice(0, 80) : undefined })
-              }
-              for (const t of dealTasks) {
-                if (t.completed_at) {
-                  items.push({ key: `tc-${t.id}`, date: t.completed_at, badge: 'Tarefa concluída', badgeColor: '#2c5545', title: t.title })
-                } else {
-                  items.push({ key: `tp-${t.id}`, date: t.created_at ?? t.due_date ?? '', badge: 'Tarefa criada', badgeColor: '#4d7aa8', title: t.title, detail: t.due_date ? `Vence ${formatDate(t.due_date)}` : undefined })
-                }
-              }
-              try {
-                const propList: { status: string; created_at?: string; lines: { qty: number; unit_price: number }[]; discountPct: number }[] =
-                  JSON.parse(localStorage.getItem(`esq_proposals_v4_${deal.id}`) ?? '[]')
-                propList.forEach((p, i) => {
-                  const sub = p.lines.reduce((s, l) => s + l.qty * l.unit_price, 0)
-                  const val = sub - sub * ((p.discountPct ?? 0) / 100)
-                  const statusLabel = p.status === 'accepted' ? 'Aceite' : p.status === 'rejected' ? 'Recusada' : 'Em análise'
-                  const color = p.status === 'accepted' ? '#2c5545' : p.status === 'rejected' ? '#b83535' : '#a88030'
-                  items.push({ key: `prop-${i}`, date: p.created_at ?? '', badge: `Proposta — ${statusLabel}`, badgeColor: color, title: formatCurrency(val) })
-                })
-              } catch { /* ignore */ }
-              for (const sh of stageHistory) {
-                const fromLabel = sh.from_stage ? (STAGES.find((s) => s.id === sh.from_stage)?.label ?? sh.from_stage) : 'Início'
-                const toLabel = STAGES.find((s) => s.id === sh.to_stage)?.label ?? sh.to_stage
-                items.push({ key: `sh-${sh.id}`, date: sh.changed_at, badge: 'Etapa', badgeColor: '#b83535', title: `${fromLabel} → ${toLabel}`, detail: sh.days_in_previous_stage > 0 ? `${sh.days_in_previous_stage}d na etapa anterior` : undefined })
-              }
-              for (const ev of dealEvents) {
-                if (ev.event_type === 'stage_change') continue
-                if (ev.event_type === 'task_added' || ev.event_type === 'task_removed') continue
-                const fieldLabel = ev.field_name ? (FIELD_LABELS[ev.field_name] ?? ev.field_name) : 'Campo'
-                const oldStr = fmtVal(ev.old_value, ev.field_name ?? undefined)
-                const newStr = fmtVal(ev.new_value, ev.field_name ?? undefined)
-                items.push({ key: `ev-${ev.id}`, date: ev.created_at, badge: fieldLabel, badgeColor: muted, title: `${oldStr} → ${newStr}` })
-              }
-              const sorted = items.filter(i => i.date).sort((a, b) => b.date.localeCompare(a.date))
-
-              return (
-                <div style={{ padding: '20px 24px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-                    <p style={{ fontSize: '10px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-                      Histórico completo · {sorted.length} eventos
-                    </p>
-                  </div>
-                  {loadingEvents ? (
-                    <p style={{ fontSize: '11px', color: muted }}>Carregando...</p>
-                  ) : sorted.length === 0 ? (
-                    <p style={{ fontSize: '11px', color: muted, fontStyle: 'italic' }}>Nenhum evento ainda</p>
-                  ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                      {sorted.map((item) => (
-                        <div key={item.key} style={{
-                          padding: '10px 12px',
-                          backgroundColor: isDark ? '#111110' : '#ffffff',
-                          border: `1px solid ${border}`,
-                          borderLeft: `3px solid ${item.badgeColor}`,
-                          borderRadius: '7px',
-                        }}>
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
-                            <span style={{ fontSize: '10px', fontWeight: 700, color: item.badgeColor, textTransform: 'uppercase', letterSpacing: '0.07em' }}>{item.badge}</span>
-                            <span style={{ fontSize: '10px', color: muted }}>{relativeDate(item.date.slice(0, 10))}</span>
-                          </div>
-                          <p style={{ fontSize: '12px', color: text, fontWeight: 600, lineHeight: 1.35 }}>{item.title}</p>
-                          {item.detail && <p style={{ fontSize: '11px', color: muted, marginTop: '3px' }}>{item.detail}</p>}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )
-            })()}
 
           </div>
         </div>
@@ -2425,6 +2471,69 @@ export function DealDetailPage() {
                 </div>
               </div>
             )}
+
+            {/* Contrato & Pagamentos — só visível em closed_won */}
+            {deal.stage_id === 'closed_won' && (contract || dealPayments.length > 0) && (() => {
+              const fmtBRL = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(v)
+              const fmtDate = (iso: string) => new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short' }).format(new Date(iso))
+              const overdue  = dealPayments.filter((p) => p.status === 'overdue')
+              const pending  = dealPayments.filter((p) => p.status === 'pending')
+              const paid     = dealPayments.filter((p) => p.status === 'paid')
+              return (
+                <>
+                  <div style={{ height: '1px', backgroundColor: border, margin: '6px 0 18px' }} />
+                  <p style={{ fontSize: '10px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '10px' }}>Contrato & Pagamentos</p>
+                  {contract && (
+                    <div style={{ padding: '10px 12px', borderRadius: '8px', backgroundColor: inputBg, border: `1px solid ${border}`, marginBottom: '8px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                        <span style={{ fontSize: '11px', fontWeight: 600, color: text }}>{fmtBRL(contract.value)}</span>
+                        <span style={{ fontSize: '9px', fontWeight: 700, color: '#2c5545', backgroundColor: 'rgba(44,85,69,0.10)', borderRadius: '999px', padding: '1px 6px' }}>
+                          {contract.status === 'active' ? 'Activo' : contract.status === 'completed' ? 'Concluído' : contract.status}
+                        </span>
+                      </div>
+                      <p style={{ fontSize: '10px', color: muted }}>
+                        {contract.installments}x · {contract.frequency === 'monthly' ? 'Mensal' : contract.frequency === 'quarterly' ? 'Trimestral' : contract.frequency === 'yearly' ? 'Anual' : 'Único'}
+                      </p>
+                    </div>
+                  )}
+                  {overdue.length > 0 && (
+                    <div style={{ padding: '8px 12px', borderRadius: '8px', backgroundColor: 'rgba(184,53,53,0.06)', border: '1px solid rgba(184,53,53,0.25)', marginBottom: '4px' }}>
+                      <p style={{ fontSize: '11px', fontWeight: 700, color: '#b83535', marginBottom: '2px' }}>
+                        {overdue.length} parcela{overdue.length !== 1 ? 's' : ''} em atraso
+                      </p>
+                      {overdue.slice(0, 2).map((p) => (
+                        <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
+                          <span style={{ fontSize: '10px', color: '#b83535' }}>#{p.installment_no} · {fmtDate(p.due_date)}</span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <span style={{ fontSize: '11px', fontWeight: 700, color: '#b83535' }}>{fmtBRL(p.amount)}</span>
+                            <button type="button" onClick={() => payInstallment(p.id)}
+                              style={{ fontSize: '9px', fontWeight: 700, color: '#fff', backgroundColor: '#2c5545', border: 'none', borderRadius: '4px', padding: '2px 6px', cursor: 'pointer' }}>
+                              Pago
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {pending.length > 0 && overdue.length === 0 && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', borderRadius: '8px', backgroundColor: inputBg, border: `1px solid ${border}` }}>
+                      <div>
+                        <p style={{ fontSize: '11px', fontWeight: 600, color: text }}>Próxima parcela</p>
+                        <p style={{ fontSize: '10px', color: muted, marginTop: '1px' }}>
+                          #{pending[0].installment_no} · {fmtDate(pending[0].due_date)}
+                        </p>
+                      </div>
+                      <span style={{ fontSize: '12px', fontWeight: 700, color: '#a88030' }}>{fmtBRL(pending[0].amount)}</span>
+                    </div>
+                  )}
+                  {paid.length > 0 && (
+                    <p style={{ fontSize: '10px', color: muted, marginTop: '6px' }}>
+                      {paid.length} parcela{paid.length !== 1 ? 's' : ''} paga{paid.length !== 1 ? 's' : ''} · {fmtBRL(paid.reduce((s, p) => s + p.amount, 0))} recebido
+                    </p>
+                  )}
+                </>
+              )
+            })()}
 
             {/* Próxima atividade — auto-derivada das tarefas pendentes */}
             {(() => {

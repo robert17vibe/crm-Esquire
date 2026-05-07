@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { NavLink } from 'react-router-dom'
 import {
-  LayoutDashboard, Kanban, Users, CalendarDays,
+  LayoutDashboard, Kanban, CalendarDays,
   CheckSquare, Settings, LogOut, Users2, Shield, Mail,
   Megaphone, GitFork, ChevronLeft, ChevronRight,
   CreditCard, TrendingUp,
@@ -22,7 +22,6 @@ function hashColor(name: string): string {
 const NAV_ITEMS = [
   { to: '/dashboard',  label: 'Dashboard',   icon: LayoutDashboard },
   { to: '/pipeline',   label: 'Jornada',     icon: Kanban          },
-  { to: '/clients',    label: 'Clientes',    icon: Users           },
   { to: '/tarefas',    label: 'Tarefas',     icon: CheckSquare     },
   { to: '/calendar',   label: 'Calendário',  icon: CalendarDays    },
   { to: '/email',      label: 'Email',       icon: Mail            },

@@ -22,6 +22,7 @@ interface ProposalStore {
 
   hasProposal: (dealId: string) => boolean
   getByDeal:   (dealId: string) => Proposal[]
+  invalidate:  (dealId: string) => void
 }
 
 export const useProposalStore = create<ProposalStore>((set, get) => ({
@@ -74,9 +75,11 @@ export const useProposalStore = create<ProposalStore>((set, get) => ({
       }))
       return proposal
     } catch (err) {
-      const isTableMissing = (err as { code?: string })?.code === '42P01'
+      const e = err as { code?: string; message?: string }
+      const isTableMissing = e?.code === '42P01'
+      const detail = e?.message ? ` (${e.code}: ${e.message})` : ''
       useToastStore.getState().addToast(
-        isTableMissing ? 'Migration pendente — aplica 20260505155431_proposals.sql no Supabase' : 'Erro ao guardar proposta',
+        isTableMissing ? 'Migration pendente — aplica 20260505155431_proposals.sql no Supabase' : `Erro ao guardar proposta${detail}`,
         'error',
       )
       throw err
@@ -114,4 +117,9 @@ export const useProposalStore = create<ProposalStore>((set, get) => ({
 
   hasProposal: (dealId) => (get().byDeal[dealId]?.length ?? 0) > 0,
   getByDeal:   (dealId) => get().byDeal[dealId] ?? [],
+
+  invalidate: (dealId) => {
+    const { [dealId]: _, ...rest } = get().byDeal
+    set({ byDeal: rest })
+  },
 }))

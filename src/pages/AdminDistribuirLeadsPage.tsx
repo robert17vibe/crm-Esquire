@@ -37,8 +37,8 @@ function WorkloadCard({ owner, count, selected, onSelect, isDark }: {
   owner: Owner; count: number; selected: boolean; onSelect: () => void; isDark: boolean
 }) {
   const [hovered, setHovered] = useState(false)
-  const textColor   = isDark ? 'rgba(255,255,255,0.90)' : '#1a1a18'
-  const mutedColor  = isDark ? 'rgba(255,255,255,0.40)' : '#8a857d'
+  const textColor   = isDark ? '#e8e4dc' : '#1a1a18'
+  const mutedColor  = isDark ? '#6b6560' : '#8a857d'
   return (
     <button
       type="button"
@@ -221,8 +221,8 @@ export function AdminDistribuirLeadsPage() {
   const bg      = isDark ? '#0d0c0a' : '#f5f4f0'
   const card    = isDark ? '#111110' : '#ffffff'
   const border  = isDark ? 'rgba(255,255,255,0.08)' : '#eaecf0'
-  const text    = isDark ? 'rgba(255,255,255,0.90)' : '#1a1a18'
-  const muted   = isDark ? 'rgba(255,255,255,0.40)' : '#8a857d'
+  const text    = isDark ? '#e8e4dc' : '#1a1a18'
+  const muted   = isDark ? '#6b6560' : '#8a857d'
   const hoverBg = isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)'
 
   const [unassigned, setUnassigned]     = useState<UnassignedDeal[]>([])

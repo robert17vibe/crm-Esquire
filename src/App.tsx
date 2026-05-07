@@ -29,6 +29,7 @@ const SettingsPage     = lazy(() => import('@/pages/SettingsPage').then((m) => (
 const DealDetailPage   = lazy(() => import('@/pages/DealDetailPage').then((m) => ({ default: m.DealDetailPage })))
 const TeamsPage        = lazy(() => import('@/pages/TeamsPage').then((m) => ({ default: m.TeamsPage })))
 const TasksPage        = lazy(() => import('@/pages/TasksPage').then((m) => ({ default: m.TasksPage })))
+const AtividadesPage   = lazy(() => import('@/pages/AtividadesPage').then((m) => ({ default: m.AtividadesPage })))
 const AdminUsersPage          = lazy(() => import('@/pages/AdminUsersPage').then((m) => ({ default: m.AdminUsersPage })))
 const AdminNotificationsPage  = lazy(() => import('@/pages/AdminNotificationsPage').then((m) => ({ default: m.AdminNotificationsPage })))
 const AdminDistribuirLeadsPage = lazy(() => import('@/pages/AdminDistribuirLeadsPage').then((m) => ({ default: m.AdminDistribuirLeadsPage })))
@@ -41,6 +42,7 @@ const EmailPage          = lazy(() => import('@/pages/EmailPage').then((m) => ({
 const PropostasPage          = lazy(() => import('@/pages/PropostasPage').then((m) => ({ default: m.PropostasPage })))
 const ClientRenovacaoPage    = lazy(() => import('@/pages/ClientRenovacaoPage').then((m) => ({ default: m.ClientRenovacaoPage })))
 const PerformancePage        = lazy(() => import('@/pages/PerformancePage').then((m) => ({ default: m.PerformancePage })))
+const AssinaturaPage         = lazy(() => import('@/pages/AssinaturaPage').then((m) => ({ default: m.AssinaturaPage })))
 const AppLayout          = lazy(() => import('@/components/layout/AppLayout').then((m) => ({ default: m.AppLayout })))
 
 export default function App() {
@@ -92,6 +94,7 @@ export default function App() {
       <Route path="/forgot-password"  element={<ForgotPasswordPage />} />
       <Route path="/reset-password"   element={<ResetPasswordPage />} />
       <Route path="/performance"       element={session ? <PerformancePage /> : <Navigate to="/login" replace />} />
+      <Route path="/assinar/:token"   element={<AssinaturaPage />} />
       <Route
         element={session ? <AppLayout /> : <Navigate to="/login" replace />}
       >
@@ -105,7 +108,7 @@ export default function App() {
         <Route path="/email"      element={<EmailPage />} />
         <Route path="/tarefas"    element={<TasksPage />} />
         <Route path="/relatorios" element={<Navigate to="/dashboard" replace />} />
-        <Route path="/atividades" element={<Navigate to="/calendar" replace />} />
+        <Route path="/atividades" element={<AtividadesPage />} />
         <Route path="/propostas"  element={<PropostasPage />} />
         <Route path="/settings"  element={<SettingsPage />} />
         <Route path="/deal/:id"     element={<DealDetailPage />} />

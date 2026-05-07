@@ -2,7 +2,7 @@ import React, { useMemo, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'motion/react'
 import {
-  TrendingUp, DollarSign, Target, Briefcase, Clock, Award, CheckSquare,
+  TrendingUp, DollarSign, Target, Award, CheckSquare,
   Users, AlertTriangle, ArrowRight, BarChart2, Activity, Settings2,
   X, Calendar, Zap, CheckCircle2, GripVertical, LayoutDashboard,
 } from 'lucide-react'
@@ -27,6 +27,7 @@ import { useTeamStore } from '@/store/useTeamStore'
 import { useOwnerStore } from '@/store/useOwnerStore'
 import { useDealStore } from '@/store/useDealStore'
 import { useVisibleDeals } from '@/hooks/useVisibleDeals'
+import { usePaymentStore } from '@/store/usePaymentStore'
 import { useImpersonationStore } from '@/store/useImpersonationStore'
 import { STAGES } from '@/constants/pipeline'
 import { PageHeader } from '@/components/crm/PageHeader'
@@ -1022,21 +1023,50 @@ function TabBar({ active, onChange, isDark }: { active: string; onChange: (t: st
   )
 }
 
+const PERIOD_OPTIONS: { value: Period; label: string; sub: string }[] = [
+  { value: '30d',  label: '30 dias',   sub: 'Último mês'      },
+  { value: '90d',  label: '90 dias',   sub: 'Último trimestre' },
+  { value: '12m',  label: '12 meses',  sub: 'Último ano'      },
+]
+
 function PeriodSelector({ value, onChange, isDark }: { value: Period; onChange: (p: Period) => void; isDark: boolean }) {
-  const bg = isDark ? '#1c1c1a' : '#f3f4f6'
-  const border = isDark ? 'rgba(255,255,255,0.10)' : '#eaecf0'
+  const activeBg  = isDark ? '#2a2a28' : '#ffffff'
+  const trackBg   = isDark ? '#161614' : '#f3f4f6'
+  const trackBord = isDark ? 'rgba(255,255,255,0.08)' : '#e4e0da'
+  const textActive = isDark ? '#edeae4' : '#101828'
+  const textMuted  = isDark ? '#6b6760' : '#8a857d'
+
   return (
-    <div style={{ display: 'flex', backgroundColor: bg, borderRadius: '8px', padding: '2px', gap: '1px' }}>
-      {(['30d', '90d', '12m'] as Period[]).map((o) => (
-        <button key={o} type="button" onClick={() => onChange(o)} style={{
-          height: '26px', padding: '0 11px', fontSize: '12px', fontWeight: 500,
-          borderRadius: '6px', border: 'none', cursor: 'pointer',
-          backgroundColor: value === o ? (isDark ? '#2a2a28' : '#ffffff') : 'transparent',
-          color: value === o ? (isDark ? '#edeae4' : '#101828') : (isDark ? '#6b6760' : '#667085'),
-          boxShadow: value === o ? (isDark ? 'none' : `0 1px 3px rgba(16,24,40,0.08), 0 0 0 1px ${border}`) : 'none',
-          transition: 'all 0.15s ease',
-        }}>{o}</button>
-      ))}
+    <div style={{
+      display: 'flex', alignItems: 'center',
+      backgroundColor: trackBg,
+      border: `1px solid ${trackBord}`,
+      borderRadius: '9px', padding: '3px', gap: '2px',
+    }}>
+      {PERIOD_OPTIONS.map((opt) => {
+        const isActive = value === opt.value
+        return (
+          <button
+            key={opt.value}
+            type="button"
+            onClick={() => onChange(opt.value)}
+            title={opt.sub}
+            style={{
+              height: '28px', padding: '0 12px',
+              borderRadius: '7px', border: 'none', cursor: 'pointer',
+              backgroundColor: isActive ? activeBg : 'transparent',
+              color: isActive ? textActive : textMuted,
+              fontSize: '12px', fontWeight: isActive ? 600 : 400,
+              letterSpacing: '-0.01em',
+              boxShadow: isActive ? (isDark ? '0 1px 3px rgba(0,0,0,0.4)' : '0 1px 3px rgba(16,24,40,0.10)') : 'none',
+              transition: 'all 0.15s ease',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {opt.label}
+          </button>
+        )
+      })}
     </div>
   )
 }
@@ -1062,6 +1092,10 @@ export function DashboardPage() {
   const teams  = useTeamStore((s) => s.teams)
   const owners = useOwnerStore((s) => s.owners)
   const navigate = useNavigate()
+
+  const financialKPIs  = usePaymentStore((s) => s.kpis)
+  const initPayments   = usePaymentStore((s) => s.initialize)
+  React.useEffect(() => { initPayments() }, [initPayments])
 
   const [tab, setTab]           = useState<'empresa' | 'individual'>('empresa')
   const [period, setPeriod]     = useState<Period>('90d')
@@ -1096,9 +1130,13 @@ export function DashboardPage() {
   const kpis = useMemo(() => {
     const active = filteredDeals.filter((d) => d.stage_id !== 'closed_won' && d.stage_id !== 'closed_lost')
     const won    = filteredDeals.filter((d) => d.stage_id === 'closed_won')
+    const lost   = filteredDeals.filter((d) => d.stage_id === 'closed_lost')
+    const closed = won.length + lost.length
+
     const pipeline = active.reduce((s, d) => s + (d.value ?? 0), 0)
     const revenue  = won.reduce((s, d) => s + (d.value ?? 0), 0)
-    const winRate  = filteredDeals.length > 0 ? (won.length / filteredDeals.length) * 100 : 0
+    const winRate  = closed > 0 ? (won.length / closed) * 100 : 0
+    const lossRate = closed > 0 ? (lost.length / closed) * 100 : 0
     const ticket   = won.length > 0 ? revenue / won.length : 0
     const today    = new Date().toISOString().slice(0, 10)
     const overdue  = tasks.filter((t) => !t.completed_at && !!t.due_date && t.due_date < today).length
@@ -1114,30 +1152,33 @@ export function DashboardPage() {
         }, 0) / wonWithDates.length)
       : 0
 
-    // Month progress
-    const now = new Date()
-    const dayOfMonth = now.getDate()
-    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
-    const monthPct = Math.round((dayOfMonth / daysInMonth) * 100)
+    // Pipeline velocity: (pipeline value × win rate) / cycle time
+    // Represents expected revenue per day from current pipeline
+    const velocity = avgCycleDays > 0 && winRate > 0
+      ? Math.round((pipeline * (winRate / 100)) / avgCycleDays)
+      : 0
 
-    // Monthly revenue (current month only)
-    const thisMonth = now.toISOString().slice(0, 7)
-    const thisMonthRevenue = deals
-      .filter((d) => d.stage_id === 'closed_won' && (d.updated_at ?? d.created_at)?.slice(0, 7) === thisMonth)
-      .reduce((s, d) => s + (d.value ?? 0), 0)
+    // Pipeline coverage: how many times pipeline covers the remaining meta
+    const remainingMeta = Math.max(0, meta - revenue)
+    const coverage = remainingMeta > 0 ? pipeline / remainingMeta : pipeline > 0 ? 99 : 0
 
-    // Meetings this month
-    const monthMeetings = meetings.filter((m) => m.scheduled_at?.slice(0, 7) === thisMonth)
-    // Expected meetings: rough estimate (e.g., target from settings or 1 per active deal per 2 weeks)
-    const expectedMeetings = Math.max(monthMeetings.length, Math.ceil(active.length * 0.3))
+    // Stagnated deals: active deals with no activity for 14+ days
+    const stagnated = active.filter((d) => {
+      const ref = d.last_activity_at ?? d.updated_at ?? d.created_at
+      return (Date.now() - new Date(ref).getTime()) > 14 * 86400000
+    })
 
     return {
-      active: active.length, won: won.length, pipeline, revenue, winRate, ticket,
+      active: active.length, won: won.length, lost: lost.length, closed,
+      pipeline, revenue, winRate, lossRate, ticket,
       overdue, pending, goalPct, total: filteredDeals.length,
-      avgCycleDays, dayOfMonth, daysInMonth, monthPct,
-      thisMonthRevenue, monthMeetings: monthMeetings.length, expectedMeetings,
+      avgCycleDays, velocity, coverage,
+      stagnated: stagnated.length,
+      thisMonthRevenue: revenue,
+      monthMeetings: meetings.filter((m) => m.scheduled_at && m.scheduled_at >= cutoff).length,
+      expectedMeetings: Math.max(1, Math.ceil(active.length * 0.3)),
     }
-  }, [filteredDeals, tasks, settings, deals, meetings])
+  }, [filteredDeals, tasks, settings, meetings, cutoff])
 
   // ── Monthly data ──
   const monthlyData = useMemo(() => {
@@ -1347,12 +1388,70 @@ export function DashboardPage() {
                 switch (id) {
                   case 'kpis': return (
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
-                      <StatCard icon={<Briefcase size={15} />} color="accent" label="Pipeline Ativo" value={fmtBRL(kpis.pipeline)} delta={`${kpis.active} oportunidades`} deltaType="neutral" index={0} sparklineData={spkPipeline} />
-                      <StatCard icon={<Target size={15} />} color="success" label="Receita do Mês" value={fmtBRL(kpis.thisMonthRevenue)} delta={`Meta: ${kpis.goalPct}%`} deltaType={kpis.goalPct >= 100 ? 'positive' : kpis.goalPct >= 70 ? 'neutral' : 'negative'} index={1} sparklineData={spkWon} />
-                      <StatCard icon={<Award size={15} />} color="info" label="Taxa de Conversão" value={fmtPct(kpis.winRate)} delta={kpis.winRate >= 30 ? 'Saudável' : 'A melhorar'} deltaType={kpis.winRate >= 30 ? 'positive' : 'negative'} index={2} />
-                      <StatCard icon={<Clock size={15} />} color="warning" label="Tempo de Ciclo" value={kpis.avgCycleDays > 0 ? `${kpis.avgCycleDays}d` : '—'} delta="média até fechar" deltaType="neutral" index={3} />
-                      <StatCard icon={<Calendar size={15} />} color="neutral" label="Dia do Mês" value={`${kpis.dayOfMonth}/${kpis.daysInMonth}`} delta={`${kpis.monthPct}% do mês`} deltaType={kpis.monthPct > kpis.goalPct ? 'negative' : 'positive'} index={4} />
-                      <StatCard icon={<Users size={15} />} color={kpis.monthMeetings >= kpis.expectedMeetings ? 'success' : 'warning'} label="Reuniões do Mês" value={`${kpis.monthMeetings}/${kpis.expectedMeetings}`} delta={kpis.monthMeetings >= kpis.expectedMeetings ? 'Meta atingida' : 'Abaixo do esperado'} deltaType={kpis.monthMeetings >= kpis.expectedMeetings ? 'positive' : 'negative'} index={5} onClick={() => navigate('/calendar')} />
+                      {/* Receita fechada no período */}
+                      <StatCard icon={<DollarSign size={15} />} color="success"
+                        label={`Receita · ${PERIOD_OPTIONS.find((p) => p.value === period)?.label}`}
+                        value={fmtBRL(kpis.thisMonthRevenue)}
+                        delta={`Meta: ${kpis.goalPct}%`}
+                        deltaType={kpis.goalPct >= 100 ? 'positive' : kpis.goalPct >= 70 ? 'neutral' : 'negative'}
+                        index={0} sparklineData={spkWon} />
+                      {/* Ticket médio por deal ganho */}
+                      <StatCard icon={<TrendingUp size={15} />} color="accent"
+                        label="Ticket Médio"
+                        value={kpis.ticket > 0 ? fmtBRL(kpis.ticket) : '—'}
+                        delta={`${kpis.won} deal${kpis.won !== 1 ? 's' : ''} ganho${kpis.won !== 1 ? 's' : ''}`}
+                        deltaType="neutral"
+                        index={1} sparklineData={spkPipeline} />
+                      {/* Win rate sobre deals fechados (excluindo abertos) */}
+                      <StatCard icon={<Award size={15} />} color={kpis.winRate >= 40 ? 'success' : kpis.winRate >= 25 ? 'info' : 'danger'}
+                        label="Win Rate"
+                        value={kpis.closed > 0 ? fmtPct(kpis.winRate) : '—'}
+                        delta={kpis.closed > 0 ? `${kpis.won}W · ${kpis.lost}L de ${kpis.closed}` : 'Sem fechamentos'}
+                        deltaType={kpis.winRate >= 40 ? 'positive' : kpis.winRate >= 25 ? 'neutral' : 'negative'}
+                        index={2} />
+                      {/* Velocidade do pipeline: receita esperada por dia */}
+                      <StatCard icon={<Zap size={15} />} color={kpis.velocity > 0 ? 'info' : 'neutral'}
+                        label="Velocidade"
+                        value={kpis.velocity > 0 ? `${fmtBRL(kpis.velocity)}/d` : '—'}
+                        delta="receita esperada por dia"
+                        deltaType="neutral"
+                        index={3} />
+                      {/* Cobertura: pipeline ÷ meta restante */}
+                      <StatCard icon={<Target size={15} />} color={kpis.coverage >= 3 ? 'success' : kpis.coverage >= 1.5 ? 'warning' : 'danger'}
+                        label="Cobertura da Meta"
+                        value={kpis.coverage > 0 ? `${kpis.coverage.toFixed(1)}×` : '—'}
+                        delta={kpis.goalPct < 100 ? `faltam ${fmtBRL(Math.max(0, (settings?.quarterlyGoal ?? 0) - kpis.revenue))}` : 'Meta atingida!'}
+                        deltaType={kpis.coverage >= 3 ? 'positive' : kpis.coverage >= 1.5 ? 'neutral' : 'negative'}
+                        index={4} />
+                      {/* Deals estagnados: sem actividade há 14+ dias */}
+                      <StatCard icon={<AlertTriangle size={15} />} color={kpis.stagnated === 0 ? 'success' : kpis.stagnated <= 3 ? 'warning' : 'danger'}
+                        label="Estagnados"
+                        value={String(kpis.stagnated)}
+                        delta={`deals sem actividade 14+ dias`}
+                        deltaType={kpis.stagnated === 0 ? 'positive' : kpis.stagnated <= 3 ? 'neutral' : 'negative'}
+                        index={5} onClick={() => navigate('/pipeline')} />
+
+                      {/* ── Linha 3: KPIs financeiros reais (contratos + pagamentos) ── */}
+                      {(financialKPIs.mrr > 0 || financialKPIs.due30dAmount > 0 || financialKPIs.overdueAmount > 0) && (<>
+                        <StatCard icon={<Activity size={15} />} color="info"
+                          label="MRR"
+                          value={fmtBRL(financialKPIs.mrr)}
+                          delta={`ARR ${fmtBRL(financialKPIs.arr)}`}
+                          deltaType="neutral"
+                          index={6} onClick={() => navigate('/admin/cobranca')} />
+                        <StatCard icon={<DollarSign size={15} />} color={financialKPIs.due30dCount > 0 ? 'warning' : 'neutral'}
+                          label="A Receber (30d)"
+                          value={fmtBRL(financialKPIs.due30dAmount)}
+                          delta={`${financialKPIs.due30dCount} parcela${financialKPIs.due30dCount !== 1 ? 's' : ''}`}
+                          deltaType={financialKPIs.due30dCount > 0 ? 'neutral' : 'positive'}
+                          index={7} onClick={() => navigate('/admin/cobranca')} />
+                        <StatCard icon={<AlertTriangle size={15} />} color={financialKPIs.overdueCount === 0 ? 'success' : 'danger'}
+                          label="Em Atraso"
+                          value={financialKPIs.overdueAmount > 0 ? fmtBRL(financialKPIs.overdueAmount) : '0'}
+                          delta={financialKPIs.overdueCount > 0 ? `${financialKPIs.overdueCount} parcela${financialKPIs.overdueCount !== 1 ? 's' : ''} vencida${financialKPIs.overdueCount !== 1 ? 's' : ''}` : 'Tudo em dia'}
+                          deltaType={financialKPIs.overdueCount === 0 ? 'positive' : 'negative'}
+                          index={8} onClick={() => navigate('/admin/cobranca')} />
+                      </>)}
                     </div>
                   )
                   case 'pipeline_area': return (
@@ -1397,8 +1496,11 @@ export function DashboardPage() {
                   )
                   case 'atencao': return (
                     <Card title="⚡ Atenção Imediata" subtitle={`${urgentDeals.length} deals vencendo`} isDark={isDark}
-                      action={urgentDeals.length > 0 ? <button type="button" onClick={() => navigate('/pipeline')} style={{ fontSize: '12px', color: brand, background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>Ver pipeline <ArrowRight size={12} /></button> : undefined}>
-                      <AtencaoImediata deals={urgentDeals} isDark={isDark} navigate={navigate} />
+                      action={urgentDeals.length > 0 ? <button type="button" onClick={() => navigate('/pipeline')} style={{ fontSize: '12px', color: brand, background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>Ver pipeline <ArrowRight size={12} /></button> : undefined}
+                      noPadding>
+                      <div style={{ maxHeight: '260px', overflowY: 'auto', padding: '12px 18px' }}>
+                        <AtencaoImediata deals={urgentDeals} isDark={isDark} navigate={navigate} />
+                      </div>
                     </Card>
                   )
                   case 'oq_fazer': return (
@@ -1420,9 +1522,10 @@ export function DashboardPage() {
                   )
                   case 'activity': return (
                     <Card title="Atividade Recente" subtitle="Últimas oportunidades" isDark={isDark}
-                      action={<button type="button" onClick={() => navigate('/atividades')} style={{ fontSize: '12px', color: brand, background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>Ver tudo <ArrowRight size={12} /></button>}>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                        {[...deals].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 6).map((deal, i) => {
+                      action={<button type="button" onClick={() => navigate('/atividades')} style={{ fontSize: '12px', color: brand, background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>Ver tudo <ArrowRight size={12} /></button>}
+                      noPadding>
+                      <div style={{ maxHeight: '260px', overflowY: 'auto', padding: '8px 8px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                        {[...deals].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 10).map((deal, i) => {
                           const stage = STAGES.find((s) => s.id === deal.stage_id)
                           return (
                             <motion.button key={deal.id} {...motionPresets.listItem(i)} type="button" onClick={() => navigate(`/deal/${deal.id}`)}
@@ -1439,14 +1542,19 @@ export function DashboardPage() {
                     </Card>
                   )
                   case 'grupos': return (
-                    <Card title="🏆 Performance por Grupo" subtitle={`${groupStats.length} grupo${groupStats.length !== 1 ? 's' : ''} · ranking por receita`} isDark={isDark}>
-                      <GruposPerformance groups={groupStats} isDark={isDark} />
+                    <Card title="🏆 Performance por Grupo" subtitle={`${groupStats.length} grupo${groupStats.length !== 1 ? 's' : ''} · ranking por receita`} isDark={isDark} noPadding>
+                      <div style={{ maxHeight: '280px', overflowY: 'auto', padding: '12px 18px' }}>
+                        <GruposPerformance groups={groupStats} isDark={isDark} />
+                      </div>
                     </Card>
                   )
                   case 'renovacao': return (
                     <Card title="🔔 Alertas de Renovação" subtitle={`${renewalDeals.length} vencendo em 60 dias`} isDark={isDark}
-                      action={renewalDeals.length > 0 ? <button type="button" onClick={() => navigate('/pipeline')} style={{ fontSize: '12px', color: brand, background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>Pipeline <ArrowRight size={12} /></button> : undefined}>
-                      <RenovacaoAlert deals={renewalDeals} isDark={isDark} navigate={navigate} />
+                      action={renewalDeals.length > 0 ? <button type="button" onClick={() => navigate('/pipeline')} style={{ fontSize: '12px', color: brand, background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>Pipeline <ArrowRight size={12} /></button> : undefined}
+                      noPadding>
+                      <div style={{ maxHeight: '260px', overflowY: 'auto', padding: '12px 18px' }}>
+                        <RenovacaoAlert deals={renewalDeals} isDark={isDark} navigate={navigate} />
+                      </div>
                     </Card>
                   )
                   case 'heatmap': return (

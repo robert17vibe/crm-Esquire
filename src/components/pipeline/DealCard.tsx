@@ -6,11 +6,12 @@ import { cn } from '@/lib/utils'
 import { useThemeStore } from '@/store/useThemeStore'
 import { useNotificationStore } from '@/store/useNotificationStore'
 import { useTaskStore } from '@/store/useTaskStore'
-import { CheckSquare, Clock, FileText, Tag } from 'lucide-react'
+import { CheckSquare, Clock, FileText, Tag, AlertCircle } from 'lucide-react'
 import { getStageColor, STAGES, type StageId } from '@/constants/pipeline'
 import { evaluateDealScore, scoreColor, scoreBg } from '@/lib/dealScore'
 import type { Deal } from '@/types/deal.types'
 import { useProposalStore } from '@/store/useProposalStore'
+import { usePaymentStore } from '@/store/usePaymentStore'
 
 
 interface DealCardProps {
@@ -67,6 +68,12 @@ export function DealCard({ deal, isOverlay = false, dimmed = false, showScore = 
     ...proposalCtx,
   }) : null
   const tagCount = (deal.tags ?? []).length
+  const hasOverduePayment = usePaymentStore((s) =>
+    isWon && s.payments.some((p) => p.deal_id === deal.id && p.status === 'overdue')
+  )
+  const wonContract = usePaymentStore((s) =>
+    isWon ? s.contracts.find((c) => c.deal_id === deal.id) : undefined
+  )
 
 
   const cardBg = isWon  ? (isDark ? '#0d2318' : '#f0faf4')
@@ -208,6 +215,41 @@ export function DealCard({ deal, isOverlay = false, dimmed = false, showScore = 
               <span style={{ fontSize: '10px', color: '#a88030', fontWeight: 600 }}>Sem proposta</span>
             )
           )}
+
+          {/* badge parcela vencida */}
+          {hasOverduePayment && (
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', gap: '3px',
+              fontSize: '9px', fontWeight: 700, color: '#b83535',
+              backgroundColor: 'rgba(184,53,53,0.12)', borderRadius: '999px',
+              padding: '2px 6px',
+            }}>
+              <AlertCircle size={9} />
+              Pagamento vencido
+            </span>
+          )}
+
+          {/* badges de progresso pós-venda (closed_won) */}
+          {isWon && wonContract && !hasOverduePayment && (() => {
+            const ds = wonContract.delivery_status
+            const ss = wonContract.signing_status
+            if (ds === 'delivered') return (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '9px', fontWeight: 700, color: '#2c5545', backgroundColor: 'rgba(44,85,69,0.12)', borderRadius: '999px', padding: '2px 6px' }}>
+                ✓ Entregue
+              </span>
+            )
+            if (ds === 'in_progress') return (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '9px', fontWeight: 600, color: '#a88030', backgroundColor: 'rgba(168,128,48,0.12)', borderRadius: '999px', padding: '2px 6px' }}>
+                Em entrega
+              </span>
+            )
+            if (ss === 'unsigned') return (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '9px', fontWeight: 600, color: '#6b6560', backgroundColor: 'rgba(107,101,96,0.10)', borderRadius: '999px', padding: '2px 6px' }}>
+                Sem assinatura
+              </span>
+            )
+            return null
+          })()}
 
           {/* meta icons */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: 'auto' }}>

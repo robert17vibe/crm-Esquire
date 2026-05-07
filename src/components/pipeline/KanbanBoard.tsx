@@ -21,7 +21,6 @@ import { StageColumn } from './StageColumn'
 import { DealCard } from './DealCard'
 import { LossReasonModal } from './LossReasonModal'
 import type { Deal, GroupedDeals } from '@/types/deal.types'
-import { useProposalStore } from '@/store/useProposalStore'
 
 interface KanbanBoardProps {
   initialDeals: Deal[]
@@ -55,44 +54,6 @@ function findContainerId(grouped: GroupedDeals, id: UniqueIdentifier): StageId |
   return undefined
 }
 
-function NoProposalModal({ onClose }: { onClose: () => void }) {
-  return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 9999,
-      backgroundColor: 'rgba(0,0,0,0.55)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-    }}>
-      <div style={{
-        backgroundColor: '#fff', borderRadius: '14px',
-        padding: '28px 32px', maxWidth: '380px', width: '90%',
-        boxShadow: '0 24px 64px rgba(0,0,0,0.18)',
-        display: 'flex', flexDirection: 'column', gap: '12px',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{ width: '36px', height: '36px', borderRadius: '10px', backgroundColor: '#fef3c7', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <span style={{ fontSize: '18px' }}>⚠️</span>
-          </div>
-          <div>
-            <p style={{ fontSize: '14px', fontWeight: 700, color: '#1a1814', margin: 0 }}>Sem proposta criada</p>
-            <p style={{ fontSize: '12px', color: '#8a857d', margin: 0, marginTop: '2px' }}>Não é possível marcar como Ganho</p>
-          </div>
-        </div>
-        <p style={{ fontSize: '13px', color: '#475467', lineHeight: 1.6, margin: 0 }}>
-          Para fechar um negócio como <strong>Ganho</strong>, é necessário ter pelo menos uma proposta comercial registrada. Crie a proposta na aba <em>Propostas</em> do lead e tente novamente.
-        </p>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '4px' }}>
-          <button type="button" onClick={onClose} style={{
-            height: '36px', padding: '0 20px', borderRadius: '8px',
-            backgroundColor: '#6b1212', color: '#fff',
-            border: 'none', fontSize: '13px', fontWeight: 600, cursor: 'pointer',
-          }}>
-            Entendido — reverter
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
 
 export function KanbanBoard({
   initialDeals,
@@ -113,7 +74,6 @@ export function KanbanBoard({
   const [grouped, setGrouped] = useState<GroupedDeals>(() => groupByStage(initialDeals))
   const [activeId, setActiveId] = useState<string | null>(null)
   const [pendingLossMove, setPendingLossMove] = useState<{ dealId: string; fromStage: StageId } | null>(null)
-  const [pendingWonBlock, setPendingWonBlock] = useState<{ dealId: string; fromStage: StageId } | null>(null)
   const consumedNewRef = useRef<string | null>(null)
   const consumedUpdatedRef = useRef<string | null>(null)
   const groupedRef = useRef(grouped)
@@ -166,24 +126,6 @@ export function KanbanBoard({
     ? Object.values(grouped).flat().find((d) => d.id === activeId)
     : null
 
-  // ── Proposal check ───────────────────────────────────────────────────────
-  const proposalHas = useProposalStore((s) => s.hasProposal)
-  function hasProposal(dealId: string): boolean {
-    return proposalHas(dealId)
-  }
-
-  function revertFromWon(dealId: string, fromStage: StageId) {
-    setGrouped((prev) => {
-      const deal = prev['closed_won'].find((d) => d.id === dealId)
-      if (!deal) return prev
-      return {
-        ...prev,
-        closed_won: prev['closed_won'].filter((d) => d.id !== dealId),
-        [fromStage]: [{ ...deal, stage_id: fromStage }, ...prev[fromStage]],
-      }
-    })
-    setPendingWonBlock(null)
-  }
 
   // ── Loss reason modal handlers ────────────────────────────────────────────
 
@@ -281,8 +223,6 @@ export function KanbanBoard({
       })
       if (targetStage === 'closed_lost') {
         setPendingLossMove({ dealId: aId, fromStage: startStage! })
-      } else if (targetStage === 'closed_won' && !hasProposal(aId)) {
-        setPendingWonBlock({ dealId: aId, fromStage: startStage! })
       } else {
         onStageChange?.(aId, targetStage)
       }
@@ -293,8 +233,6 @@ export function KanbanBoard({
     if (startStage && currentStage && startStage !== currentStage) {
       if (currentStage === 'closed_lost') {
         setPendingLossMove({ dealId: aId, fromStage: startStage })
-      } else if (currentStage === 'closed_won' && !hasProposal(aId)) {
-        setPendingWonBlock({ dealId: aId, fromStage: startStage })
       } else {
         onStageChange?.(aId, currentStage)
       }
@@ -354,11 +292,7 @@ export function KanbanBoard({
       }
     })
 
-    if (targetStage === 'closed_won' && !hasProposal(dealId)) {
-      setPendingWonBlock({ dealId, fromStage })
-    } else {
-      onStageChange?.(dealId, targetStage)
-    }
+    onStageChange?.(dealId, targetStage)
   }, [onStageChange])
 
 
@@ -411,11 +345,6 @@ export function KanbanBoard({
         />
       )}
 
-      {pendingWonBlock && (
-        <NoProposalModal
-          onClose={() => revertFromWon(pendingWonBlock.dealId, pendingWonBlock.fromStage)}
-        />
-      )}
     </>
   )
 }

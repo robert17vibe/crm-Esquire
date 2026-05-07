@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-export type NotificationType = 'new_deal' | 'overdue_activity' | 'sla_breach' | 'meeting_invite'
+export type NotificationType = 'new_deal' | 'overdue_activity' | 'sla_breach' | 'meeting_invite' | 'payment_received'
 
 export interface AppNotification {
   id: string
