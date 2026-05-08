@@ -1,16 +1,17 @@
-import { useMemo, useState, useEffect } from 'react'
+import { useMemo, useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { FileText, Search, TrendingUp, X, Zap, LayoutGrid, Users, RefreshCcw } from 'lucide-react'
+import { FileText, Search, TrendingUp, X, Zap, LayoutGrid, Users, RefreshCcw, Copy, ExternalLink } from 'lucide-react'
 import { useThemeStore } from '@/store/useThemeStore'
 import { useVisibleDeals } from '@/hooks/useVisibleDeals'
 import { useProposalStore } from '@/store/useProposalStore'
+import { usePaymentStore } from '@/store/usePaymentStore'
 import { STAGES } from '@/constants/pipeline'
 import { supabase } from '@/lib/supabase'
 function fmt(v: number) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', notation: 'compact', maximumFractionDigits: 1 }).format(v)
 }
 function fmtFull(v: number) {
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(v)
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v)
 }
 function dateLabel(iso?: string | null) {
   if (!iso) return '—'
@@ -324,6 +325,37 @@ export function PropostasPage() {
   const [dateFrom, setDateFrom]       = useState('')
   const [dateTo, setDateTo]           = useState('')
   const [realtimePulse, setRealtimePulse] = useState(false)
+  const [copiedId, setCopiedId] = useState<string | null>(null)
+
+  // Guardar "propostas" como view activa para o botão voltar funcionar
+  useEffect(() => { localStorage.setItem('esq_pipeline_view', 'propostas') }, [])
+
+  const markProposalSent = useCallback(async (proposalId: string) => {
+    await supabase.from('proposals').update({ status: 'sent' }).eq('id', proposalId).eq('status', 'draft')
+    // Actualizar store local
+    useProposalStore.setState(s => {
+      const byDeal = { ...s.byDeal }
+      for (const dealId of Object.keys(byDeal)) {
+        byDeal[dealId] = (byDeal[dealId] ?? []).map(p =>
+          p.id === proposalId && p.status === 'draft' ? { ...p, status: 'sent' as const } : p
+        )
+      }
+      return { byDeal }
+    })
+  }, [])
+
+  const getContractToken = useCallback(async (proposalId: string, dealId: string): Promise<string | null> => {
+    const { data: byProposal } = await supabase
+      .from('contracts').select('signing_token')
+      .eq('proposal_id', proposalId).neq('status', 'cancelled')
+      .order('created_at', { ascending: false }).limit(1).maybeSingle()
+    if (byProposal?.signing_token) return byProposal.signing_token
+    const { data: byDeal } = await supabase
+      .from('contracts').select('signing_token')
+      .eq('deal_id', dealId).eq('status', 'active')
+      .order('created_at', { ascending: false }).limit(1).maybeSingle()
+    return byDeal?.signing_token ?? null
+  }, [])
 
   const border   = isDark ? '#242422' : '#eaecf0'
   const text     = isDark ? '#e8e4dc' : '#101828'
@@ -334,7 +366,9 @@ export function PropostasPage() {
   const inputBg  = isDark ? '#111111' : '#f3f4f6'
 
   const { byDeal, loadForDeals } = useProposalStore()
+  const contracts = usePaymentStore((s) => s.contracts)
 
+  useEffect(() => { usePaymentStore.getState().initialize() }, [])
 
   // ── Realtime subscription ──────────────────────────────────────────────────
   useEffect(() => {
@@ -370,6 +404,10 @@ export function PropostasPage() {
       const list = byDeal[deal.id] ?? []
       const stage = STAGES.find((s) => s.id === deal.stage_id)
 
+      // Contrato activo mais recente deste deal (valor exacto do DB)
+      const dealContracts = contracts.filter((c) => c.deal_id === deal.id)
+      const activeContract = dealContracts.find((c) => c.status === 'active') ?? dealContracts[0]
+
       // Proposta mais recente = actual; restantes = histórico
       const latestId = list.length > 0
         ? list.reduce((a, b) =>
@@ -378,8 +416,16 @@ export function PropostasPage() {
         : null
 
       list.forEach((p, idx) => {
-        const sub = p.lines.reduce((s, l) => s + l.qty * l.unit_price, 0)
-        const value = sub - sub * ((p.discount_pct ?? 0) / 100)
+        const isLatest = p.id === latestId
+        // Para a proposta mais recente e aceite: usa valor exacto do contrato
+        // Para as restantes: calcula a partir das linhas (podem não ter contrato)
+        let value: number
+        if (isLatest && activeContract && p.status === 'accepted') {
+          value = Number(activeContract.value)
+        } else {
+          const sub = p.lines.reduce((s, l) => s + Number(l.qty) * Number(l.unit_price), 0)
+          value = sub - sub * ((p.discount_pct ?? 0) / 100)
+        }
         rows.push({
           key: `${deal.id}-${idx}`,
           proposalId: p.id,
@@ -393,13 +439,13 @@ export function PropostasPage() {
           stageLabel: stage?.label ?? deal.stage_id,
           value,
           createdAt: p.created_at,
-          isLatest: p.id === latestId,
+          isLatest,
           totalInDeal: list.length,
         })
       })
     }
     return rows
-  }, [deals, byDeal])
+  }, [deals, byDeal, contracts])
 
   const filtered = useMemo(() => {
     let list = proposals
@@ -743,42 +789,96 @@ export function PropostasPage() {
                     <span style={{ fontSize: '11px', color: muted }}>{p.stageLabel}</span>
                   </div>
 
-                  <div style={{ fontSize: '13px', fontWeight: 600, color: p.value > 0 ? '#2c5545' : muted, fontFamily: "'Geist Mono', monospace" }}>
-                    {p.value > 0 ? fmt(p.value) : '—'}
+                  <div>
+                    <div style={{ fontSize: '13px', fontWeight: 600, color: p.value > 0 ? '#2c5545' : muted, fontFamily: "'Geist Mono', monospace" }}>
+                      {p.value > 0 ? fmtFull(p.value) : '—'}
+                    </div>
+                    {/* Badge de status da proposta */}
+                    {(() => {
+                      const s = p.proposalStatus
+                      // Proposta antiga marcada como aceite → Substituída
+                      const isOldAccepted = !p.isLatest && s === 'accepted'
+                      const cfg: Record<string, { label: string; color: string; bg: string }> = {
+                        draft:    { label: 'Novo',      color: '#6b4c8b', bg: 'rgba(107,76,139,0.10)' },
+                        sent:     { label: 'Enviada',   color: '#4d7aa8', bg: 'rgba(77,122,168,0.10)' },
+                        accepted: { label: 'Aceite',    color: '#2c5545', bg: 'rgba(44,85,69,0.10)' },
+                        rejected: { label: 'Rejeitada', color: '#b83535', bg: 'rgba(184,53,53,0.10)' },
+                      }
+                      const c = isOldAccepted
+                        ? { label: 'Substituída', color: '#b83535', bg: 'rgba(184,53,53,0.08)' }
+                        : (cfg[s] ?? cfg.draft)
+                      return (
+                        <span style={{ display: 'inline-block', marginTop: '3px', fontSize: '9px', fontWeight: 700, color: c.color, backgroundColor: c.bg, borderRadius: '4px', padding: '1px 6px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                          {c.label}
+                        </span>
+                      )
+                    })()}
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
                     <span style={{ fontSize: '12px', color: muted }}>{dateLabel(p.createdAt)}</span>
-                    {p.isLatest && (
+                    <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }} onClick={e => e.stopPropagation()}>
+                      {/* Copiar link */}
                       <button
                         type="button"
                         onClick={async (e) => {
                           e.stopPropagation()
-                          const { data } = await supabase
-                            .from('contracts')
-                            .select('signing_token')
-                            .eq('deal_id', p.dealId)
-                            .eq('status', 'active')
-                            .order('created_at', { ascending: false })
-                            .limit(1)
-                            .single()
-                          if (data?.signing_token) {
-                            window.open(`/assinar/${data.signing_token}`, '_blank')
+                          const token = await getContractToken(p.proposalId, p.dealId)
+                          if (token) {
+                            const url = `${window.location.origin}/assinar/${token}`
+                            navigator.clipboard.writeText(url).then(() => {
+                              setCopiedId(p.proposalId)
+                              setTimeout(() => setCopiedId(id => id === p.proposalId ? null : id), 2000)
+                            })
+                            markProposalSent(p.proposalId)
                           } else {
                             alert('Contrato ainda não gerado. Mova o deal para "Fechado Ganho" para criar o contrato.')
                           }
                         }}
+                        title="Copiar link do contrato"
                         style={{
                           display: 'flex', alignItems: 'center', gap: '4px',
-                          height: '24px', padding: '0 10px', borderRadius: '6px',
+                          height: '26px', padding: '0 9px', borderRadius: '6px',
+                          fontSize: '10px', fontWeight: 600, cursor: 'pointer',
+                          border: `1px solid ${copiedId === p.proposalId ? '#2c5545' : border}`,
+                          backgroundColor: copiedId === p.proposalId ? 'rgba(44,85,69,0.10)' : 'transparent',
+                          color: copiedId === p.proposalId ? '#2c5545' : muted,
+                          whiteSpace: 'nowrap', transition: 'all 0.15s',
+                        }}
+                        onMouseEnter={e => { if (copiedId !== p.proposalId) { e.currentTarget.style.borderColor = '#2c5545'; e.currentTarget.style.color = '#2c5545' } }}
+                        onMouseLeave={e => { if (copiedId !== p.proposalId) { e.currentTarget.style.borderColor = border; e.currentTarget.style.color = muted } }}
+                      >
+                        <Copy style={{ width: '10px', height: '10px' }} />
+                        {copiedId === p.proposalId ? 'Copiado!' : 'Link'}
+                      </button>
+                      {/* Ver contrato */}
+                      <button
+                        type="button"
+                        onClick={async (e) => {
+                          e.stopPropagation()
+                          const token = await getContractToken(p.proposalId, p.dealId)
+                          if (token) {
+                            window.open(`/assinar/${token}`, '_blank')
+                            markProposalSent(p.proposalId)
+                          } else {
+                            alert('Contrato ainda não gerado. Mova o deal para "Fechado Ganho" para criar o contrato.')
+                          }
+                        }}
+                        title="Ver contrato"
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: '4px',
+                          height: '26px', padding: '0 9px', borderRadius: '6px',
                           fontSize: '10px', fontWeight: 700, cursor: 'pointer',
-                          border: 'none', backgroundColor: '#2c5545', color: '#fff',
-                          flexShrink: 0, whiteSpace: 'nowrap',
+                          border: 'none',
+                          backgroundColor: p.isLatest ? '#2c5545' : (isDark ? '#1e2a25' : '#e8f0ec'),
+                          color: p.isLatest ? '#fff' : '#2c5545',
+                          whiteSpace: 'nowrap', transition: 'all 0.15s',
                         }}
                       >
-                        ↓ Baixar
+                        <ExternalLink style={{ width: '10px', height: '10px' }} />
+                        Contrato
                       </button>
-                    )}
+                    </div>
                   </div>
                 </button>
               )

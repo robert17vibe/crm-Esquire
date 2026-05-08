@@ -44,9 +44,6 @@ export interface Payment {
   updated_at:     string
 }
 
-export interface PaymentWithContract extends Payment {
-  contract?: Contract
-}
 
 export interface PaymentWithDeal extends Payment {
   contract?: {
