@@ -130,6 +130,22 @@ export const usePaymentStore = create<PaymentState>((set, get) => ({
       .channel('payments-realtime')
       .on(
         'postgres_changes',
+        { event: '*', schema: 'public', table: 'contracts' },
+        (payload) => {
+          const contracts = get().contracts
+          if (payload.eventType === 'INSERT') {
+            set({ contracts: [payload.new as Contract, ...contracts] })
+          } else if (payload.eventType === 'UPDATE') {
+            const updated = payload.new as Contract
+            set({ contracts: contracts.map((c) => c.id === updated.id ? updated : c) })
+          } else if (payload.eventType === 'DELETE') {
+            set({ contracts: contracts.filter((c) => c.id !== (payload.old as Contract).id) })
+          }
+          get().refreshKPIs()
+        },
+      )
+      .on(
+        'postgres_changes',
         { event: '*', schema: 'public', table: 'payments' },
         (payload) => {
           const payments = get().payments
@@ -138,7 +154,6 @@ export const usePaymentStore = create<PaymentState>((set, get) => ({
           } else if (payload.eventType === 'UPDATE') {
             const updated = payload.new as Payment
             set({ payments: payments.map((p) => p.id === updated.id ? updated : p) })
-            // notificação quando fica pago via trigger externo (ex: outro user)
             if (updated.status === 'paid' && updated.paid_at) {
               useNotificationStore.getState().addAlertIfNew(
                 updated.id,
@@ -150,7 +165,6 @@ export const usePaymentStore = create<PaymentState>((set, get) => ({
           } else if (payload.eventType === 'DELETE') {
             set({ payments: payments.filter((p) => p.id !== (payload.old as Payment).id) })
           }
-          // reagregar KPIs após qualquer mudança
           get().refreshKPIs()
         },
       )
@@ -281,7 +295,10 @@ export const usePaymentStore = create<PaymentState>((set, get) => ({
     }
   },
 
-  getContractByDeal:    (dealId) => get().contracts.find((c) => c.deal_id === dealId),
+  getContractByDeal: (dealId) => {
+    const cs = get().contracts.filter((c) => c.deal_id === dealId)
+    return cs.find((c) => c.status === 'active') ?? cs[0]
+  },
   getPaymentsByContract: (contractId) => get().payments.filter((p) => p.contract_id === contractId),
   getPaymentsByDeal:    (dealId) => get().payments.filter((p) => p.deal_id === dealId),
   overduePayments: () => get().payments.filter((p) => p.status === 'overdue'),

@@ -3,27 +3,6 @@ import type { Contract, Payment, PaymentStatus, PaymentWithDeal } from '@/types/
 
 // ─── Contracts ────────────────────────────────────────────────
 
-export async function fetchContractsByDeals(dealIds: string[]): Promise<Contract[]> {
-  if (!dealIds.length) return []
-  const { data, error } = await supabase
-    .from('contracts')
-    .select('*')
-    .in('deal_id', dealIds)
-    .order('created_at', { ascending: false })
-  if (error) throw error
-  return data ?? []
-}
-
-export async function fetchContractsByOwner(ownerId: string): Promise<Contract[]> {
-  const { data, error } = await supabase
-    .from('contracts')
-    .select('*')
-    .eq('owner_id', ownerId)
-    .order('created_at', { ascending: false })
-  if (error) throw error
-  return data ?? []
-}
-
 export async function fetchAllContracts(): Promise<Contract[]> {
   const { data, error } = await supabase
     .from('contracts')
@@ -31,16 +10,6 @@ export async function fetchAllContracts(): Promise<Contract[]> {
     .order('created_at', { ascending: false })
   if (error) throw error
   return data ?? []
-}
-
-export async function upsertContract(contract: Partial<Contract> & { deal_id: string }): Promise<Contract> {
-  const { data, error } = await supabase
-    .from('contracts')
-    .upsert(contract)
-    .select()
-    .single()
-  if (error) throw error
-  return data
 }
 
 export async function patchContract(id: string, patch: Partial<Contract>): Promise<void> {
@@ -74,7 +43,8 @@ export async function regenerateInstallments(
     one_time: 0, monthly: 1, quarterly: 3, yearly: 12,
   }
   const intervalMonths = monthsMap[frequency] ?? 1
-  const perInstallment = Number((contract.value / installments).toFixed(2))
+  const each = Math.floor(contract.value / installments * 100) / 100
+  const last = Math.round((contract.value - each * (installments - 1)) * 100) / 100
   const start = new Date(contract.start_date ?? new Date())
 
   const rows = Array.from({ length: installments }, (_, i) => {
@@ -89,7 +59,7 @@ export async function regenerateInstallments(
       deal_id:        contract.deal_id,
       owner_id:       contract.owner_id ?? null,
       installment_no: i + 1,
-      amount:         perInstallment,
+      amount:         i === installments - 1 ? last : each,
       due_date:       due.toISOString().slice(0, 10),
       status:         'pending' as const,
     }
@@ -114,28 +84,6 @@ export async function setDeliveryStatus(id: string, delivery_status: import('@/t
   if (error) throw error
 }
 
-export async function fetchContractByDeal(dealId: string): Promise<import('@/types/payment.types').Contract | null> {
-  const { data, error } = await supabase
-    .from('contracts')
-    .select('*')
-    .eq('deal_id', dealId)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .single()
-  if (error) return null
-  return data
-}
-
-export async function fetchPaymentsByDeal(dealId: string): Promise<import('@/types/payment.types').Payment[]> {
-  const { data, error } = await supabase
-    .from('payments')
-    .select('*')
-    .eq('deal_id', dealId)
-    .order('installment_no', { ascending: true })
-  if (error) return []
-  return data ?? []
-}
-
 // ─── Payments ─────────────────────────────────────────────────
 
 export async function fetchPaymentsByContracts(contractIds: string[]): Promise<Payment[]> {
@@ -144,25 +92,6 @@ export async function fetchPaymentsByContracts(contractIds: string[]): Promise<P
     .from('payments')
     .select('*')
     .in('contract_id', contractIds)
-    .order('due_date', { ascending: true })
-  if (error) throw error
-  return data ?? []
-}
-
-export async function fetchAllPayments(): Promise<Payment[]> {
-  const { data, error } = await supabase
-    .from('payments')
-    .select('*')
-    .order('due_date', { ascending: true })
-  if (error) throw error
-  return data ?? []
-}
-
-export async function fetchPaymentsByOwner(ownerId: string): Promise<Payment[]> {
-  const { data, error } = await supabase
-    .from('payments')
-    .select('*')
-    .eq('owner_id', ownerId)
     .order('due_date', { ascending: true })
   if (error) throw error
   return data ?? []

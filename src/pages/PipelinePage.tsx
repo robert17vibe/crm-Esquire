@@ -1323,6 +1323,14 @@ export function PipelinePage() {
     const v = localStorage.getItem('esq_pipeline_view') as ViewMode
     return (v === 'clientes' || v === 'renovacao') ? v : 'kanban'
   })
+
+  // Redireciona para /propostas se era a última vista activa
+  useEffect(() => {
+    if (localStorage.getItem('esq_pipeline_view') === 'propostas') {
+      navigate('/propostas', { replace: true })
+    }
+  }, []) // eslint-disable-line
+
   const [pendingNewDeal, setPendingNewDeal]     = useState<Deal | null>(null)
   const [updatedDeal, setUpdatedDeal]           = useState<Deal | null>(null)
 

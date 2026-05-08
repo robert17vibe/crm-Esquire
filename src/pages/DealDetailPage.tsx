@@ -4,7 +4,7 @@ import type { LucideIcon } from 'lucide-react'
 import {
   ArrowLeft, Mail, Phone, Linkedin, Globe,
   Zap, Video, CheckSquare, FileText,
-  Mic, ChevronDown, Plus, X, Pencil,
+  Mic, ChevronDown, Plus, X, Pencil, Copy, ExternalLink,
 } from 'lucide-react'
 import { useDealStore } from '@/store/useDealStore'
 import { useProposalStore } from '@/store/useProposalStore'
@@ -525,50 +525,31 @@ interface SavedProposal {
 
 function buildPaymentTemplate(installments: number, total: number, fmtFn: (v: number) => string): string {
   const f = fmtFn
+  // Parcelas iguais — mesma lógica do contrato (truncar + última absorve diferença)
+  const each = Math.floor(total / installments * 100) / 100
+  const last  = Math.round((total - each * (installments - 1)) * 100) / 100
+
   if (installments === 1) {
     return (
-      `Pagamento à vista: ${f(total)} no ato da assinatura do contrato de veiculação.\n\n` +
+      `Pagamento à vista: ${f(total)} no ato da assinatura do contrato.\n\n` +
       `Formas de pagamento aceitas: PIX, transferência bancária (TED/DOC) ou boleto bancário com vencimento em 3 dias úteis.\n\n` +
-      `A nota fiscal será emitida em até 2 dias úteis após a confirmação do pagamento. ` +
-      `Pagamentos à vista contam com desconto especial já aplicado nesta proposta.`
+      `Nota fiscal emitida em até 2 dias úteis após a confirmação do pagamento.`
     )
   }
-  if (installments === 2) {
-    return (
-      `Pagamento em 2 etapas:\n` +
-      `• 1ª parcela — ${f(total * 0.5)} (50%) na assinatura do contrato\n` +
-      `• 2ª parcela — ${f(total * 0.5)} (50%) na data de publicação do primeiro conteúdo\n\n` +
-      `Formas de pagamento aceitas: PIX, transferência bancária (TED/DOC) ou boleto bancário.\n\n` +
-      `Nota fiscal emitida em cada etapa, em até 2 dias úteis após confirmação do pagamento.`
-    )
-  }
-  if (installments === 3) {
-    return (
-      `Pagamento em 3 etapas:\n` +
-      `• 1ª parcela — ${f(total * 0.4)} (40%) na assinatura do contrato\n` +
-      `• 2ª parcela — ${f(total * 0.3)} (30%) no início da produção dos conteúdos\n` +
-      `• 3ª parcela — ${f(total * 0.3)} (30%) na data de publicação final\n\n` +
-      `Formas de pagamento aceitas: PIX, transferência bancária (TED/DOC) ou boleto bancário.\n\n` +
-      `Nota fiscal emitida em cada etapa, em até 2 dias úteis após confirmação do pagamento.`
-    )
-  }
-  if (installments === 4) {
-    return (
-      `Pagamento em 4 parcelas:\n` +
-      `• 1ª parcela — ${f(total * 0.4)} (40%) na assinatura do contrato\n` +
-      `• 2ª, 3ª e 4ª parcelas — ${f((total * 0.6) / 3)} cada, nas datas de publicação mensais\n\n` +
-      `Formas de pagamento aceitas: PIX, transferência bancária (TED/DOC) ou boleto bancário.\n\n` +
-      `Nota fiscal emitida em cada etapa, em até 2 dias úteis antes do vencimento.`
-    )
-  }
-  const inst = f(total / installments)
+
+  const rows = Array.from({ length: installments }, (_, i) => {
+    const n = i + 1
+    const amt = i === installments - 1 ? last : each
+    const suffix = n === 1 ? ' — vencimento em 7 dias após a assinatura' : ` — vencimento em ${7 + i * 30} dias após a assinatura`
+    return `• ${n}ª parcela — ${f(amt)}${suffix}`
+  }).join('\n')
+
   return (
-    `Pagamento parcelado em ${installments}x de ${inst}:\n\n` +
-    `• Entrada de 40% (${f(total * 0.4)}) na assinatura do contrato\n` +
-    `• ${installments - 1} parcelas mensais de ${f((total * 0.6) / (installments - 1))} nas datas acordadas\n\n` +
+    `Pagamento em ${installments}× de ${f(each)}${last !== each ? ` (última parcela: ${f(last)})` : ''}:\n\n` +
+    `${rows}\n\n` +
     `Formas de pagamento aceitas: PIX, transferência bancária (TED/DOC) ou boleto bancário.\n\n` +
     `Nota fiscal emitida mensalmente, em até 2 dias úteis antes do vencimento de cada parcela.\n` +
-    `Em caso de atraso: multa de 2% + juros de 1% a.m. + correção pelo IPCA.`
+    `Em caso de atraso: multa de 2% + juros de 1% a.m.`
   )
 }
 
@@ -844,6 +825,13 @@ function ProposalTab({ deal, isDark, border, text, muted, inputBg, initialPropos
     if (target) setPreview(dbToSaved(target))
   }, [initialProposalId, dbProposals])
 
+  // Sincronizar preview com o store quando as propostas recarregam
+  useEffect(() => {
+    if (!preview) return
+    const updated = dbProposals.find(p => p.id === preview.id)
+    if (updated) setPreview(dbToSaved(updated))
+  }, [dbProposals]) // eslint-disable-line
+
   const subtotal   = lines.reduce((s, l) => s + l.qty * l.unit_price, 0)
   const discount   = subtotal * (discountPct / 100)
   const total      = subtotal - discount
@@ -868,13 +856,29 @@ function ProposalTab({ deal, isDark, border, text, muted, inputBg, initialPropos
         lines: lines as Proposal['lines'],
         discount_pct: discountPct,
         installments,
-        status: 'sent',
+        status: 'draft',
       })
       localStorage.removeItem(draftKey)
       setPropTitle(''); setIntro(''); setScope(''); setValidity(''); setPayment(''); setTerms('')
       setLines([]); setDiscountPct(0); setInstallments(1)
       setSaved(true); setShowForm(false)
       setTimeout(() => setSaved(false), 2500)
+
+      // O trigger on_proposal_inserted no DB trata automaticamente:
+      // - pausa contrato antigo se deal em closed_won
+      // - cria novo contrato + parcelas
+      // - marca proposta como accepted
+      // Apenas refresca os stores locais após o insert
+      if (deal.stage_id === 'closed_won') {
+        // Pequeno delay para o trigger DB completar e o realtime propagar
+        await new Promise(r => setTimeout(r, 400))
+        await usePaymentStore.getState().refresh()
+        useToastStore.getState().addToast('Contrato gerado com a nova proposta', 'success')
+      }
+
+      // Forçar reload das propostas do DB (limpa cache stale)
+      proposalStore.invalidate(deal.id)
+      proposalStore.loadForDeals([deal.id])
     } catch {
       // erro já mostrado pelo store via toast
     } finally {
@@ -906,7 +910,10 @@ function ProposalTab({ deal, isDark, border, text, muted, inputBg, initialPropos
     const sub = p.lines.reduce((s, l) => s + l.qty * l.unit_price, 0)
     const disc = sub * (p.discountPct / 100)
     const tot = sub - disc
-    const inst = p.installments > 1 ? tot / p.installments : null
+    // Arredondar a 2 casas; última parcela absorve a diferença de centavos
+    const instRaw = p.installments > 1 ? Math.floor(tot / p.installments * 100) / 100 : null
+    const instLast = instRaw !== null ? Math.round((tot - instRaw * (p.installments - 1)) * 100) / 100 : null
+    const inst = instRaw
     return (
       <div style={{ padding: '20px 24px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
@@ -915,10 +922,32 @@ function ProposalTab({ deal, isDark, border, text, muted, inputBg, initialPropos
             ← Voltar
           </button>
           <span style={{ fontSize: '13px', fontWeight: 600, color: text, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.title}</span>
-          <button type="button" onClick={() => window.print()}
-            style={{ fontSize: '11px', fontWeight: 700, padding: '6px 16px', borderRadius: '7px', border: 'none', backgroundColor: '#6b1212', color: '#fff', cursor: 'pointer', flexShrink: 0 }}>
-            Exportar PDF
-          </button>
+          <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+            <button type="button" onClick={() => window.print()}
+              style={{ fontSize: '11px', fontWeight: 700, padding: '6px 14px', borderRadius: '7px', border: `1px solid ${border}`, backgroundColor: 'transparent', color: text, cursor: 'pointer' }}>
+              ↓ Baixar PDF
+            </button>
+            <button type="button"
+              onClick={async () => {
+                // 1. Procura pelo proposal_id específico
+                const { data: byProposal } = await supabase.from('contracts').select('signing_token')
+                  .eq('proposal_id', p.id).neq('status', 'cancelled')
+                  .order('created_at', { ascending: false }).limit(1).maybeSingle()
+                let token = byProposal?.signing_token ?? null
+                // 2. Fallback: contrato active mais recente do deal
+                if (!token) {
+                  const { data: byDeal } = await supabase.from('contracts').select('signing_token')
+                    .eq('deal_id', deal.id).eq('status', 'active')
+                    .order('created_at', { ascending: false }).limit(1).maybeSingle()
+                  token = byDeal?.signing_token ?? null
+                }
+                if (token) window.open(`/assinar/${token}`, '_blank')
+                else alert('Contrato ainda não gerado. Guarda a proposta num deal em "Fechado Ganho" para criar o contrato.')
+              }}
+              style={{ fontSize: '11px', fontWeight: 700, padding: '6px 14px', borderRadius: '7px', border: 'none', backgroundColor: '#2c5545', color: '#fff', cursor: 'pointer' }}>
+              ↓ Baixar contrato
+            </button>
+          </div>
         </div>
 
         {/* Document */}
@@ -1034,7 +1063,14 @@ function ProposalTab({ deal, isDark, border, text, muted, inputBg, initialPropos
                     <p style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#888' }}>Total</p>
                     <p style={{ fontSize: '30px', fontWeight: 700, color: '#0c0c0a', letterSpacing: '-0.03em', fontVariantNumeric: 'tabular-nums' }}>{fmtBRL(tot)}</p>
                   </div>
-                  {inst && <p style={{ fontSize: '12px', color: '#888' }}>{p.installments}× de <strong style={{ color: '#0c0c0a' }}>{fmtBRL(inst)}</strong></p>}
+                  {inst && instLast && (
+                    <p style={{ fontSize: '12px', color: '#888' }}>
+                      {instLast !== inst
+                        ? <>{p.installments - 1}× de <strong style={{ color: '#0c0c0a' }}>{fmtBRL(inst)}</strong> + 1× de <strong style={{ color: '#0c0c0a' }}>{fmtBRL(instLast)}</strong></>
+                        : <>{p.installments}× de <strong style={{ color: '#0c0c0a' }}>{fmtBRL(inst)}</strong></>
+                      }
+                    </p>
+                  )}
                 </div>
               </div>
             )}
@@ -1288,6 +1324,29 @@ function ProposalTab({ deal, isDark, border, text, muted, inputBg, initialPropos
   )
 }
 
+
+function ContractActionButtons({ token, border, muted }: { token: string; border: string; muted: string }) {
+  const [copied, setCopied] = useState(false)
+  return (
+    <div style={{ display: 'flex', gap: '5px', marginBottom: '8px' }}>
+      <button type="button"
+        onClick={() => {
+          const url = `${window.location.origin}/assinar/${token}`
+          navigator.clipboard.writeText(url).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000) })
+        }}
+        style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px', height: '28px', borderRadius: '7px', fontSize: '10px', fontWeight: 600, cursor: 'pointer', border: `1px solid ${copied ? '#2c5545' : border}`, backgroundColor: copied ? 'rgba(44,85,69,0.10)' : 'transparent', color: copied ? '#2c5545' : muted, transition: 'all 0.2s' }}>
+        <Copy style={{ width: '10px', height: '10px' }} />
+        {copied ? 'Copiado!' : 'Copiar link'}
+      </button>
+      <button type="button"
+        onClick={() => window.open(`/assinar/${token}`, '_blank')}
+        style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px', height: '28px', borderRadius: '7px', fontSize: '10px', fontWeight: 700, cursor: 'pointer', border: 'none', backgroundColor: '#2c5545', color: '#fff' }}>
+        <ExternalLink style={{ width: '10px', height: '10px' }} />
+        Ver contrato
+      </button>
+    </div>
+  )
+}
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
@@ -2484,17 +2543,25 @@ export function DealDetailPage() {
                   <div style={{ height: '1px', backgroundColor: border, margin: '6px 0 18px' }} />
                   <p style={{ fontSize: '10px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '10px' }}>Contrato & Pagamentos</p>
                   {contract && (
-                    <div style={{ padding: '10px 12px', borderRadius: '8px', backgroundColor: inputBg, border: `1px solid ${border}`, marginBottom: '8px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                        <span style={{ fontSize: '11px', fontWeight: 600, color: text }}>{fmtBRL(contract.value)}</span>
-                        <span style={{ fontSize: '9px', fontWeight: 700, color: '#2c5545', backgroundColor: 'rgba(44,85,69,0.10)', borderRadius: '999px', padding: '1px 6px' }}>
-                          {contract.status === 'active' ? 'Activo' : contract.status === 'completed' ? 'Concluído' : contract.status}
-                        </span>
+                    <>
+                      <div style={{ padding: '10px 12px', borderRadius: '8px', backgroundColor: inputBg, border: `1px solid ${border}`, marginBottom: '6px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                          <span style={{ fontSize: '11px', fontWeight: 600, color: text }}>{fmtBRL(contract.value)}</span>
+                          <span style={{ fontSize: '9px', fontWeight: 700, color: '#2c5545', backgroundColor: 'rgba(44,85,69,0.10)', borderRadius: '999px', padding: '1px 6px' }}>
+                            {contract.status === 'active' ? 'Activo' : contract.status === 'completed' ? 'Concluído' : contract.status}
+                          </span>
+                        </div>
+                        <p style={{ fontSize: '10px', color: muted }}>
+                          {contract.installments}x · {contract.frequency === 'monthly' ? 'Mensal' : contract.frequency === 'quarterly' ? 'Trimestral' : contract.frequency === 'yearly' ? 'Anual' : 'Único'}
+                        </p>
                       </div>
-                      <p style={{ fontSize: '10px', color: muted }}>
-                        {contract.installments}x · {contract.frequency === 'monthly' ? 'Mensal' : contract.frequency === 'quarterly' ? 'Trimestral' : contract.frequency === 'yearly' ? 'Anual' : 'Único'}
-                      </p>
-                    </div>
+                      {contract.signing_token && (() => {
+                        const token = contract.signing_token
+                        return (
+                          <ContractActionButtons token={token} border={border} muted={muted} />
+                        )
+                      })()}
+                    </>
                   )}
                   {overdue.length > 0 && (
                     <div style={{ padding: '8px 12px', borderRadius: '8px', backgroundColor: 'rgba(184,53,53,0.06)', border: '1px solid rgba(184,53,53,0.25)', marginBottom: '4px' }}>

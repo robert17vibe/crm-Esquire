@@ -71,12 +71,14 @@ export function DealCard({ deal, isOverlay = false, dimmed = false, showScore = 
   const hasOverduePayment = usePaymentStore((s) =>
     isWon && s.payments.some((p) => p.deal_id === deal.id && p.status === 'overdue')
   )
-  const wonContract = usePaymentStore((s) =>
-    isWon ? s.contracts.find((c) => c.deal_id === deal.id) : undefined
-  )
+  const wonContract = usePaymentStore((s) => {
+    if (!isWon) return undefined
+    const cs = s.contracts.filter((c) => c.deal_id === deal.id)
+    return cs.find((c) => c.status === 'active') ?? cs[0]
+  })
 
 
-  const cardBg = isWon  ? (isDark ? '#0d2318' : '#f0faf4')
+  const cardBg = isWon  ? (isDark ? '#0d2318' : '#e8f2ec')
                : isLost ? (isDark ? '#1f0e0e' : '#fdf4f4')
                :          (isDark ? `${stageColor}1f` : `${stageColor}13`)
 
@@ -99,15 +101,15 @@ export function DealCard({ deal, isOverlay = false, dimmed = false, showScore = 
 
   const cardOpacity = isDragging ? 0.2 : dimmed ? 0.15 : isLost ? 0.65 : 1
 
-  // valor da proposta aceite (ou maior proposta) — só para Ganho
-  const proposalValue = (() => {
+  // valor exacto do contrato mais recente activo — sempre consistente com o que o cliente vê
+  const proposalValue = wonContract?.value ?? (() => {
     if (!isWon || !dealProposals.length) return null
-    const accepted = dealProposals.filter((p) => p.status === 'accepted')
-    const source = accepted.length ? accepted : dealProposals
-    return Math.max(...source.map((p) => {
-      const sub = p.lines.reduce((s, l) => s + l.qty * l.unit_price, 0)
-      return sub - sub * ((p.discount_pct ?? 0) / 100)
-    }))
+    const sorted = [...dealProposals].sort((a, b) =>
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    )
+    const p = sorted[0]
+    const sub = p.lines.reduce((s, l) => s + l.qty * l.unit_price, 0)
+    return sub - sub * ((p.discount_pct ?? 0) / 100)
   })()
 
   const cardStyle: React.CSSProperties = {
@@ -209,7 +211,7 @@ export function DealCard({ deal, isOverlay = false, dimmed = false, showScore = 
                 fontSize: '11px', fontWeight: 700, color: '#2c5545',
                 fontFamily: "'Geist Mono', monospace", letterSpacing: '-0.01em',
               }}>
-                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(proposalValue)}
+                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(proposalValue)}
               </span>
             ) : (
               <span style={{ fontSize: '10px', color: '#a88030', fontWeight: 600 }}>Sem proposta</span>

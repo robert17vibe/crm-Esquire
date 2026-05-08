@@ -5,13 +5,12 @@ import {
   CheckCircle, Clock, AlertCircle, Search,
   TrendingUp, ArrowUpRight, X, FileText, DollarSign,
   ChevronRight, CreditCard, PenLine, Package,
-  Truck, PartyPopper, Pen, Download,
+  Truck, PartyPopper, Pen, Download, Copy,
   Calendar, History,
 } from 'lucide-react'
 import { useThemeStore } from '@/store/useThemeStore'
 import { usePaymentStore } from '@/store/usePaymentStore'
-import { fetchAllPaymentsWithDealInfo } from '@/services/payment.service'
-import { supabase } from '@/lib/supabase'
+import { useDealStore } from '@/store/useDealStore'
 import type { PaymentWithDeal, DeliveryStatus, SigningStatus, Contract } from '@/types/payment.types'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -49,63 +48,97 @@ function hashColor(name: string) {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-interface ContractGroup {
-  dealId:        string
-  contractId?:   string
-  companyName:   string
-  contactName:   string | null
-  totalValue:    number
-  installments:  PaymentWithDeal[]
-  paidCount:     number
-  overdueCount:  number
-  pendingCount:  number
-  overallStatus: 'paid' | 'overdue' | 'partial' | 'pending'
-  nextDue:       PaymentWithDeal | null
-  paidValue:     number
-  pendingValue:  number
-  signedAt?:      string | null
-  signingStatus:  SigningStatus
-  createdAt?:     string | null
-  deliveryStatus: DeliveryStatus
-  deliveryNotes?: string | null
-  signingToken?:  string | null
+type EnrichedContract = Contract & {
+  deals?: { company_name?: string | null; contact_name?: string | null } | null
 }
 
-function groupByContract(rows: PaymentWithDeal[], contracts: import('@/types/payment.types').Contract[]): ContractGroup[] {
-  const contractMap = new Map(contracts.map(c => [c.deal_id, c]))
+interface ContractGroup {
+  dealId:           string
+  contractId?:      string
+  companyName:      string
+  contactName:      string | null
+  totalValue:       number
+  installments:     PaymentWithDeal[]
+  paidCount:        number
+  overdueCount:     number
+  pendingCount:     number
+  overallStatus:    'paid' | 'overdue' | 'partial' | 'pending'
+  nextDue:          PaymentWithDeal | null
+  paidValue:        number
+  pendingValue:     number
+  signedAt?:         string | null
+  signingStatus:     SigningStatus
+  createdAt?:        string | null
+  deliveryStatus:    DeliveryStatus
+  deliveryNotes?:    string | null
+  signingToken?:     string | null
+  contractStatus:    import('@/types/payment.types').ContractStatus
+  isCurrentForDeal:  boolean
+}
+
+function groupByContract(rows: PaymentWithDeal[], contracts: EnrichedContract[]): ContractGroup[] {
+  // Agrupar pagamentos por contract_id (não deal_id)
+  const contractById = new Map(contracts.map(c => [c.id, c]))
   const map = new Map<string, PaymentWithDeal[]>()
+
   for (const r of rows) {
-    if (!map.has(r.deal_id)) map.set(r.deal_id, [])
-    map.get(r.deal_id)!.push(r)
+    const key = r.contract_id
+    if (!map.has(key)) map.set(key, [])
+    map.get(key)!.push(r)
   }
-  return Array.from(map.entries()).map(([dealId, installments]) => {
+
+  // Incluir contratos sem pagamentos (ex: one_time ainda não pago)
+  for (const c of contracts) {
+    if (!map.has(c.id)) map.set(c.id, [])
+  }
+
+  // Para cada deal, qual é o contrato mais recente ativo?
+  const latestActiveByDeal = new Map<string, string>()
+  for (const c of contracts) {
+    if (c.status === 'active' || c.status === 'completed') {
+      const existing = latestActiveByDeal.get(c.deal_id)
+      if (!existing) {
+        latestActiveByDeal.set(c.deal_id, c.id)
+      } else {
+        const cur = contractById.get(existing)
+        if (cur && new Date(c.created_at) > new Date(cur.created_at)) {
+          latestActiveByDeal.set(c.deal_id, c.id)
+        }
+      }
+    }
+  }
+
+  return Array.from(map.entries()).map(([contractId, installments]) => {
+    const contract    = contractById.get(contractId)
+    const dealId      = contract?.deal_id ?? installments[0]?.deal_id ?? ''
     const sorted      = [...installments].sort((a, b) => a.installment_no - b.installment_no)
     const paidCount   = sorted.filter(r => r.status === 'paid').length
     const overdueCount = sorted.filter(r => r.status === 'overdue').length
     const pendingCount = sorted.filter(r => r.status === 'pending').length
     const paidValue   = sorted.filter(r => r.status === 'paid').reduce((s, r) => s + r.amount, 0)
     const pendingValue = sorted.filter(r => r.status !== 'paid').reduce((s, r) => s + r.amount, 0)
-    const totalValue  = sorted.reduce((s, r) => s + r.amount, 0)
+    const totalValue  = contract?.value ?? sorted.reduce((s, r) => s + r.amount, 0)
     const nextDue     = sorted.find(r => r.status === 'pending' || r.status === 'overdue') ?? null
     let overallStatus: ContractGroup['overallStatus'] = 'pending'
-    if (paidCount === sorted.length)            overallStatus = 'paid'
-    else if (overdueCount > 0)                  overallStatus = 'overdue'
-    else if (paidCount > 0 && pendingCount > 0) overallStatus = 'partial'
-    const contract = contractMap.get(dealId)
-    const contractId = contract?.id ?? sorted[0].contract_id
+    if (sorted.length > 0 && paidCount === sorted.length) overallStatus = 'paid'
+    else if (overdueCount > 0)                            overallStatus = 'overdue'
+    else if (paidCount > 0 && pendingCount > 0)           overallStatus = 'partial'
+    const companyName = (contract as EnrichedContract)?.deals?.company_name ?? sorted[0]?.deal_company_name ?? '—'
+    const contactName = (contract as EnrichedContract)?.deals?.contact_name ?? sorted[0]?.deal_contact_name ?? null
     return {
       dealId, contractId,
-      companyName: sorted[0].deal_company_name,
-      contactName: sorted[0].deal_contact_name,
+      companyName, contactName,
       totalValue, installments: sorted,
       paidCount, overdueCount, pendingCount,
       overallStatus, nextDue, paidValue, pendingValue,
-      signedAt:       contract?.signed_at,
-      signingStatus:  contract?.signing_status ?? 'unsigned',
-      createdAt:      contract?.created_at,
-      deliveryStatus: contract?.delivery_status ?? 'pending',
-      deliveryNotes:  contract?.delivery_notes,
-      signingToken:   contract?.signing_token,
+      signedAt:         contract?.signed_at,
+      signingStatus:    contract?.signing_status ?? 'unsigned',
+      createdAt:        contract?.created_at,
+      deliveryStatus:   contract?.delivery_status ?? 'pending',
+      deliveryNotes:    contract?.delivery_notes,
+      signingToken:     contract?.signing_token,
+      contractStatus:   contract?.status ?? 'active',
+      isCurrentForDeal: latestActiveByDeal.get(dealId) === contractId,
     }
   })
 }
@@ -166,7 +199,7 @@ function MiniPipeline({ group, isDark }: { group: ContractGroup; isDark: boolean
 type FunnelKey = 'accepted' | 'signed' | 'paying' | 'paid' | 'delivered'
 
 const FUNNEL_STAGES: { key: FunnelKey; label: string; sub: string; color: string; icon: typeof FileText; match: (g: ContractGroup) => boolean }[] = [
-  { key: 'accepted',  label: 'Proposta Aceite',   sub: 'Contrato gerado',        color: '#4d7aa8', icon: FileText,    match: () => true },
+  { key: 'accepted',  label: 'Proposta Aceite',   sub: 'Contrato gerado',        color: '#4d7aa8', icon: FileText,    match: g => g.contractStatus === 'active' || g.contractStatus === 'completed' },
   { key: 'signed',    label: 'Assinado',           sub: 'Contrato assinado',      color: '#6b4c8b', icon: PenLine,     match: g => g.signingStatus === 'signed' },
   { key: 'paying',    label: 'Pagando',            sub: 'Parcelas em andamento',  color: '#a88030', icon: CreditCard,  match: g => g.paidCount > 0 && g.overallStatus !== 'paid' },
   { key: 'paid',      label: 'Pago',               sub: 'Totalmente liquidado',   color: '#2c5545', icon: CheckCircle, match: g => g.overallStatus === 'paid' },
@@ -235,6 +268,24 @@ function ContractFunnel({ groups, isDark, border, text, muted, cardBg, activeKey
         })}
       </div>
     </div>
+  )
+}
+
+// ─── Copy Link Button ─────────────────────────────────────────────────────────
+
+function CopyLinkButton({ signingToken, isDark, border, muted }: { signingToken: string; isDark: boolean; border: string; muted: string }) {
+  const [copied, setCopied] = useState(false)
+  return (
+    <button type="button"
+      onClick={() => {
+        const url = `${window.location.origin}/assinar/${signingToken}`
+        navigator.clipboard.writeText(url).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000) })
+      }}
+      title="Copiar link do contrato"
+      style={{ display: 'flex', alignItems: 'center', gap: '4px', height: '30px', padding: '0 10px', borderRadius: '7px', fontSize: '11px', fontWeight: 600, cursor: 'pointer', border: `1px solid ${copied ? '#2c5545' : border}`, backgroundColor: copied ? 'rgba(44,85,69,0.10)' : (isDark ? '#161614' : '#f7f6f3'), color: copied ? '#2c5545' : muted, whiteSpace: 'nowrap', flexShrink: 0, transition: 'all 0.2s' }}>
+      <Copy style={{ width: '11px', height: '11px' }} />
+      {copied ? 'Copiado!' : 'Link'}
+    </button>
   )
 }
 
@@ -316,13 +367,7 @@ function DetailPanel({
                   <Download style={{ width: '11px', height: '11px' }} /> Baixar contrato
                 </button>
               </>
-            ) : (
-              <button type="button"
-                onClick={() => alert('Recarregue a página para obter o link de assinatura.')}
-                style={{ display: 'flex', alignItems: 'center', gap: '5px', height: '28px', padding: '0 10px', borderRadius: '7px', fontSize: '11px', fontWeight: 600, cursor: 'pointer', border: 'none', backgroundColor: '#2c5545', color: '#fff' }}>
-                <Download style={{ width: '11px', height: '11px' }} /> Baixar contrato
-              </button>
-            )}
+            ) : null}
             <button type="button" onClick={() => navigate(`/deal/${group.dealId}`)}
               style={{ display: 'flex', alignItems: 'center', gap: '5px', height: '28px', padding: '0 12px', borderRadius: '7px', fontSize: '11px', fontWeight: 600, cursor: 'pointer', border: `1px solid ${border}`, backgroundColor: 'transparent', color: muted }}>
               Ver deal <ArrowUpRight style={{ width: '11px', height: '11px' }} />
@@ -608,7 +653,7 @@ type StatusTab = 'all' | 'unsigned' | 'awaiting_payment' | 'overdue' | 'delivere
 
 export function AdminCobrancaPage() {
   const isDark = useThemeStore((s) => s.isDark)
-  const { payInstallment, signContract, setDeliveryStatus } = usePaymentStore()
+  const { payInstallment, signContract, setDeliveryStatus, initialize } = usePaymentStore()
 
   const border   = isDark ? '#242422' : '#e8e4de'
   const text     = isDark ? '#e8e4dc' : '#1a1814'
@@ -618,69 +663,53 @@ export function AdminCobrancaPage() {
   const subtleBg = isDark ? '#161614' : '#faf9f7'
   const inputBg  = isDark ? '#1a1a18' : '#f0ede8'
 
-  const [rows, setRows]                 = useState<PaymentWithDeal[]>([])
-  const [localContracts, setLocalContracts] = useState<Contract[]>([])
-  const [loading, setLoading]           = useState(true)
+  // Fonte única de verdade: store (realtime granular, sem polling)
+  const storeContracts = usePaymentStore((s) => s.contracts)
+  const storePayments  = usePaymentStore((s) => s.payments)
+  const loading        = usePaymentStore((s) => s.loading)
+  const deals          = useDealStore((s) => s.deals)
+
   const [search, setSearch]             = useState('')
   const [paying, setPaying]             = useState<string | null>(null)
   const [signing, setSigning]           = useState(false)
   const [selected, setSelected]         = useState<ContractGroup | null>(null)
   const [statusTab, setStatusTab]       = useState<StatusTab>('all')
   const [funnelKey, setFunnelKey]       = useState<FunnelKey | 'all'>('all')
+  const [showHistory, setShowHistory]   = useState(false)
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo,   setDateTo]   = useState('')
   const dateFromRef = useRef<HTMLInputElement>(null)
   const dateToRef   = useRef<HTMLInputElement>(null)
 
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    initialize()
+  }, [initialize])
 
-  async function load() {
-    setLoading(true)
-    try {
-      type RawContract = Contract & { deals?: { company_name?: string; contact_name?: string | null } | null }
+  // Enriquecer contratos com info do deal (join em memória — sem query extra)
+  const localContracts = useMemo((): EnrichedContract[] => {
+    const dealMap = new Map(deals.map(d => [d.id, d]))
+    return storeContracts.map(c => ({
+      ...c,
+      deals: {
+        company_name: dealMap.get(c.deal_id)?.company_name ?? dealMap.get(c.deal_id)?.title ?? null,
+        contact_name: dealMap.get(c.deal_id)?.contact_name ?? null,
+      },
+    }))
+  }, [storeContracts, deals])
 
-      const { data: allContractsData } = await supabase
-        .from('contracts')
-        .select('*, deals(company_name, contact_name)')
-        .in('status', ['active', 'completed'])
-
-      const allContracts = (allContractsData ?? []) as RawContract[]
-
-      // Por deal_id: eleger o contrato mais recente active/completed
-      const primaryByDeal = new Map<string, RawContract>()
-      for (const c of allContracts) {
-        const key = c.deal_id ?? c.id
-        const cur = primaryByDeal.get(key)
-        if (!cur || new Date(c.created_at) > new Date(cur.created_at)) {
-          primaryByDeal.set(key, c)
-        }
-      }
-
-      const activeContractIds = new Set(
-        Array.from(primaryByDeal.values()).map(c => c.id)
-      )
-
-      setLocalContracts(allContracts.filter(c => activeContractIds.has(c.id)))
-
-      try {
-        const payments = await fetchAllPaymentsWithDealInfo()
-        setRows(payments.filter(p => activeContractIds.has(p.contract_id)))
-      } catch (payErr) {
-        console.error('[AdminCobrança] Erro ao carregar pagamentos:', payErr)
-        setRows([])
-      }
-    } catch (err) {
-      console.error('[AdminCobrança] Erro ao carregar contratos:', err)
-    } finally {
-      setLoading(false)
-    }
-  }
+  // Enriquecer pagamentos com info do deal (join em memória)
+  const rows = useMemo((): PaymentWithDeal[] => {
+    const dealMap = new Map(deals.map(d => [d.id, d]))
+    return storePayments.map(p => ({
+      ...p,
+      deal_company_name: dealMap.get(p.deal_id)?.company_name ?? dealMap.get(p.deal_id)?.title ?? '—',
+      deal_contact_name: dealMap.get(p.deal_id)?.contact_name ?? null,
+    }))
+  }, [storePayments, deals])
 
   const handleMarkPaid = useCallback(async (paymentId: string) => {
     setPaying(paymentId)
     await payInstallment(paymentId)
-    const now = new Date().toISOString()
-    setRows(prev => prev.map(r => r.id === paymentId ? { ...r, status: 'paid', paid_at: now } : r))
     setPaying(null)
   }, [payInstallment])
 
@@ -701,17 +730,29 @@ export function AdminCobrancaPage() {
 
   const groups = useMemo(() => groupByContract(rows, localContracts), [rows, localContracts])
 
+  // Auto-actualizar painel quando o contrato selecionado é pausado/substituído
   useEffect(() => {
     if (!selected) return
-    const updated = groups.find(g => g.dealId === selected.dealId)
-    if (updated) setSelected(updated)
+    const updated = groups.find(g => g.contractId === selected.contractId)
+    if (!updated) { setSelected(null); return }
+    // Se o contrato activo foi substituído por um novo, saltar automaticamente para o novo
+    if (updated.contractStatus === 'paused' || updated.contractStatus === 'cancelled') {
+      const newActive = groups.find(
+        g => g.dealId === updated.dealId &&
+        (g.contractStatus === 'active' || g.contractStatus === 'completed') &&
+        g.contractId !== updated.contractId
+      )
+      if (newActive) { setSelected(newActive); return }
+    }
+    setSelected(updated)
   }, [groups]) // eslint-disable-line
 
-  // KPIs
-  const totalVol     = rows.reduce((s, r) => s + r.amount, 0)
-  const totalPaid    = rows.filter(r => r.status === 'paid').reduce((s, r) => s + r.amount, 0)
-  const totalPending = rows.filter(r => r.status === 'pending').reduce((s, r) => s + r.amount, 0)
-  const totalOverdue = rows.filter(r => r.status === 'overdue').reduce((s, r) => s + r.amount, 0)
+  // KPIs — só contratos activos/completos
+  const activeGroups = useMemo(() => groups.filter(g => g.contractStatus === 'active' || g.contractStatus === 'completed'), [groups])
+  const totalVol     = activeGroups.reduce((s, g) => s + g.totalValue, 0)
+  const totalPaid    = activeGroups.reduce((s, g) => s + g.paidValue, 0)
+  const totalPending = activeGroups.reduce((s, g) => s + g.pendingValue - (g.installments.filter(i => i.status === 'overdue').reduce((a, i) => a + i.amount, 0)), 0)
+  const totalOverdue = activeGroups.reduce((s, g) => s + g.installments.filter(i => i.status === 'overdue').reduce((a, i) => a + i.amount, 0), 0)
 
   // Status tab definitions
   const STATUS_TABS: { key: StatusTab; label: string; match: (g: ContractGroup) => boolean }[] = [
@@ -725,7 +766,12 @@ export function AdminCobrancaPage() {
   const visible = useMemo(() => {
     let list = groups
 
-    // Funnel filter
+    // Se não está em modo histórico, só mostra contratos activos/completos
+    if (!showHistory) {
+      list = list.filter(g => g.contractStatus === 'active' || g.contractStatus === 'completed')
+    }
+
+    // Funnel filter (só faz sentido para contratos activos)
     if (funnelKey !== 'all') {
       const fs = FUNNEL_STAGES.find(s => s.key === funnelKey)
       if (fs) list = list.filter(fs.match)
@@ -735,7 +781,7 @@ export function AdminCobrancaPage() {
     const tabCfg = STATUS_TABS.find(t => t.key === statusTab)
     if (tabCfg && statusTab !== 'all') list = list.filter(tabCfg.match)
 
-    // Date range filter — ignora se invertido (mostra alerta visual mas não filtra)
+    // Date range filter
     const dateInverted = !!(dateFrom && dateTo && dateFrom > dateTo)
     if (!dateInverted) {
       if (dateFrom) {
@@ -754,14 +800,20 @@ export function AdminCobrancaPage() {
       list = list.filter(g => g.companyName.toLowerCase().includes(q) || (g.contactName ?? '').toLowerCase().includes(q))
     }
 
-    return list
-  }, [groups, funnelKey, statusTab, dateFrom, dateTo, search])
+    // Ordenar: activos primeiro, depois por data desc
+    return [...list].sort((a, b) => {
+      const aActive = a.contractStatus === 'active' ? 0 : 1
+      const bActive = b.contractStatus === 'active' ? 0 : 1
+      if (aActive !== bActive) return aActive - bActive
+      return new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime()
+    })
+  }, [groups, showHistory, funnelKey, statusTab, dateFrom, dateTo, search])
 
   const kpis = [
-    { label: 'Total de Vendas',    value: totalVol,     sub: `${groups.length} contrato${groups.length !== 1 ? 's' : ''}`,  color: '#4d7aa8', icon: TrendingUp },
-    { label: 'Receita Confirmada', value: totalPaid,    sub: `${rows.filter(r => r.status === 'paid').length} parcelas pagas`, color: '#2c5545', icon: CheckCircle },
-    { label: 'Pendente Pagamento', value: totalPending, sub: `${rows.filter(r => r.status === 'pending').length} pendentes`,  color: '#a88030', icon: DollarSign },
-    { label: 'Comissões do Mês',   value: totalOverdue, sub: `${rows.filter(r => r.status === 'overdue').length} vencidas`,   color: '#b83535', icon: AlertCircle },
+    { label: 'Total de Vendas',    value: totalVol,     sub: `${activeGroups.length} contrato${activeGroups.length !== 1 ? 's' : ''} activo${activeGroups.length !== 1 ? 's' : ''}`, color: '#4d7aa8', icon: TrendingUp },
+    { label: 'Receita Confirmada', value: totalPaid,    sub: `${activeGroups.reduce((s, g) => s + g.paidCount, 0)} parcelas pagas`, color: '#2c5545', icon: CheckCircle },
+    { label: 'Pendente Pagamento', value: totalPending, sub: `${activeGroups.reduce((s, g) => s + g.pendingCount, 0)} pendentes`, color: '#a88030', icon: DollarSign },
+    { label: 'Em Atraso',          value: totalOverdue, sub: `${activeGroups.reduce((s, g) => s + g.overdueCount, 0)} vencidas`, color: '#b83535', icon: AlertCircle },
   ]
 
   return (
@@ -779,7 +831,13 @@ export function AdminCobrancaPage() {
             <h1 style={{ fontSize: '22px', fontWeight: 700, color: text, letterSpacing: '-0.025em', marginBottom: '3px' }}>Cobrança</h1>
             <p style={{ fontSize: '13px', color: muted }}>Contratos, pagamentos e entregas</p>
           </div>
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}></div>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <button type="button" onClick={() => setShowHistory(h => !h)}
+              style={{ display: 'flex', alignItems: 'center', gap: '6px', height: '34px', padding: '0 16px', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', border: `1px solid ${showHistory ? '#a88030' : border}`, backgroundColor: showHistory ? 'rgba(168,128,48,0.10)' : 'transparent', color: showHistory ? '#a88030' : muted, transition: 'all 0.15s' }}>
+              <History style={{ width: '13px', height: '13px' }} />
+              {showHistory ? 'Ocultar histórico' : 'Ver histórico'}
+            </button>
+          </div>
         </div>
 
         {/* ── KPIs ── */}
@@ -800,7 +858,7 @@ export function AdminCobrancaPage() {
 
         <>
             {/* ── Funnel ── */}
-            <ContractFunnel groups={groups} isDark={isDark} border={border} text={text} muted={muted} cardBg={cardBg} activeKey={funnelKey} onSelect={setFunnelKey} />
+            <ContractFunnel groups={activeGroups} isDark={isDark} border={border} text={text} muted={muted} cardBg={cardBg} activeKey={funnelKey} onSelect={setFunnelKey} />
 
             {/* ── Status Tabs + Month Picker + Search ── */}
             <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '14px', padding: '16px 20px', marginBottom: '16px' }}>
@@ -871,7 +929,7 @@ export function AdminCobrancaPage() {
             <div style={{ backgroundColor: cardBg, border: `1px solid ${border}`, borderRadius: '14px', overflow: 'hidden' }}>
               <div style={{ overflowX: 'auto', minWidth: 0 }}>
               {/* Header */}
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr 180px 120px 130px 120px', alignItems: 'center', padding: '11px 20px', borderBottom: `1px solid ${border}`, backgroundColor: isDark ? '#141412' : '#f5f3ef', minWidth: '680px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '2fr 180px 120px 130px 200px', alignItems: 'center', padding: '11px 20px', borderBottom: `1px solid ${border}`, backgroundColor: isDark ? '#141412' : '#f5f3ef', minWidth: '680px' }}>
                 {['Cliente', 'Status Financeiro', 'Valor Total', 'Data de Venda', 'Acesso'].map(h => (
                   <span key={h} style={{ fontSize: '10px', fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{h}</span>
                 ))}
@@ -892,23 +950,31 @@ export function AdminCobrancaPage() {
                 </div>
               ) : visible.map((group, i) => {
                 const isLast = i === visible.length - 1
-                const isActive = selected?.dealId === group.dealId
+                const isActive = selected?.contractId === group.contractId
                 const avatarColor = hashColor(group.companyName)
+                const isSubstituted = group.contractStatus === 'cancelled' || group.contractStatus === 'paused'
 
                 return (
-                  <div key={group.dealId}
-                    style={{ display: 'grid', gridTemplateColumns: '2fr 180px 120px 130px 120px', alignItems: 'center', padding: '14px 20px', borderBottom: isLast ? 'none' : `1px solid ${border}`, backgroundColor: isActive ? (isDark ? 'rgba(44,85,69,0.06)' : 'rgba(44,85,69,0.04)') : 'transparent', borderLeft: isActive ? '3px solid #2c5545' : '3px solid transparent', transition: 'all 0.12s', cursor: 'default', minWidth: '680px' }}
+                  <div key={group.contractId ?? group.dealId}
+                    style={{ display: 'grid', gridTemplateColumns: '2fr 180px 120px 130px 200px', alignItems: 'center', padding: '14px 20px', borderBottom: isLast ? 'none' : `1px solid ${border}`, backgroundColor: isActive ? (isDark ? 'rgba(44,85,69,0.06)' : 'rgba(44,85,69,0.04)') : isSubstituted ? (isDark ? 'rgba(107,101,96,0.04)' : 'rgba(107,101,96,0.03)') : 'transparent', borderLeft: isActive ? '3px solid #2c5545' : isSubstituted ? `3px solid ${isDark ? '#2a2a28' : '#d4cfc9'}` : '3px solid transparent', transition: 'all 0.12s', cursor: 'default', minWidth: '680px', opacity: isSubstituted ? 0.65 : 1 }}
                     onMouseEnter={e => { if (!isActive) e.currentTarget.style.backgroundColor = subtleBg }}
-                    onMouseLeave={e => { if (!isActive) e.currentTarget.style.backgroundColor = 'transparent' }}>
+                    onMouseLeave={e => { if (!isActive) e.currentTarget.style.backgroundColor = isSubstituted ? (isDark ? 'rgba(107,101,96,0.04)' : 'rgba(107,101,96,0.03)') : 'transparent' }}>
 
                     {/* Cliente */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
-                      <div style={{ width: '38px', height: '38px', borderRadius: '10px', flexShrink: 0, backgroundColor: avatarColor + '18', border: `1px solid ${avatarColor}30`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700, color: avatarColor }}>
+                      <div style={{ width: '38px', height: '38px', borderRadius: '10px', flexShrink: 0, backgroundColor: isSubstituted ? (isDark ? '#1e1e1c' : '#eeebe5') : avatarColor + '18', border: `1px solid ${isSubstituted ? (isDark ? '#2a2a28' : '#d4cfc9') : avatarColor + '30'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700, color: isSubstituted ? muted : avatarColor }}>
                         {initials(group.companyName)}
                       </div>
                       <div style={{ minWidth: 0 }}>
-                        <p style={{ fontSize: '13px', fontWeight: 600, color: text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{group.companyName}</p>
-                        <p style={{ fontSize: '11px', color: muted, marginTop: '1px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{group.contactName ?? group.contractId ? `#${(group.contractId ?? '').slice(0, 8)}` : '—'}</p>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <p style={{ fontSize: '13px', fontWeight: 600, color: isSubstituted ? muted : text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{group.companyName}</p>
+                          {isSubstituted && (
+                            <span style={{ flexShrink: 0, fontSize: '9px', fontWeight: 700, color: '#8a857d', backgroundColor: isDark ? '#1e1e1c' : '#eeebe5', border: `1px solid ${isDark ? '#2a2a28' : '#d4cfc9'}`, borderRadius: '4px', padding: '1px 5px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                              {group.contractStatus === 'cancelled' ? 'Cancelado' : 'Substituído'}
+                            </span>
+                          )}
+                        </div>
+                        <p style={{ fontSize: '11px', color: muted, marginTop: '1px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{group.contactName ?? (group.contractId ? `#${(group.contractId ?? '').slice(0, 8)}` : '—')}</p>
                       </div>
                     </div>
 
@@ -932,13 +998,25 @@ export function AdminCobrancaPage() {
                     </div>
 
                     {/* Acesso */}
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start' }} onClick={e => e.stopPropagation()}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }} onClick={e => e.stopPropagation()}>
+                      {group.signingToken ? (
+                        <>
+                          <CopyLinkButton signingToken={group.signingToken} isDark={isDark} border={border} muted={muted} />
+                          <button type="button"
+                            onClick={() => window.open(`/assinar/${group.signingToken}`, '_blank')}
+                            title="Ver contrato"
+                            style={{ display: 'flex', alignItems: 'center', gap: '4px', height: '30px', padding: '0 10px', borderRadius: '7px', fontSize: '11px', fontWeight: 700, cursor: 'pointer', border: 'none', backgroundColor: '#2c5545', color: '#fff', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                            <Download style={{ width: '11px', height: '11px' }} /> Contrato
+                          </button>
+                        </>
+                      ) : (
+                        <span style={{ fontSize: '10px', color: muted }}>—</span>
+                      )}
                       <button type="button" onClick={() => setSelected(isActive ? null : group)}
-                        style={{ display: 'flex', alignItems: 'center', gap: '5px', height: '30px', padding: '0 14px', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', border: `1px solid ${isActive ? '#2c5545' : border}`, backgroundColor: isActive ? 'rgba(44,85,69,0.10)' : 'transparent', color: isActive ? '#2c5545' : muted, transition: 'all 0.15s', whiteSpace: 'nowrap' }}
+                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '30px', height: '30px', borderRadius: '7px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', border: `1px solid ${isActive ? '#2c5545' : border}`, backgroundColor: isActive ? 'rgba(44,85,69,0.10)' : 'transparent', color: isActive ? '#2c5545' : muted, transition: 'all 0.15s', flexShrink: 0 }}
                         onMouseEnter={e => { if (!isActive) { e.currentTarget.style.borderColor = '#2c5545'; e.currentTarget.style.color = '#2c5545' } }}
                         onMouseLeave={e => { if (!isActive) { e.currentTarget.style.borderColor = border; e.currentTarget.style.color = muted } }}>
-                        {isActive ? 'Fechar' : 'Ver detalhes'}
-                        <ChevronRight style={{ width: '12px', height: '12px' }} />
+                        <ChevronRight style={{ width: '13px', height: '13px' }} />
                       </button>
                     </div>
                   </div>
